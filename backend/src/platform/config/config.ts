@@ -36,6 +36,8 @@ export const envSchema = z.object({
   COOKIE_SECURE: bool.default(false),
   // Google sign-in is off until a client id is configured.
   GOOGLE_CLIENT_ID: z.string().optional(),
+  // Where a company's people sign in. {slug} becomes the company's short name.
+  TENANT_URL_TEMPLATE: z.string().default('http://{slug}.localhost:5173'),
   // Used to build password-reset links.
   WEB_URL: z.string().default('http://localhost:5173'),
 });

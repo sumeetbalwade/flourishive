@@ -12,6 +12,7 @@ import {
   mfaRecoveryVerifyBody,
 } from '@flourishive/schemas';
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -33,6 +34,7 @@ import {
 import { CurrentAuth, Public } from './auth.context.js';
 import type { ClientMeta, IssuedTokens } from './session.service.js';
 import { TokenService, type AccessClaims } from './token.service.js';
+import { slugFromOrigin } from '../company/tenant-host.js';
 import { ZodPipe } from './zod.pipe.js';
 
 const COOKIE = 'fh_refresh';
@@ -45,6 +47,22 @@ export class AuthController {
     private readonly tokens: TokenService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
+
+  /**
+   * A browser on <company>.flourishive.in may only sign in to that company, so a page on one
+   * company's address cannot be used to try another company's accounts. Other origins
+   * (app., native apps, tools) name the company in the request body.
+   */
+  private assertOrigin(req: Request, tenant: string): void {
+    const fromOrigin = slugFromOrigin(
+      this.config.TENANT_URL_TEMPLATE,
+      req.headers.origin,
+    );
+    if (fromOrigin && fromOrigin !== tenant.toLowerCase())
+      throw new BadRequestException(
+        'This sign-in page belongs to a different company',
+      );
+  }
 
   private meta(req: Request): ClientMeta {
     return { ip: req.ip, userAgent: req.headers['user-agent'] };
@@ -101,6 +119,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    this.assertOrigin(req, b.tenant);
     return this.respondLogin(
       req,
       res,
@@ -116,6 +135,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    this.assertOrigin(req, b.tenant);
     return this.respondLogin(
       req,
       res,
@@ -219,6 +239,7 @@ export class AuthController {
     @Body(body(forgotBody)) b: z.infer<typeof forgotBody>,
     @Req() req: Request,
   ) {
+    this.assertOrigin(req, b.tenant);
     await this.auth.forgotPassword(b, this.meta(req));
     return { status: 'accepted' };
   }
@@ -238,6 +259,7 @@ export class AuthController {
     @Body(body(forgotBody)) b: z.infer<typeof forgotBody>,
     @Req() req: Request,
   ) {
+    this.assertOrigin(req, b.tenant);
     await this.auth.startEmailRecovery(b, this.meta(req));
     return { status: 'accepted' };
   }
@@ -249,6 +271,7 @@ export class AuthController {
     @Body(body(recoveryVerifyBody)) b: z.infer<typeof recoveryVerifyBody>,
     @Req() req: Request,
   ) {
+    this.assertOrigin(req, b.tenant);
     return this.auth.verifyEmailRecovery(b, this.meta(req));
   }
 

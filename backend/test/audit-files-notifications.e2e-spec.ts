@@ -338,8 +338,9 @@ describe('notifications', () => {
   it('queued mail is delivered by the worker handler and retried after a failure', async () => {
     const svc = app.get(NotificationsService);
     const registry = app.get(JobHandlerRegistry);
-    const id = await svc.enqueue(t.a, 'auth.invite', 'new@afn.test', {
-      link: 'http://x/#/reset-password?token=abc',
+    const id = await svc.enqueue(t.a, 'general.notice', 'new@afn.test', {
+      subject: 'Hello',
+      text: 'Plain message',
     });
     const status = async () =>
       (await call('get', '/notifications', 'hr')).body.find(

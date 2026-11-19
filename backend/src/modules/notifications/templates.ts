@@ -13,6 +13,11 @@ export const TEMPLATES = {
     subject: 'You have been invited to Flourishive',
     text: `Choose a password to activate your account (link valid for 7 days):\n\n${v.link}`,
   }),
+  /** A plain message with no credentials in it. Safe to queue and to keep on record. */
+  'general.notice': (v: { subject: string; text: string }): RenderedEmail => ({
+    subject: v.subject,
+    text: v.text,
+  }),
 } satisfies Record<string, (vars: never) => RenderedEmail>;
 
 export type NotificationEvent = keyof typeof TEMPLATES;

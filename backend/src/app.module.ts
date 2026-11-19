@@ -7,6 +7,7 @@ import { PlatformAdminModule } from './modules/platform-admin/platform-admin.mod
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { FilesModule } from './modules/files/files.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
+import { CompanyModule } from './modules/company/company.module.js';
 import { AccessModule } from './modules/access/access.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
@@ -27,6 +28,7 @@ import { StorageModule } from './platform/storage/storage.module.js';
     StorageModule,
     MailModule,
     IdentityModule,
+    CompanyModule,
     AccessModule,
     SettingsModule,
     AuditModule,
