@@ -112,6 +112,19 @@ describe('refresh on 401', () => {
     expect(api.isSignedIn()).toBe(false);
   });
 
+  it('restoring a session on page load fails quietly when there is none', async () => {
+    // A visitor opening an emailed reset link has no session; that must not look like an expiry.
+    const f = fake(json(401, { message: 'Missing refresh token' }));
+    const expired = vi.fn();
+    const api = createApiClient({
+      baseUrl: 'http://api.test',
+      fetch: f.fetch,
+      onSessionExpired: expired,
+    });
+    expect(await api.restoreSession()).toBe(false);
+    expect(expired).not.toHaveBeenCalled();
+  });
+
   it('does not try to refresh a failed sign-in', async () => {
     const f = fake(json(401, { message: 'Invalid credentials' }));
     const api = createApiClient({ baseUrl: 'http://api.test', fetch: f.fetch });

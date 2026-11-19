@@ -33,7 +33,7 @@ export function createPlatformClient(opts: Opts) {
 
   return {
     http,
-    restoreSession: () => http.refresh(),
+    restoreSession: () => http.refresh({ silent: true }),
     isSignedIn: () => http.accessToken !== null,
 
     auth: {

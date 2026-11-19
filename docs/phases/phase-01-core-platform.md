@@ -1,6 +1,6 @@
 # Phase 1 — Minimal, tenant-aware core
 
-**Status:** In progress (PR 9 of 10 in review: web screens) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
+**Status:** In progress (PR 10 of 10 in review: admin screens; Phase 1 build complete pending review and the exit checks with real data) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
 
 ## Goal
 
@@ -31,7 +31,7 @@ The smallest platform core that signing needs, built on the final data model: Fl
 ### Frontend
 - [x] `packages/schemas` (shared Zod, used by the API and the clients) and `packages/api-client` (typed fetch client with token refresh; hand-written on the shared schemas instead of generated, because the controllers use Zod pipes and have no DTO classes for an OpenAPI generator to read)
 - [x] **web:** login, MFA setup and challenge, Google sign-in (switches on with `VITE_GOOGLE_CLIENT_ID`), forgot and reset password, app shell, people list and detail, import wizard, organisation, audit log, my security page
-- [ ] **admin:** login with MFA, tenants list and detail, platform users, basic settings editor
+- [x] **admin:** login with forced MFA, tenants (list, create, suspend, per-tenant setting overrides, audit integrity), platform users (invite, disable), platform defaults
 
 ### Quality
 - [~] Cross-tenant test harness: model-level suite done (every scoped model, schema guard); the per-endpoint version arrives with the first endpoints. Every endpoint is called as tenant B against tenant A's data and must fail

@@ -101,8 +101,12 @@ export class Http {
     });
   }
 
-  /** Single-flight refresh. Resolves true when a new access token is in place. */
-  refresh(): Promise<boolean> {
+  /**
+   * Single-flight refresh. Resolves true when a new access token is in place.
+   * `silent` is for the attempt made on page load: having no session yet is normal there,
+   * so it must not trigger onSessionExpired (that would bounce visitors off emailed links).
+   */
+  refresh(o: { silent?: boolean } = {}): Promise<boolean> {
     this.refreshing ??= (async () => {
       try {
         const res = await this.doFetch(`${this.opts.baseUrl}/v1${this.opts.refreshPath}`, {
@@ -127,7 +131,7 @@ export class Http {
       } catch {
         this.token = null;
         this.nativeRefreshToken = null;
-        this.opts.onSessionExpired?.();
+        if (!o.silent) this.opts.onSessionExpired?.();
         return false;
       } finally {
         this.refreshing = null;
