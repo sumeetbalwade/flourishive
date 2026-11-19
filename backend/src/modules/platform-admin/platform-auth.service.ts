@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   UnauthorizedException,
@@ -12,6 +13,7 @@ import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
 import { MfaService, hashRecoveryCode } from '../identity/mfa.service.js';
+import { OtpService } from '../identity/otp.service.js';
 import { PasswordService } from '../identity/password.service.js';
 import { ThrottleService } from '../identity/throttle.service.js';
 import { TokenService, sha256 } from '../identity/token.service.js';
@@ -48,6 +50,7 @@ export class PlatformAuthService {
     private readonly mail: MailService,
     private readonly audit: PlatformAuditService,
     private readonly settings: SettingsService,
+    private readonly otp: OtpService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -144,6 +147,80 @@ export class PlatformAuthService {
     }
     await this.throttle.clear('mfa', key);
     return this.startSession(user.id, meta);
+  }
+
+  /**
+   * Lost authenticator: after the password step, a code emailed to the account lets the person
+   * enrol again. Switched off with platform.superAdminRecoveryEmail.
+   */
+  async startMfaEmailRecovery(mfaToken: string): Promise<void> {
+    const c = await this.tokens.verifyPlatformMfa(mfaToken);
+    if (c.purpose !== 'mfa-verify')
+      throw new UnauthorizedException('Invalid token');
+    const key = `platform:user:${c.platformUserId}`;
+    await this.throttle.assertNotLocked('reset', key);
+    await this.throttle.recordFailure('reset', key);
+    if (!(await this.settings.getPlatform('platform.superAdminRecoveryEmail')))
+      throw new ForbiddenException(
+        'Email recovery is turned off for platform staff',
+      );
+    const user = await this.user(c.platformUserId);
+    if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
+    const code = await this.otp.issue('platform-mfa', user.id, 600);
+    await this.mail.send({
+      to: user.email,
+      subject: `Your Flourishive admin code: ${code}`,
+      text: `Your one-time code is ${code}. It works once and expires in 10 minutes.\n\nIf you did not ask for it, change your password now.`,
+    });
+  }
+
+  async verifyMfaEmailRecovery(
+    input: { mfaToken: string; code: string },
+    meta: { ip?: string },
+  ): Promise<{ status: 'mfa_setup_required'; mfaToken: string }> {
+    const c = await this.tokens.verifyPlatformMfa(input.mfaToken);
+    if (c.purpose !== 'mfa-verify')
+      throw new UnauthorizedException('Invalid token');
+    const key = `platform:user:${c.platformUserId}`;
+    await this.throttle.assertNotLocked('mfa', key);
+    const user = await this.user(c.platformUserId);
+    const ok =
+      !!user &&
+      user.status === 'ACTIVE' &&
+      (await this.settings.getPlatform('platform.superAdminRecoveryEmail')) &&
+      (await this.otp.verify('platform-mfa', user.id, input.code));
+    if (!ok || !user) {
+      await this.throttle.recordFailure('mfa', key);
+      throw new UnauthorizedException('Invalid or expired code');
+    }
+    await this.throttle.clear('mfa', key);
+    await runAsSystem(async () => {
+      await this.db().platformRecoveryCode.deleteMany({
+        where: { userId: user.id },
+      });
+      await this.db().platformUser.update({
+        where: { id: user.id },
+        data: { mfaSecretEnc: null, mfaEnabledAt: null },
+      });
+      await this.db().platformSession.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    });
+    await this.audit.record({
+      actorId: user.id,
+      action: 'platform.mfa_reset_via_email',
+      entityType: 'platform_users',
+      entityId: user.id,
+      ip: meta.ip,
+    });
+    return {
+      status: 'mfa_setup_required',
+      mfaToken: await this.tokens.signPlatformMfa({
+        platformUserId: user.id,
+        purpose: 'mfa-setup',
+      }),
+    };
   }
 
   async beginMfaSetup(mfaToken: string) {

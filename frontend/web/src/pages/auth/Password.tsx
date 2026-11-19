@@ -6,55 +6,156 @@ import { detectHere } from '../../lib/company.ts';
 import { messageOf } from '../../lib/errors.ts';
 import { go } from '../../router.ts';
 
+type Step = 'email' | 'code' | 'password' | 'done';
+
+/** Forgot password: email -> 6-digit code from the inbox -> new password. */
 export function ForgotPassword() {
   const api = useApi();
   const detected = detectHere();
   const [tenant, setTenant] = useState(detected.slug);
   const fixed = detected.source === 'address';
-  const [sent, setSent] = useState(false);
+  const [step, setStep] = useState<Step>('email');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const company = tenant.trim().toLowerCase();
 
-  if (sent) {
+  async function run(work: () => Promise<void>) {
+    setBusy(true);
+    setError('');
+    try {
+      await work();
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (step === 'done')
     return (
       <Frame>
         <Card className="p-8">
-          <h1 className="font-display text-3xl">Check your email</h1>
-          <p className="mt-3 text-sm text-muted">
-            If that address has an account, a link to choose a new password is on its way. It works
-            for one hour.
-          </p>
-          <Button
-            className="mt-6 w-full"
-            size="lg"
-            variant="secondary"
-            onClick={() => go('/login')}
-          >
-            Back to sign in
+          <h1 className="font-display text-3xl">Password saved</h1>
+          <p className="mt-3 text-sm text-muted">You can sign in with your new password now.</p>
+          <Button className="mt-6 w-full" size="lg" onClick={() => go('/login')}>
+            Sign in
           </Button>
         </Card>
       </Frame>
     );
-  }
+
+  if (step === 'password')
+    return (
+      <Frame>
+        <Card className="p-8">
+          <h1 className="font-display text-3xl">Choose a new password</h1>
+          <form
+            className="mt-6 grid gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const d = new FormData(e.currentTarget);
+              const password = String(d.get('password') ?? '');
+              if (password !== String(d.get('confirm') ?? ''))
+                return setError('The two passwords do not match.');
+              void run(async () => {
+                await api.auth.resetPassword(resetToken, password);
+                setStep('done');
+              });
+            }}
+          >
+            <Field
+              label="New password"
+              htmlFor="fp-new"
+              hint="At least 12 characters. A few random words is a good choice."
+            >
+              <Input
+                id="fp-new"
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                autoFocus
+              />
+            </Field>
+            <Field label="Repeat password" htmlFor="fp-new2" error={error}>
+              <Input id="fp-new2" name="confirm" type="password" autoComplete="new-password" />
+            </Field>
+            <Button type="submit" size="lg" disabled={busy}>
+              {busy ? 'Saving…' : 'Save password'}
+            </Button>
+          </form>
+        </Card>
+      </Frame>
+    );
+
+  if (step === 'code')
+    return (
+      <Frame>
+        <Card className="p-8">
+          <h1 className="font-display text-3xl">Enter the code</h1>
+          <p className="mt-2 text-sm text-muted">
+            If <b className="text-fg">{email}</b> has an account, we have emailed it a 6-digit code.
+            It works once and expires soon.
+          </p>
+          <form
+            className="mt-6 grid gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run(async () => {
+                const r = await api.auth.recoveryVerify(company, email, code);
+                setResetToken(r.resetToken);
+                setStep('password');
+              });
+            }}
+          >
+            <Field label="6-digit code" htmlFor="fp-code" error={error}>
+              <Input
+                id="fp-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                autoFocus
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              />
+            </Field>
+            <Button type="submit" size="lg" disabled={busy || code.length !== 6}>
+              {busy ? 'Checking…' : 'Continue'}
+            </Button>
+            <button
+              type="button"
+              className="text-center text-sm text-muted underline"
+              onClick={() => void run(() => api.auth.recoveryStart(company, email))}
+            >
+              Send a new code
+            </button>
+            <p className="text-center text-xs text-faint">
+              Nothing arrived? Your role may not allow email recovery. Ask your administrator.
+            </p>
+          </form>
+        </Card>
+      </Frame>
+    );
+
   return (
     <Frame>
       <Card className="p-8">
         <h1 className="font-display text-3xl">Forgot password</h1>
+        <p className="mt-2 text-sm text-muted">We will email you a 6-digit code.</p>
         <form
           className="mt-6 grid gap-4"
-          onSubmit={async (e) => {
+          onSubmit={(e) => {
             e.preventDefault();
-            const email = String(new FormData(e.currentTarget).get('email') ?? '').trim();
-            if (!tenant.trim() || !email) return setError('Enter your company code and email.');
-            setBusy(true);
-            setError('');
-            try {
-              await api.auth.forgotPassword(tenant.trim().toLowerCase(), email);
-              setSent(true);
-            } catch (err) {
-              setError(messageOf(err));
-              setBusy(false);
-            }
+            const typed = String(new FormData(e.currentTarget).get('email') ?? '').trim();
+            if (!company || !typed) return setError('Enter your company code and email.');
+            void run(async () => {
+              await api.auth.recoveryStart(company, typed);
+              setEmail(typed);
+              setCode('');
+              setStep('code');
+            });
           }}
         >
           {!fixed && (
@@ -72,7 +173,7 @@ export function ForgotPassword() {
             <Input id="f-email" name="email" type="email" autoComplete="username" />
           </Field>
           <Button type="submit" size="lg" disabled={busy}>
-            {busy ? 'Sending…' : 'Send reset link'}
+            {busy ? 'Sending…' : 'Email me a code'}
           </Button>
           <a href="#/login" className="text-center text-sm text-muted underline">
             Back to sign in

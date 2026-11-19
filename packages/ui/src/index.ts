@@ -23,3 +23,11 @@ export { Table, THead, TBody, TR, TH, TD } from './components/table.tsx';
 export { DatePicker } from './components/date-picker.tsx';
 export { ToastProvider, useToast } from './components/toast.tsx';
 export { BarChart, LineChart, chartColors } from './components/chart.tsx';
+export { Switch } from './components/switch.tsx';
+export { Segmented, type SegmentOption } from './components/segmented.tsx';
+export { SettingControl, type SettingKind } from './components/setting-control.tsx';
+export {
+  SettingsEditor,
+  type SettingItem,
+  type SettingChange,
+} from './components/settings-editor.tsx';

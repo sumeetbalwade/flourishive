@@ -13,7 +13,7 @@ import { RequirePermission } from '../access/require-permission.js';
 import { CurrentAuth } from '../identity/auth.context.js';
 import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
-import { SETTINGS } from './registry.js';
+import { SETTINGS, shapeOf, type SettingKey } from './registry.js';
 import { SettingsService } from './settings.service.js';
 
 @Controller('settings')
@@ -30,12 +30,19 @@ export class SettingsController {
         userId: a.userId,
       }),
       locked: await this.settings.lockedKeys(),
+      overridden: await this.settings.tenantOverrideKeys(a.tenantId),
       definitions: Object.fromEntries(
         Object.entries(SETTINGS)
           .filter(([, d]) => d.levels.length > 0)
           .map(([k, d]) => [
             k,
-            { levels: d.levels, description: d.description },
+            {
+              levels: d.levels,
+              description: d.description,
+              label: d.label,
+              group: d.group,
+              ...shapeOf(k as SettingKey),
+            },
           ]),
       ),
     };

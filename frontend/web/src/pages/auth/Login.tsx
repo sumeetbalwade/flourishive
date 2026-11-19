@@ -61,6 +61,7 @@ export function Login() {
       <MfaChallenge
         token={step.token}
         onDone={finish}
+        onReenrol={(t) => setStep({ kind: 'enrol', token: t })}
         onBack={() => setStep({ kind: 'credentials' })}
       />
     );
@@ -202,18 +203,88 @@ export function Login() {
 function MfaChallenge({
   token,
   onDone,
+  onReenrol,
   onBack,
 }: {
   token: string;
   onDone: () => Promise<void>;
+  /** After an emailed code proves it is them: set up a new authenticator with this token. */
+  onReenrol: (setupToken: string) => void;
   onBack: () => void;
 }) {
   const api = useApi();
   const [useRecovery, setUseRecovery] = useState(false);
+  const [byEmail, setByEmail] = useState(false);
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const ready = useRecovery ? code.trim().length >= 8 : code.length === 6;
+
+  async function emailMe() {
+    setBusy(true);
+    setError('');
+    try {
+      await api.auth.mfaRecoveryStart(token);
+      setByEmail(true);
+      setCode('');
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (byEmail)
+    return (
+      <Frame>
+        <Card className="p-8">
+          <h1 className="font-display text-3xl">Check your email</h1>
+          <p className="mt-2 text-sm text-muted">
+            We emailed a 6-digit code to your account. Enter it to remove your old authenticator and
+            set up a new one.
+          </p>
+          <form
+            className="mt-6 grid gap-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setBusy(true);
+              setError('');
+              try {
+                const r = await api.auth.mfaRecoveryVerify(token, code);
+                onReenrol(r.mfaToken);
+              } catch (err) {
+                setError(messageOf(err));
+                setBusy(false);
+              }
+            }}
+          >
+            <Field label="6-digit code" htmlFor="mr-code" error={error}>
+              <Input
+                id="mr-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                autoFocus
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                className="text-center font-mono text-xl tracking-[0.5em]"
+                placeholder="000000"
+              />
+            </Field>
+            <Button type="submit" size="lg" disabled={busy || code.length !== 6}>
+              {busy ? 'Checking…' : 'Verify and set up again'}
+            </Button>
+            <button
+              type="button"
+              className="text-sm text-muted underline"
+              onClick={() => setByEmail(false)}
+            >
+              Back
+            </button>
+          </form>
+        </Card>
+      </Frame>
+    );
 
   return (
     <Frame>
@@ -277,6 +348,14 @@ function MfaChallenge({
             }}
           >
             {useRecovery ? 'Use my authenticator app' : 'Lost your phone? Use a recovery code'}
+          </button>
+          <button
+            type="button"
+            className="text-sm text-muted underline"
+            disabled={busy}
+            onClick={() => void emailMe()}
+          >
+            No phone or codes? Email me a code
           </button>
           <button type="button" className="text-sm text-faint underline" onClick={onBack}>
             Back to sign in

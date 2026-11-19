@@ -1,5 +1,5 @@
 import { ApiError } from '@flourishive/api-client';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import App from './App.tsx';
@@ -165,14 +165,92 @@ describe('staff and defaults', () => {
     expect(await screen.findByText(/set-password\?token=zzz/)).toBeInTheDocument();
   });
 
-  it('changes a platform default', async () => {
+  it('changes a platform default, locks it, and saves them together', async () => {
     const client = signedIn();
     const { user } = open('#/settings', client);
     await screen.findByText('How long a sign-in lasts without activity');
-    await user.click(screen.getAllByRole('button', { name: 'Change' })[0]!);
-    await user.type(await screen.findByLabelText('Value'), '10');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(client.settings.set).toHaveBeenCalledWith('security.sessionDays', { value: 10 });
+    const input = screen.getByLabelText('Stay signed in (days)');
+    await user.clear(input);
+    await user.type(input, '10');
+    await user.click(
+      screen.getByRole('switch', { name: 'Lock Stay signed in (days) for companies' }),
+    );
+    expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(client.settings.set).toHaveBeenCalledWith('security.sessionDays', {
+      value: 10,
+      locked: true,
+    });
+  });
+
+  it('does not offer a lock for platform-only settings, and can discard', async () => {
+    const client = signedIn();
+    const { user } = open('#/settings', client);
+    await screen.findByText('How long a sign-in lasts without activity');
+    await user.click(screen.getByRole('tab', { name: 'Platform' }));
+    expect(screen.queryByRole('switch', { name: /Lock/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Security' }));
+    await user.type(screen.getByLabelText('Stay signed in (days)'), '5');
+    await user.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(screen.queryByText(/unsaved/)).not.toBeInTheDocument();
+    expect(client.settings.set).not.toHaveBeenCalled();
+  });
+});
+
+describe('lost authenticator', () => {
+  it('emails a code and moves to setting up a new authenticator', async () => {
+    const client = fakeClient();
+    client.auth.login.mockResolvedValue({ status: 'mfa_required', mfaToken: 'm1' });
+    client.auth.mfaRecoveryVerify.mockResolvedValue({
+      status: 'mfa_setup_required',
+      mfaToken: 's1',
+    });
+    client.auth.mfaSetup.mockResolvedValue({ secret: 'ABCDEF', otpauthUri: 'otpauth://totp/x' });
+    const { user } = open('#/login', client);
+    await user.type(await screen.findByLabelText('Email'), 'super@flourishive.test');
+    await user.type(screen.getByLabelText('Password'), 'a long password');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(await screen.findByRole('button', { name: /Email me a code/ }));
+    expect(client.auth.mfaRecoveryStart).toHaveBeenCalledWith('m1');
+    await user.type(await screen.findByLabelText('6-digit code'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Verify and set up again' }));
+    expect(client.auth.mfaRecoveryVerify).toHaveBeenCalledWith('m1', '123456');
+    await waitFor(() => expect(client.auth.mfaSetup).toHaveBeenCalledWith('s1'));
+  });
+});
+
+describe('security policy', () => {
+  it('sets a role’s default, keeps it above its floor, and warns when staff two-step is off', async () => {
+    const client = signedIn();
+    const { user } = open('#/policy', client);
+    await screen.findByText('HR Lead');
+    // HR Lead's floor is Required, so Off and Optional are not selectable for its default.
+    const group = screen.getByRole('radiogroup', { name: 'Default two-step for HR Lead' });
+    expect(within(group).getByRole('radio', { name: 'Off' })).toBeDisabled();
+    expect(within(group).getByRole('radio', { name: 'Optional' })).toBeDisabled();
+
+    await user.click(
+      within(screen.getByRole('radiogroup', { name: 'Default two-step for Employee' })).getByRole(
+        'radio',
+        {
+          name: 'Required',
+        },
+      ),
+    );
+    expect(client.policies.set).toHaveBeenCalledWith('employee', { mfaLevel: 'REQUIRED' });
+
+    await user.click(screen.getByRole('switch', { name: 'Email recovery for HR Lead' }));
+    expect(client.policies.set).toHaveBeenCalledWith('hr_lead', { recoveryEmail: false });
+
+    await user.click(
+      within(screen.getByRole('radiogroup', { name: 'Two-step for platform staff' })).getByRole(
+        'radio',
+        {
+          name: 'Off',
+        },
+      ),
+    );
+    expect(client.settings.set).toHaveBeenCalledWith('platform.superAdminMfa', { value: 'OFF' });
   });
 });
 

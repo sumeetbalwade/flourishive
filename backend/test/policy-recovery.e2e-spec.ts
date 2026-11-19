@@ -5,6 +5,8 @@ import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { AccessService } from '../src/modules/access/access.service.js';
 import { RolePolicyService } from '../src/modules/access/role-policy.service.js';
+import { FilesService } from '../src/modules/files/files.service.js';
+import { PlatformAdminService } from '../src/modules/platform-admin/platform-admin.service.js';
 import { MfaService } from '../src/modules/identity/mfa.service.js';
 import { OtpService } from '../src/modules/identity/otp.service.js';
 import { PasswordService } from '../src/modules/identity/password.service.js';
@@ -362,5 +364,125 @@ describe('super admin two-step policy', () => {
       })
       .expect(200);
     expect(again.body.status).toBe('mfa_setup_required');
+  });
+});
+
+describe('super admin lost authenticator', () => {
+  const pass = 'a long platform passphrase';
+  async function enrolled(email: string) {
+    const auth = app.get(PlatformAuthService);
+    mails.length = 0;
+    await auth.invite(email, null);
+    const token = /token=([\w-]+)/.exec(mails.at(-1)!.text)![1]!;
+    await call('post', '/platform/auth/set-password')
+      .send({ token, password: pass })
+      .expect(204);
+    const mfa = app.get(MfaService);
+    await runAsSystem(async () => {
+      await prisma.db.platformUser.update({
+        where: { email },
+        data: {
+          mfaSecretEnc: mfa.encryptSecret(mfa.newSecret()),
+          mfaEnabledAt: new Date(),
+        },
+      });
+    });
+    return (
+      await call('post', '/platform/auth/login')
+        .send({ email, password: pass })
+        .expect(200)
+    ).body.mfaToken as string;
+  }
+
+  it('emails a code that clears the old authenticator and starts setup again', async () => {
+    await settings.setPlatform('platform.superAdminMfa', 'REQUIRED');
+    const mfaToken = await enrolled('lost@plat-pol.test');
+    mails.length = 0;
+    await call('post', '/platform/auth/mfa/recovery/email')
+      .send({ mfaToken })
+      .expect(202);
+    expect(mails).toHaveLength(1);
+    await call('post', '/platform/auth/mfa/recovery/email/verify')
+      .send({ mfaToken, code: '000000' })
+      .expect(401);
+    const res = await call('post', '/platform/auth/mfa/recovery/email/verify')
+      .send({ mfaToken, code: lastCode() })
+      .expect(200);
+    expect(res.body.status).toBe('mfa_setup_required');
+    const row = await runAsSystem(
+      async () =>
+        await prisma.db.platformUser.findUnique({
+          where: { email: 'lost@plat-pol.test' },
+        }),
+    );
+    expect(row?.mfaEnabledAt).toBeNull();
+  });
+
+  it('refuses when email recovery is turned off for platform staff', async () => {
+    await settings.setPlatform('platform.superAdminRecoveryEmail', false);
+    const mfaToken = await enrolled('noreset@plat-pol.test');
+    await call('post', '/platform/auth/mfa/recovery/email')
+      .send({ mfaToken })
+      .expect(403);
+    await settings.setPlatform('platform.superAdminRecoveryEmail', true);
+  });
+});
+
+describe('technical settings', () => {
+  it('tells the settings screen what control to draw', async () => {
+    const list = await app.get(PlatformAdminService).platformSettings();
+    const by = Object.fromEntries(list.map((x) => [x.key, x]));
+    expect(by['security.passwordMinLength']).toMatchObject({
+      kind: 'number',
+      min: 8,
+      max: 64,
+      group: 'Security',
+    });
+    expect(by['platform.superAdminMfa']).toMatchObject({
+      kind: 'enum',
+      options: ['OFF', 'OPTIONAL', 'REQUIRED'],
+      group: 'Platform',
+    });
+    expect(by['platform.superAdminRecoveryEmail'].kind).toBe('boolean');
+    expect(by['branding.accentColor'].kind).toBe('color');
+    expect(by['branding.emailSenderName'].kind).toBe('text');
+  });
+
+  it('locks sign-in after the number of wrong passwords the company chose', async () => {
+    await makeUser('lockme@pol-a.test', 'employee');
+    await settings.set(
+      { tenantId, updatedBy: 'test' },
+      'tenant',
+      'security.loginAttempts',
+      3,
+    );
+    const attempt = (password: string) =>
+      request(app.getHttpServer())
+        .post('/v1/auth/login')
+        .set('X-Forwarded-For', '10.55.0.1')
+        .send({ tenant: 'pol-a', email: 'lockme@pol-a.test', password });
+    for (let i = 0; i < 3; i++) await attempt('wrong password!!').expect(401);
+    await attempt(PASSWORD).expect(429);
+  });
+
+  it('limits uploads to the size the company chose', async () => {
+    await settings.set(
+      { tenantId, updatedBy: 'test' },
+      'tenant',
+      'files.maxUploadMb',
+      1,
+    );
+    const body = Buffer.concat([
+      Buffer.from('%PDF-1.4\n'),
+      Buffer.alloc(2 * 1024 * 1024),
+    ]);
+    const who = { tenantId, userId: (await makeUser('up@pol-a.test')).id };
+    await expect(
+      app.get(FilesService).upload(who, {
+        body,
+        mimeType: 'application/pdf',
+        name: 'big.pdf',
+      }),
+    ).rejects.toThrow(/at most 1 MB/);
   });
 });

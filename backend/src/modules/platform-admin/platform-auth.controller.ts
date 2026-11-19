@@ -5,6 +5,7 @@ import {
   platformMfaConfirmBody as confirmBody,
   refreshBody,
   platformPasswordBody as passwordBody,
+  platformRecoveryVerifyBody as recoveryBody,
 } from '@flourishive/schemas';
 import {
   Body,
@@ -79,6 +80,23 @@ export class PlatformAuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     return this.respond(req, res, await this.auth.verifyMfa(b, this.meta(req)));
+  }
+
+  /** Lost authenticator: emails a code (after the password step). */
+  @Post('mfa/recovery/email')
+  @HttpCode(202)
+  async recoveryStart(@Body(body(setupBody)) b: z.infer<typeof setupBody>) {
+    await this.auth.startMfaEmailRecovery(b.mfaToken);
+    return { status: 'accepted' };
+  }
+
+  @Post('mfa/recovery/email/verify')
+  @HttpCode(200)
+  recoveryVerify(
+    @Body(body(recoveryBody)) b: z.infer<typeof recoveryBody>,
+    @Req() req: Request,
+  ) {
+    return this.auth.verifyMfaEmailRecovery(b, this.meta(req));
   }
 
   @Post('mfa/setup')

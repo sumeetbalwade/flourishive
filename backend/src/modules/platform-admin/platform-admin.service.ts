@@ -15,7 +15,7 @@ import {
 import { AccessService } from '../access/access.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AuthService } from '../identity/auth.service.js';
-import { SETTINGS } from '../settings/registry.js';
+import { SETTINGS, shapeOf, type SettingKey } from '../settings/registry.js';
 import {
   RolePolicyService,
   type PolicyPatch,
@@ -261,6 +261,9 @@ export class PlatformAdminService {
     return Object.entries(SETTINGS).map(([key, d]) => ({
       key,
       description: d.description,
+      label: d.label,
+      group: d.group,
+      ...shapeOf(key as SettingKey),
       levels: d.levels,
       default: d.default,
       platformValue: stored[key]?.value ?? null,

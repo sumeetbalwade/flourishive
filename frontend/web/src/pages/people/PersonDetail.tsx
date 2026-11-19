@@ -19,6 +19,7 @@ import { messageOf } from '../../lib/errors.ts';
 import { go } from '../../router.ts';
 import { Layout } from '../Layout.tsx';
 import { PersonForm } from './PersonForm.tsx';
+import { AccessCard } from '../../components/AccessCard.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { fmtDate, fullName } from '../../lib/format.ts';
 
@@ -149,6 +150,7 @@ export function PersonDetail({ id }: { id: string }) {
             </Button>
           ) : null}
         </Card>
+        {p.person.userId && auth.can('roles.read') ? <AccessCard userId={p.person.userId} /> : null}
         {p.type === 'INTERN' ? (
           <Card>
             <CardTitle>Internship</CardTitle>

@@ -43,6 +43,12 @@ export class AccessController {
     }));
   }
 
+  @Get('users/:userId/roles')
+  @RequirePermission('roles.read')
+  userRoles(@CurrentAuth() a: AccessClaims, @Param('userId') userId: string) {
+    return this.access.listUserRoles(a.tenantId, userId);
+  }
+
   @Post('user-roles')
   @HttpCode(204)
   @RequirePermission('roles.assign')

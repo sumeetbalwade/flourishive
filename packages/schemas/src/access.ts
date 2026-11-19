@@ -17,3 +17,9 @@ export const roleResponse = z.object({
   permissions: z.array(z.string()),
 });
 export type Role = z.infer<typeof roleResponse>;
+export const userRoleItem = z.object({
+  roleKey: z.string(),
+  name: z.string(),
+  entityId: z.string().nullable(),
+});
+export type UserRoleItem = z.infer<typeof userRoleItem>;
