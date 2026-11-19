@@ -1,3 +1,4 @@
+import { settingValueBody as valueBody } from '@flourishive/schemas';
 import {
   Body,
   Controller,
@@ -14,8 +15,6 @@ import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
 import { SETTINGS } from './registry.js';
 import { SettingsService } from './settings.service.js';
-
-const valueBody = z.object({ value: z.unknown() });
 
 @Controller('settings')
 export class SettingsController {

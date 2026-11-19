@@ -1,4 +1,12 @@
 import {
+  platformLoginBody as loginBody,
+  platformMfaVerifyBody as verifyBody,
+  platformMfaSetupBody as setupBody,
+  platformMfaConfirmBody as confirmBody,
+  refreshBody,
+  platformPasswordBody as passwordBody,
+} from '@flourishive/schemas';
+import {
   Body,
   Controller,
   Get,
@@ -20,28 +28,6 @@ import {
 import { PlatformGuard, type PlatformRequest } from './platform.guard.js';
 
 const COOKIE = 'fh_platform_refresh';
-const email = z.string().email().max(191);
-const loginBody = z.object({ email, password: z.string().min(1).max(256) });
-const verifyBody = z
-  .object({
-    mfaToken: z.string(),
-    code: z.string().optional(),
-    recoveryCode: z.string().optional(),
-  })
-  .refine((b) => b.code || b.recoveryCode, 'code or recoveryCode is required');
-const setupBody = z.object({ mfaToken: z.string() });
-const confirmBody = z.object({
-  mfaToken: z.string(),
-  code: z.string().regex(/^\d{6}$/),
-});
-const refreshBody = z
-  .object({ refreshToken: z.string().optional() })
-  .default({});
-const passwordBody = z.object({
-  token: z.string().min(1),
-  password: z.string().min(1).max(256),
-});
-
 const body = <T>(s: z.ZodType<T>) => new ZodPipe(s);
 
 /** Super admin sign-in. Every route here is outside the tenant guard on purpose. */

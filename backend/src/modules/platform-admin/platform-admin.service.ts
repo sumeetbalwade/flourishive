@@ -1,3 +1,4 @@
+import { createTenantBody } from '@flourishive/schemas';
 import {
   BadRequestException,
   ConflictException,
@@ -21,19 +22,6 @@ import {
   PLATFORM_TENANT_SLUG,
 } from './platform-audit.service.js';
 import { PlatformAuthService } from './platform-auth.service.js';
-
-export const createTenantBody = z.object({
-  slug: z
-    .string()
-    .regex(
-      /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/,
-      'Use 3-63 lowercase letters, digits or hyphens',
-    ),
-  name: z.string().trim().min(1).max(191),
-  companyName: z.string().trim().min(1).max(191),
-  legalName: z.string().trim().min(1).max(191),
-  adminEmail: z.string().trim().toLowerCase().email().max(191),
-});
 
 export const suspendedKey = (tenantId: string) =>
   `tenant:suspended:${tenantId}`;

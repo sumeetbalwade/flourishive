@@ -1,0 +1,64 @@
+import { z } from 'zod';
+import { email } from './common.js';
+
+const tenant = z.string().min(1).max(63);
+const code = z.string().regex(/^\d{6}$/);
+
+export const loginBody = z.object({
+  tenant,
+  email: z.string().email().max(191),
+  password: z.string().min(1).max(256),
+});
+export const googleBody = z.object({ tenant, idToken: z.string().min(1) });
+export const mfaVerifyBody = z
+  .object({
+    mfaToken: z.string(),
+    code: z.string().optional(),
+    recoveryCode: z.string().optional(),
+  })
+  .refine((b) => b.code || b.recoveryCode, 'code or recoveryCode is required');
+export const mfaSetupBody = z.object({ mfaToken: z.string().optional() });
+export const mfaConfirmBody = z.object({ mfaToken: z.string().optional(), code });
+export const refreshBody = z.object({ refreshToken: z.string().optional() }).default({});
+export const forgotBody = z.object({ tenant, email: z.string().email().max(191) });
+export const resetBody = z.object({
+  token: z.string().min(1),
+  password: z.string().min(1).max(256),
+});
+
+export const tokensResponse = z.object({
+  status: z.literal('ok'),
+  accessToken: z.string(),
+  expiresIn: z.number(),
+  /** Only returned to native clients (X-Client: native); browsers get an httpOnly cookie. */
+  refreshToken: z.string().optional(),
+});
+export const loginResponse = z.discriminatedUnion('status', [
+  tokensResponse,
+  z.object({ status: z.literal('mfa_required'), mfaToken: z.string() }),
+  z.object({ status: z.literal('mfa_setup_required'), mfaToken: z.string() }),
+]);
+export const mfaSetupResponse = z.object({ secret: z.string(), otpauthUri: z.string() });
+export const mfaConfirmResponse = z.object({
+  recoveryCodes: z.array(z.string()),
+  /** Present when enrolment was forced at sign-in and completes the login. */
+  status: z.literal('ok').optional(),
+  accessToken: z.string().optional(),
+  expiresIn: z.number().optional(),
+  refreshToken: z.string().optional(),
+});
+export const meResponse = z.object({
+  id: z.string(),
+  tenantId: z.string(),
+  email: email.or(z.string()),
+  mfaEnabled: z.boolean(),
+  mfaRequired: z.boolean(),
+  permissions: z.array(z.string()),
+});
+
+export type LoginBody = z.infer<typeof loginBody>;
+export type LoginResponse = z.infer<typeof loginResponse>;
+export type TokensResponse = z.infer<typeof tokensResponse>;
+export type MeResponse = z.infer<typeof meResponse>;
+export type MfaSetupResponse = z.infer<typeof mfaSetupResponse>;
+export type MfaConfirmResponse = z.infer<typeof mfaConfirmResponse>;

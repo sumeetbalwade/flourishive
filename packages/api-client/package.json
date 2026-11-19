@@ -2,5 +2,30 @@
   "name": "@flourishive/api-client",
   "version": "0.0.0",
   "private": true,
-  "description": "TypeScript API client generated from the backend OpenAPI spec"
+  "type": "module",
+  "description": "Typed fetch client for the Flourishive API, built on the shared schemas",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "oxlint",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@flourishive/schemas": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "oxlint": "^1.90.0",
+    "typescript": "~7.0.2",
+    "vitest": "^4.1.2"
+  }
 }

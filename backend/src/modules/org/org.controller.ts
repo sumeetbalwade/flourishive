@@ -1,4 +1,9 @@
 import {
+  orgBodies as bodies,
+  ORG_KINDS,
+  type OrgKind,
+} from '@flourishive/schemas';
+import {
   BadRequestException,
   Body,
   Controller,
@@ -9,23 +14,11 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { z } from 'zod';
 import { RequirePermission } from '../access/require-permission.js';
 import { CurrentAuth } from '../identity/auth.context.js';
 import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
-import { ORG_KINDS, OrgService, type OrgKind } from './org.service.js';
-
-const name = z.string().trim().min(1).max(100);
-const bodies = {
-  locations: z.object({
-    name,
-    city: z.string().trim().max(100).nullish(),
-    state: z.string().trim().max(100).nullish(),
-  }),
-  departments: z.object({ name }),
-  designations: z.object({ name }),
-} satisfies Record<OrgKind, z.ZodType>;
+import { OrgService } from './org.service.js';
 
 function kindOf(raw: string): OrgKind {
   if (!(ORG_KINDS as readonly string[]).includes(raw))
