@@ -23,7 +23,7 @@ desktop/packaging/out/
 *.der
 
 # local data
-storage/
+/backend/storage/
 *.log
 coverage/
 desktop/spikes/out/
