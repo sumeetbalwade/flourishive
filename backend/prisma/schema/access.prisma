@@ -1,0 +1,63 @@
+/// Global catalogue of permission codes, synced from code (access/permissions.ts).
+model Permission {
+  code        String @id @db.VarChar(64)
+  description String @db.VarChar(255)
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model Role {
+  id          String   @id @default(uuid(7)) @db.Char(36)
+  tenantId    String   @db.Char(36)
+  key         String   @db.VarChar(64)
+  name        String   @db.VarChar(100)
+  /// Seeded roles cannot be deleted; tenants may add their own later.
+  isSystem    Boolean  @default(false)
+  /// Holders of this role must use MFA (D-16)
+  mfaRequired Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @db.DateTime(3)
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  permissions RolePermission[]
+  userRoles   UserRole[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("roles")
+}
+
+model RolePermission {
+  roleId         String @db.Char(36)
+  permissionCode String @db.VarChar(64)
+  tenantId       String @db.Char(36)
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionCode], references: [code], onDelete: Cascade)
+
+  @@id([roleId, permissionCode])
+  @@index([tenantId])
+  @@map("role_permissions")
+}
+
+/// A role held by a user, optionally limited to one legal entity (null = every entity).
+model UserRole {
+  id        String   @id @default(uuid(7)) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  userId    String   @db.Char(36)
+  roleId    String   @db.Char(36)
+  entityId  String?  @db.Char(36)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  entity Entity? @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("user_roles")
+}

@@ -1,0 +1,34 @@
+enum SettingScope {
+  TENANT
+  ENTITY
+  USER
+}
+
+/// Overrides at tenant, entity or user level. Platform defaults live in PlatformSetting.
+/// The plan level of the chain (user → entity → tenant → plan → platform) arrives with plans in Phase 3.
+model SettingValue {
+  id        String       @id @default(uuid(7)) @db.Char(36)
+  tenantId  String       @db.Char(36)
+  scope     SettingScope
+  /// tenantId, entityId or userId depending on scope
+  scopeId   String       @db.Char(36)
+  key       String       @db.VarChar(100)
+  value     Json
+  updatedBy String?      @db.Char(36)
+  updatedAt DateTime     @updatedAt @db.DateTime(3)
+  createdAt DateTime     @default(now()) @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([scope, scopeId, key])
+  @@index([tenantId])
+  @@map("setting_values")
+}
+
+model PlatformSetting {
+  key       String   @id @db.VarChar(100)
+  value     Json
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  @@map("platform_settings")
+}

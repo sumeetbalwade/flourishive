@@ -1,6 +1,6 @@
 # Phase 1 — Minimal, tenant-aware core
 
-**Status:** In progress (PR 3 of 9 in review: identity) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
+**Status:** In progress (PR 4 of 9 in review: access and settings) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
 
 ## Goal
 
@@ -20,8 +20,8 @@ The smallest platform core that signing needs, built on the final data model: Fl
 ### Backend: modules (`backend/src/modules/`)
 - [x] `tenancy`: tenants, entities (legal companies); seed Flourisense
 - [x] `identity` (tenant users; password, TOTP + recovery codes, Google, JWT + rotating refresh, sessions): email + password (argon2id); TOTP MFA with recovery codes, mandatory for HR, admins and super admin; "Sign in with Google" (D-16); 15-minute access JWT plus rotating refresh token; sessions and sign-out everywhere
-- [ ] `access`: roles, permissions, user roles scoped to an entity; checks by permission code. Seeded roles: Tenant Admin, HR Lead, HR Executive, Manager, Employee, Intern
-- [ ] `settings`: registry and the user → entity → tenant → plan → platform resolution (plan §5). First settings: branding, password policy, MFA policy, session length
+- [x] `access`: roles, permissions, user roles scoped to an entity; checks by permission code. Seeded roles: Tenant Admin, HR Lead, HR Executive, Manager, Employee, Intern
+- [x] `settings`: registry and the user → entity → tenant → plan → platform resolution (plan §5). First settings: branding, password policy, MFA policy, session length
 - [ ] `org`: departments, designations, locations (Maharashtra)
 - [ ] `people`: persons, engagements, intern details; CSV import with validation and a dry-run preview
 - [ ] `files`, `audit` (hash-chained, append-only), `notifications` (email templates per event)

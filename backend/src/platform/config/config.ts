@@ -33,7 +33,6 @@ export const envSchema = z.object({
   // Signs access and MFA-challenge JWTs.
   JWT_SECRET: z.string().min(32),
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().default(900),
-  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().default(14),
   COOKIE_SECURE: bool.default(false),
   // Google sign-in is off until a client id is configured.
   GOOGLE_CLIENT_ID: z.string().optional(),

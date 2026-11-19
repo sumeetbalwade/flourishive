@@ -17,6 +17,7 @@ model User {
   tenant        Tenant         @relation(fields: [tenantId], references: [id])
   recoveryCodes RecoveryCode[]
   sessions      Session[]
+  userRoles     UserRole[]
 
   @@unique([tenantId, email])
   @@unique([tenantId, googleSub])

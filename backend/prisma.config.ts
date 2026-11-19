@@ -11,7 +11,7 @@ export default defineConfig({
   schema: 'prisma/schema',
   migrations: {
     path: 'prisma/migrations',
-    seed: 'node --import tsx prisma/seed.ts',
+    seed: 'node dist/seed.js',
   },
   // `prisma generate` runs in CI without a database, so fall back to a placeholder.
   datasource: {

@@ -27,11 +27,14 @@ type Delegate = {
   deleteMany(args: object): Promise<{ count: number }>;
   update(args: object): Promise<unknown>;
   delete(args: object): Promise<unknown>;
-  create(args: object): Promise<{ id: string }>;
+  create(args: object): Promise<Record<string, unknown>>;
 };
 
 type Fixture = {
   delegate: string;
+  /** Filter and unique-lookup for a created row; defaults to its id. */
+  where?: (row: Record<string, unknown>) => object;
+  unique?: (row: Record<string, unknown>) => object;
   create: (tenantId: string) => Promise<object>;
   change: object;
 };
@@ -43,6 +46,17 @@ const newUser = (tenantId: string) =>
     async () =>
       await db.user.create({
         data: { tenantId, email: `${crypto.randomUUID()}@xt.test` },
+      }),
+  );
+const newRole = (tenantId: string) =>
+  runAsSystem(
+    async () =>
+      await db.role.create({
+        data: {
+          tenantId,
+          key: crypto.randomUUID().slice(0, 8),
+          name: 'Parent role',
+        },
       }),
   );
 const newSession = async (tenantId: string) =>
@@ -101,6 +115,59 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { userAgent: 'hacked' },
   },
+  Role: {
+    delegate: 'role',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        key: crypto.randomUUID().slice(0, 8),
+        name: 'Test role',
+      },
+    }),
+    change: { name: 'hacked' },
+  },
+  RolePermission: {
+    delegate: 'rolePermission',
+    where: (r) => ({ roleId: r.roleId, permissionCode: r.permissionCode }),
+    unique: (r) => ({
+      roleId_permissionCode: {
+        roleId: r.roleId,
+        permissionCode: r.permissionCode,
+      },
+    }),
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        roleId: (await newRole(tenantId)).id,
+        permissionCode: 'self.read',
+      },
+    }),
+    change: { permissionCode: 'people.read' },
+  },
+  UserRole: {
+    delegate: 'userRole',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        userId: (await newUser(tenantId)).id,
+        roleId: (await newRole(tenantId)).id,
+      },
+    }),
+    change: { entityId: null },
+  },
+  SettingValue: {
+    delegate: 'settingValue',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        scope: 'TENANT',
+        scopeId: tenantId,
+        key: 'branding.accentColor',
+        value: '#112233',
+      },
+    }),
+    change: { value: '#ffffff' },
+  },
   RefreshToken: {
     delegate: 'refreshToken',
     create: async (tenantId) => ({
@@ -129,6 +196,12 @@ beforeAll(async () => {
   db = createPrismaClient(process.env.DATABASE_URL!);
   await wipe();
   await runAsSystem(async () => {
+    for (const code of ['self.read', 'people.read'])
+      await db.permission.upsert({
+        where: { code },
+        update: {},
+        create: { code, description: code },
+      });
     a = (await db.tenant.create({ data: { slug: 'xt-a', name: 'Tenant A' } }))
       .id;
     b = (await db.tenant.create({ data: { slug: 'xt-b', name: 'Tenant B' } }))
@@ -167,14 +240,17 @@ describe('queries without a scope', () => {
 });
 
 describe.each([...TENANT_SCOPED_MODELS])('tenant isolation on %s', (model) => {
-  let rowId: string;
+  let filter: object;
+  let unique: object;
 
   beforeAll(async () => {
-    rowId = await runInTenant(
+    const row = await runInTenant(
       a,
       async () =>
-        (await delegate(model).create(await fixtures[model]!.create(a))).id,
+        await delegate(model).create(await fixtures[model]!.create(a)),
     );
+    filter = fixtures[model]!.where?.(row) ?? { id: row.id };
+    unique = fixtures[model]!.unique?.(row) ?? { id: row.id };
   });
 
   it('tenant A sees its own row', async () => {
@@ -189,12 +265,8 @@ describe.each([...TENANT_SCOPED_MODELS])('tenant isolation on %s', (model) => {
     await runInTenant(b, async () => {
       expect(await delegate(model).findMany()).toHaveLength(0);
       expect(await delegate(model).count()).toBe(0);
-      expect(
-        await delegate(model).findFirst({ where: { id: rowId } }),
-      ).toBeNull();
-      expect(
-        await delegate(model).findUnique({ where: { id: rowId } }),
-      ).toBeNull();
+      expect(await delegate(model).findFirst({ where: filter })).toBeNull();
+      expect(await delegate(model).findUnique({ where: unique })).toBeNull();
     });
   });
 
@@ -203,23 +275,21 @@ describe.each([...TENANT_SCOPED_MODELS])('tenant isolation on %s', (model) => {
       expect(
         (
           await delegate(model).updateMany({
-            where: { id: rowId },
+            where: filter,
             data: fixtures[model]!.change,
           })
         ).count,
       ).toBe(0);
-      expect(
-        (await delegate(model).deleteMany({ where: { id: rowId } })).count,
-      ).toBe(0);
+      expect((await delegate(model).deleteMany({ where: filter })).count).toBe(
+        0,
+      );
       await expect(
         delegate(model).update({
-          where: { id: rowId },
+          where: unique,
           data: fixtures[model]!.change,
         }),
       ).rejects.toThrow();
-      await expect(
-        delegate(model).delete({ where: { id: rowId } }),
-      ).rejects.toThrow();
+      await expect(delegate(model).delete({ where: unique })).rejects.toThrow();
     });
     expect(
       await runInTenant(a, async () => await delegate(model).count()),

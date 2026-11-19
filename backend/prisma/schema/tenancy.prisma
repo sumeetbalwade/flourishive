@@ -6,12 +6,16 @@ model Tenant {
   createdAt DateTime     @default(now()) @db.DateTime(3)
   updatedAt DateTime     @updatedAt @db.DateTime(3)
 
-  entities      Entity[]
-  users         User[]
-  recoveryCodes RecoveryCode[]
-  sessions      Session[]
-  refreshTokens RefreshToken[]
-  jobRecords    JobRecord[]
+  entities        Entity[]
+  users           User[]
+  recoveryCodes   RecoveryCode[]
+  sessions        Session[]
+  refreshTokens   RefreshToken[]
+  jobRecords      JobRecord[]
+  roles           Role[]
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+  settingValues   SettingValue[]
 
   @@map("tenants")
 }
@@ -30,7 +34,8 @@ model Entity {
   createdAt DateTime @default(now()) @db.DateTime(3)
   updatedAt DateTime @updatedAt @db.DateTime(3)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  userRoles UserRole[]
 
   @@unique([tenantId, name])
   @@index([tenantId])

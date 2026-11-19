@@ -76,7 +76,7 @@ export class AuthController {
         secure: this.config.COOKIE_SECURE,
         sameSite: 'lax',
         path: '/v1/auth',
-        maxAge: this.config.REFRESH_TOKEN_TTL_DAYS * 24 * 3600 * 1000,
+        maxAge: t.refreshTtlMs,
       });
     }
     return {
