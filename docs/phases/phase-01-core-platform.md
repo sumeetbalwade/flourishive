@@ -1,6 +1,6 @@
 # Phase 1 — Minimal, tenant-aware core
 
-**Status:** Not started · **Depends on:** Phase 0 · **Unlocks:** Phase 2
+**Status:** In progress (PR 1 of 9: platform adapters) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
 
 ## Goal
 
@@ -9,13 +9,13 @@ The smallest platform core that signing needs, built on the final data model: Fl
 ## Work breakdown
 
 ### Backend: platform adapters (`backend/src/platform/`)
-- [ ] `config/`: typed environment config, validated with Zod at startup
+- [x] `config/`: typed environment config, validated with Zod at startup
 - [ ] `database/`: Prisma on MySQL, schema split per module, a tenant-scoping extension that injects `tenant_id` into every query
-- [ ] `queue/`: BullMQ on Redis; `cli.ts worker --max-seconds=55` started by cron; `job_records` in MySQL plus a reconciler (D-30)
-- [ ] `cache/`: Redis for the settings and permission cache, rate limits and short-lived tokens (D-32)
-- [ ] `storage/`: local-disk adapter outside `public_html`, streamed uploads, short-lived signed download URLs
-- [ ] `mail/`: adapter with ZeptoMail or SES, and Mailpit locally
-- [ ] `crypto/`: AES-256-GCM field encryption, HMAC helpers
+- [x] `queue/`: BullMQ on Redis; `cli.ts worker --max-seconds=55` started by cron; `job_records` in MySQL plus a reconciler (D-30)
+- [x] `cache/`: Redis for the settings and permission cache, rate limits and short-lived tokens (D-32)
+- [x] `storage/`: local-disk adapter outside `public_html`, streamed uploads, short-lived signed download URLs
+- [x] `mail/`: adapter with ZeptoMail or SES, and Mailpit locally
+- [x] `crypto/`: AES-256-GCM field encryption, HMAC helpers
 
 ### Backend: modules (`backend/src/modules/`)
 - [ ] `tenancy`: tenants, entities (legal companies); seed Flourisense

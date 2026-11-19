@@ -2,5 +2,7 @@ packages:
   - backend
   - frontend/*
   - packages/*
+allowBuilds:
+  msgpackr-extract: false
 minimumReleaseAgeExclude:
   - lucide-react@1.75.0
