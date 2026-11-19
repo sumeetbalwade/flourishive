@@ -33,3 +33,4 @@ desktop/spikes/out/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+/backend/src/generated/

@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
+import { JobRecordsService } from './platform/queue/job-records.service.js';
 import { QueueService } from './platform/queue/queue.service.js';
 
 /**
@@ -18,6 +19,9 @@ async function main() {
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn'],
   });
+  const requeued = await app.get(JobRecordsService).reconcile();
+  if (requeued > 0)
+    console.warn(`Re-queued ${requeued} stale job(s) from job_records`);
   await app.get(QueueService).runWorker(async (job) => {
     console.warn(`No handler registered for job "${job.name}"`);
   }, maxSeconds);

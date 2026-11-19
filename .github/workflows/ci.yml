@@ -18,6 +18,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
+      mariadb:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: flourishive_test
+          MARIADB_USER: flourishive
+          MARIADB_PASSWORD: flourishive_dev
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized" --health-interval 5s
+          --health-timeout 3s --health-retries 10
       redis:
         image: redis:7
         ports: ['6379:6379']

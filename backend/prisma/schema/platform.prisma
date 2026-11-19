@@ -1,0 +1,26 @@
+/// MySQL record of important queue jobs. A reconciler re-queues rows that are
+/// still PENDING after Redis loses data (D-30).
+model JobRecord {
+  id        String   @id @default(uuid(7)) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  name      String   @db.VarChar(100)
+  payload   Json
+  status    JobStatus @default(PENDING)
+  attempts  Int      @default(0)
+  runAt     DateTime @default(now()) @db.DateTime(3)
+  lastError String?  @db.Text
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([status, runAt])
+  @@map("job_records")
+}
+
+enum JobStatus {
+  PENDING
+  DONE
+  FAILED
+}

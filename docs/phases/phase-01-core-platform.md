@@ -1,6 +1,6 @@
 # Phase 1 — Minimal, tenant-aware core
 
-**Status:** In progress (PR 1 of 9: platform adapters) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
+**Status:** In progress (PR 2 of 9 in review: tenancy and data layer) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
 
 ## Goal
 
@@ -10,7 +10,7 @@ The smallest platform core that signing needs, built on the final data model: Fl
 
 ### Backend: platform adapters (`backend/src/platform/`)
 - [x] `config/`: typed environment config, validated with Zod at startup
-- [ ] `database/`: Prisma on MySQL, schema split per module, a tenant-scoping extension that injects `tenant_id` into every query
+- [x] `database/`: Prisma on MySQL, schema split per module, a tenant-scoping extension that injects `tenant_id` into every query
 - [x] `queue/`: BullMQ on Redis; `cli.ts worker --max-seconds=55` started by cron; `job_records` in MySQL plus a reconciler (D-30)
 - [x] `cache/`: Redis for the settings and permission cache, rate limits and short-lived tokens (D-32)
 - [x] `storage/`: local-disk adapter outside `public_html`, streamed uploads, short-lived signed download URLs
@@ -18,7 +18,7 @@ The smallest platform core that signing needs, built on the final data model: Fl
 - [x] `crypto/`: AES-256-GCM field encryption, HMAC helpers
 
 ### Backend: modules (`backend/src/modules/`)
-- [ ] `tenancy`: tenants, entities (legal companies); seed Flourisense
+- [x] `tenancy`: tenants, entities (legal companies); seed Flourisense
 - [ ] `identity`: email + password (argon2id); TOTP MFA with recovery codes, mandatory for HR, admins and super admin; "Sign in with Google" (D-16); 15-minute access JWT plus rotating refresh token; sessions and sign-out everywhere
 - [ ] `access`: roles, permissions, user roles scoped to an entity; checks by permission code. Seeded roles: Tenant Admin, HR Lead, HR Executive, Manager, Employee, Intern
 - [ ] `settings`: registry and the user → entity → tenant → plan → platform resolution (plan §5). First settings: branding, password policy, MFA policy, session length
@@ -34,8 +34,8 @@ The smallest platform core that signing needs, built on the final data model: Fl
 - [ ] **admin:** login with MFA, tenants list and detail, platform users, basic settings editor
 
 ### Quality
-- [ ] Cross-tenant test harness: every endpoint is called as tenant B against tenant A's data and must fail
-- [ ] Seed scripts with fake tenants, entities and people for local and staging
+- [~] Cross-tenant test harness: model-level suite done (every scoped model, schema guard); the per-endpoint version arrives with the first endpoints. Every endpoint is called as tenant B against tenant A's data and must fail
+- [~] Seed scripts (tenants and entities done; people with PR 5) with fake tenants, entities and people for local and staging
 
 ## Data introduced
 
