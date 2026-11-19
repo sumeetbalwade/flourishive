@@ -19,6 +19,25 @@ async function fillLogin(user: ReturnType<typeof userEvent.setup>, password = 'a
   await user.click(screen.getByRole('button', { name: 'Continue' }));
 }
 
+describe('find your company', () => {
+  it('emails the sign-in link and says the same whatever the answer', async () => {
+    const { client, user } = open('#/find-company');
+    await screen.findByRole('heading', { name: 'Find your company' });
+    await user.type(screen.getByLabelText('Work email'), 'someone@company.test');
+    await user.click(screen.getByRole('button', { name: 'Email me the link' }));
+    expect(client.company.find).toHaveBeenCalledWith('someone@company.test');
+    expect(await screen.findByText(/we have sent its sign-in link/)).toBeInTheDocument();
+  });
+
+  it('is reachable from the sign-in page when the company is not known', async () => {
+    open('#/login');
+    expect(await screen.findByRole('link', { name: /know your company code/ })).toHaveAttribute(
+      'href',
+      '#/find-company',
+    );
+  });
+});
+
 describe('sign in', () => {
   it('signs in and lands on the people list', async () => {
     const client = fakeClient();

@@ -53,6 +53,10 @@ export function fakeClient(over: Record<string, unknown> = {}) {
     http: {},
     restoreSession: vi.fn().mockResolvedValue(false),
     isSignedIn: vi.fn().mockReturnValue(false),
+    company: {
+      get: vi.fn().mockRejectedValue(new Error('no company')),
+      find: vi.fn().mockResolvedValue(undefined),
+    },
     auth: {
       login: vi.fn(),
       google: vi.fn(),

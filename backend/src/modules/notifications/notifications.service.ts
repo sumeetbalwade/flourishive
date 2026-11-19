@@ -13,6 +13,13 @@ import {
 
 export const SEND_JOB = 'notification.send';
 
+/** Mail whose body is a credential (a password link). The record keeps only a placeholder. */
+const SENSITIVE_EVENTS = new Set<NotificationEvent>([
+  'auth.password_reset',
+  'auth.invite',
+]);
+const REDACTED = '[This email contains a private link and is not stored]';
+
 /**
  * Email notifications per event. Every one is recorded, so HR can see what was sent
  * and what failed. Time-critical mail (password links) is sent inline; bulk or
@@ -46,17 +53,18 @@ export class NotificationsService implements OnModuleInit {
         text: string;
       }
     )(vars);
-    return runInTenant(tenantId, async () =>
+    const row = await runInTenant(tenantId, async () =>
       this.prisma.db.notification.create({
         data: {
           tenantId,
           event,
           toEmail,
           subject: email.subject,
-          body: email.text,
+          body: SENSITIVE_EVENTS.has(event) ? REDACTED : email.text,
         },
       }),
     );
+    return Object.assign(row, { text: email.text });
   }
 
   /** Sends now. A failure is recorded and also thrown so the caller knows. */
@@ -67,7 +75,11 @@ export class NotificationsService implements OnModuleInit {
     vars: TemplateVars<E>,
   ): Promise<string> {
     const n = await this.create(tenantId, event, toEmail, vars);
-    await this.deliver(tenantId, n.id);
+    await this.deliver(
+      tenantId,
+      n.id,
+      SENSITIVE_EVENTS.has(event) ? n.text : undefined,
+    );
     return n.id;
   }
 
@@ -78,12 +90,20 @@ export class NotificationsService implements OnModuleInit {
     toEmail: string,
     vars: TemplateVars<E>,
   ): Promise<string> {
+    // A queued job would have to carry the private link; send those inline with sendNow.
+    if (SENSITIVE_EVENTS.has(event))
+      throw new Error(`${event} must be sent with sendNow`);
     const n = await this.create(tenantId, event, toEmail, vars);
     await this.jobs.enqueue(tenantId, SEND_JOB, { notificationId: n.id });
     return n.id;
   }
 
-  async deliver(tenantId: string, notificationId: string): Promise<void> {
+  /** `text` overrides the stored body, for mail whose stored body is a placeholder. */
+  async deliver(
+    tenantId: string,
+    notificationId: string,
+    text?: string,
+  ): Promise<void> {
     const n = await runInTenant(
       tenantId,
       async () =>
@@ -99,7 +119,7 @@ export class NotificationsService implements OnModuleInit {
       await this.mail.send({
         to: n.toEmail,
         subject: n.subject,
-        text: n.body,
+        text: text ?? n.body,
         fromName,
       });
       await runInTenant(tenantId, async () => {

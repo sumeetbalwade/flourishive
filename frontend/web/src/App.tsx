@@ -11,6 +11,7 @@ const Gallery = lazy(() => import('./pages/Gallery.tsx'));
 const Letters = lazy(() => import('./pages/Letters.tsx').then((m) => ({ default: m.Letters })));
 import { Audit } from './pages/Audit.tsx';
 import { ForgotPassword, ResetPassword } from './pages/auth/Password.tsx';
+import { FindCompany } from './pages/auth/FindCompany.tsx';
 import { Login } from './pages/auth/Login.tsx';
 import { Org } from './pages/org/Org.tsx';
 import { ImportPeople } from './pages/people/Import.tsx';
@@ -65,6 +66,7 @@ function Routes() {
     ) : (
       <Login />
     );
+  if (path === '/find-company') return <FindCompany />;
   if (path === '/forgot-password') return <ForgotPassword />;
   if (path === '/reset-password') return <ResetPassword token={query.get('token') ?? ''} />;
   if (path === '/design') return <Gallery />;

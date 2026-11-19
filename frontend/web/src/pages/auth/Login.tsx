@@ -1,12 +1,13 @@
 import type { LoginResponse } from '@flourishive/schemas';
 import { Button, Card, Field, Input } from '@flourishive/ui';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Frame } from '../../components/Frame.tsx';
 import { GoogleButton } from '../../components/GoogleButton.tsx';
 import { MfaEnrol } from '../../components/MfaEnrol.tsx';
 import { RecoveryCodes } from '../../components/RecoveryCodes.tsx';
 import { useApi, remember } from '../../lib/api.tsx';
 import { useAuth } from '../../lib/auth.tsx';
+import { detectHere, useCompany } from '../../lib/company.ts';
 import { messageOf } from '../../lib/errors.ts';
 import { go } from '../../router.ts';
 
@@ -20,7 +21,11 @@ export function Login() {
   const api = useApi();
   const auth = useAuth();
   const [step, setStep] = useState<Step>({ kind: 'credentials' });
-  const [tenant, setTenant] = useState(() => remember.get('fh.tenant'));
+  const detected = useMemo(detectHere, []);
+  const [tenant, setTenant] = useState(detected.slug);
+  // On <company>.flourishive.in the company is known, so nobody types a code.
+  const fixed = detected.source === 'address';
+  const company = useCompany(detected.slug);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -89,10 +94,31 @@ export function Login() {
     );
   }
 
+  if (fixed && company.status === 'missing')
+    return (
+      <Frame>
+        <Card className="p-8">
+          <h1 className="font-display text-3xl">We can’t find that company</h1>
+          <p className="mt-3 text-sm text-muted">
+            The address <b>{detected.slug}</b> is not in use, or the company is paused. Check the
+            link you were given, or we can email you the right one.
+          </p>
+          <a href="#/find-company" className="mt-6 inline-block text-sm underline">
+            Find my company
+          </a>
+        </Card>
+      </Frame>
+    );
+
   return (
     <Frame>
       <Card className="p-8">
         <h1 className="font-display text-3xl">Sign in</h1>
+        {company.status === 'found' && (
+          <p className="mt-1 text-sm text-muted">
+            to <b className="text-fg">{company.company.name}</b>
+          </p>
+        )}
         <form
           className="mt-6 grid gap-4"
           onSubmit={(e) => {
@@ -109,21 +135,23 @@ export function Login() {
             );
           }}
         >
-          <Field
-            label="Company code"
-            htmlFor="tenant"
-            hint="The short name your HR team gave you, e.g. flourisense"
-          >
-            <Input
-              id="tenant"
-              name="tenant"
-              autoComplete="organization"
-              value={tenant}
-              onChange={(e) => setTenant(e.target.value)}
-              autoCapitalize="none"
-              spellCheck={false}
-            />
-          </Field>
+          {!fixed && (
+            <Field
+              label="Company code"
+              htmlFor="tenant"
+              hint="The short name your HR team gave you, e.g. flourisense"
+            >
+              <Input
+                id="tenant"
+                name="tenant"
+                autoComplete="organization"
+                value={tenant}
+                onChange={(e) => setTenant(e.target.value)}
+                autoCapitalize="none"
+                spellCheck={false}
+              />
+            </Field>
+          )}
           <Field label="Work email" htmlFor="email">
             <Input
               id="email"
@@ -151,6 +179,11 @@ export function Login() {
           <a href="#/forgot-password" className="text-center text-sm text-muted underline">
             Forgot your password?
           </a>
+          {!fixed && (
+            <a href="#/find-company" className="text-center text-sm text-muted underline">
+              Don’t know your company code?
+            </a>
+          )}
         </form>
       </Card>
       <p className="mt-6 text-center text-xs text-faint">

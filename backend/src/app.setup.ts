@@ -1,6 +1,7 @@
 import { INestApplication, VersioningType } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import { originMatcher } from './modules/company/tenant-host.js';
 
 /**
  * HTTP setup shared by main.ts and the e2e tests, so tests hit the same
@@ -16,7 +17,15 @@ export function configureApp(app: INestApplication): void {
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
-  app.enableCors({ origin: origins, credentials: true });
+  // An entry may contain * for one subdomain label, e.g. https://*.flourishive.in.
+  const allowed = originMatcher(origins);
+  app.enableCors({
+    origin: (
+      origin: string | undefined,
+      done: (err: Error | null, allow?: boolean) => void,
+    ) => done(null, allowed(origin)),
+    credentials: true,
+  });
 
   // Raw CSV uploads (people import) arrive as text/csv.
   (app as NestExpressApplication).useBodyParser('text', {

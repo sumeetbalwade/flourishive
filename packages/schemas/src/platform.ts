@@ -21,10 +21,19 @@ export const platformPasswordBody = z.object({
   password: z.string().min(1).max(256),
 });
 
+/** Names the platform keeps for itself, because each company gets <slug>.flourishive.in. */
+export const RESERVED_SLUGS = [
+  'app', 'admin', 'api', 'verify', 'www', 'mail', 'smtp', 'support', 'status', 'help',
+  'docs', 'blog', 'cdn', 'static', 'assets', 'login', 'signin', 'auth', 'billing',
+  'flourishive', 'flourisense-admin', 'staging', 'dev', 'test', 'demo',
+] as const;
+export const companySlug = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/, 'Use 3-63 lowercase letters, digits or hyphens')
+  .refine((s) => !(RESERVED_SLUGS as readonly string[]).includes(s), 'That name is reserved');
+
 export const createTenantBody = z.object({
-  slug: z
-    .string()
-    .regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/, 'Use 3-63 lowercase letters, digits or hyphens'),
+  slug: companySlug,
   name: z.string().trim().min(1).max(191),
   companyName: z.string().trim().min(1).max(191),
   legalName: z.string().trim().min(1).max(191),

@@ -13,6 +13,7 @@ import {
   engagementResponse,
   entityItem,
   roleResponse,
+  companyPublic,
   settingsResponse,
   tenantRolePolicy,
   type MfaLevel,
@@ -103,6 +104,18 @@ export function createApiClient(opts: Opts) {
         http.request('POST', '/auth/forgot-password', { json: { tenant, email }, auth: false }),
       resetPassword: (token: string, password: string) =>
         http.request('POST', '/auth/reset-password', { json: { token, password }, auth: false }),
+    },
+
+    /** Open endpoints for the signed-out screens. */
+    company: {
+      get: (slug: string) =>
+        http.request('GET', `/public/company/${encodeURIComponent(slug)}`, {
+          schema: companyPublic,
+          auth: false,
+        }),
+      /** Emails the person the sign-in address of each company they belong to. */
+      find: (email: string) =>
+        http.request('POST', '/public/find-company', { json: { email }, auth: false }),
     },
 
     people: {

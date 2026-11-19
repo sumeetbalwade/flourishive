@@ -67,3 +67,12 @@ export type TokensResponse = z.infer<typeof tokensResponse>;
 export type MeResponse = z.infer<typeof meResponse>;
 export type MfaSetupResponse = z.infer<typeof mfaSetupResponse>;
 export type MfaConfirmResponse = z.infer<typeof mfaConfirmResponse>;
+
+/** What the sign-in page may show before anyone is signed in. */
+export const companyPublic = z.object({
+  slug: z.string(),
+  name: z.string(),
+  accentColor: z.string(),
+});
+export type CompanyPublic = z.infer<typeof companyPublic>;
+export const findCompanyBody = z.object({ email: z.string().email().max(191) });

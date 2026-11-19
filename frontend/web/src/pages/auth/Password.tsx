@@ -1,13 +1,16 @@
 import { Button, Card, Field, Input } from '@flourishive/ui';
 import { useState } from 'react';
 import { Frame } from '../../components/Frame.tsx';
-import { useApi, remember } from '../../lib/api.tsx';
+import { useApi } from '../../lib/api.tsx';
+import { detectHere } from '../../lib/company.ts';
 import { messageOf } from '../../lib/errors.ts';
 import { go } from '../../router.ts';
 
 export function ForgotPassword() {
   const api = useApi();
-  const [tenant, setTenant] = useState(() => remember.get('fh.tenant'));
+  const detected = detectHere();
+  const [tenant, setTenant] = useState(detected.slug);
+  const fixed = detected.source === 'address';
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -54,15 +57,17 @@ export function ForgotPassword() {
             }
           }}
         >
-          <Field label="Company code" htmlFor="f-tenant">
-            <Input
-              id="f-tenant"
-              value={tenant}
-              onChange={(e) => setTenant(e.target.value)}
-              autoCapitalize="none"
-              spellCheck={false}
-            />
-          </Field>
+          {!fixed && (
+            <Field label="Company code" htmlFor="f-tenant">
+              <Input
+                id="f-tenant"
+                value={tenant}
+                onChange={(e) => setTenant(e.target.value)}
+                autoCapitalize="none"
+                spellCheck={false}
+              />
+            </Field>
+          )}
           <Field label="Work email" htmlFor="f-email" error={error}>
             <Input id="f-email" name="email" type="email" autoComplete="username" />
           </Field>
