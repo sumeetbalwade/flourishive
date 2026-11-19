@@ -9,3 +9,16 @@ export { Avatar } from './components/avatar.tsx';
 export { ThemeToggle } from './components/theme.tsx';
 export { SigningAnimation, type SigningState } from './components/signing-animation.tsx';
 export { AppShell, type NavItem } from './components/app-shell.tsx';
+export {
+  Dialog,
+  DialogTrigger,
+  DialogClose,
+  DialogContent,
+  SheetContent,
+} from './components/dialog.tsx';
+export { Tabs, TabsList, TabsTrigger, TabsContent } from './components/tabs.tsx';
+export { Select } from './components/select.tsx';
+export { Table, THead, TBody, TR, TH, TD } from './components/table.tsx';
+export { DatePicker } from './components/date-picker.tsx';
+export { ToastProvider, useToast } from './components/toast.tsx';
+export { BarChart, LineChart, chartColors } from './components/chart.tsx';
