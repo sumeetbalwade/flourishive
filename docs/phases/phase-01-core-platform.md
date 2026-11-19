@@ -1,6 +1,6 @@
 # Phase 1 — Minimal, tenant-aware core
 
-**Status:** In progress (PR 5 of 9 in review: org and people) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
+**Status:** In progress (PR 6 of 9 in review: audit, files, notifications) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
 
 ## Goal
 
@@ -24,7 +24,7 @@ The smallest platform core that signing needs, built on the final data model: Fl
 - [x] `settings`: registry and the user → entity → tenant → plan → platform resolution (plan §5). First settings: branding, password policy, MFA policy, session length
 - [x] `org`: departments, designations, locations (Maharashtra)
 - [x] `people`: persons, engagements, intern details; CSV import with validation and a dry-run preview
-- [ ] `files`, `audit` (hash-chained, append-only), `notifications` (email templates per event)
+- [x] `files`, `audit` (hash-chained, append-only), `notifications` (email templates per event)
 - [ ] `platform-admin`: super admin users kept apart from tenant users (next PR, reuses the identity services)
 - [x] Redis-backed rate limits and lockouts on login and MFA
 

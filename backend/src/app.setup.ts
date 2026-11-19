@@ -23,6 +23,16 @@ export function configureApp(app: INestApplication): void {
     type: 'text/csv',
     limit: '2mb',
   });
+  // Raw uploads (files module): the Content-Type is the file's type.
+  (app as NestExpressApplication).useBodyParser('raw', {
+    type: [
+      'application/pdf',
+      'image/png',
+      'image/jpeg',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ],
+    limit: '20mb',
+  });
   app.use(cookieParser());
   // Behind cPanel's proxy; needed so req.ip is the client, not the proxy.
   (app as INestApplication & { set(k: string, v: unknown): void }).set(

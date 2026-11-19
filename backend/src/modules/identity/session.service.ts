@@ -6,6 +6,7 @@ import {
   runAsSystem,
   runInTenant,
 } from '../../platform/database/tenant-context.js';
+import { AuditService } from '../audit/audit.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { TokenService, sha256 } from './token.service.js';
 
@@ -31,6 +32,7 @@ export class SessionService {
     private readonly tokens: TokenService,
     private readonly redis: RedisService,
     private readonly settings: SettingsService,
+    private readonly audit: AuditService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -128,6 +130,15 @@ export class SessionService {
 
     const { tenantId, session } = row;
     if (row.usedAt) {
+      await this.audit.recordSafely({
+        tenantId,
+        actorType: 'SYSTEM',
+        actorId: session.userId,
+        action: 'auth.refresh_token_reuse',
+        entityType: 'sessions',
+        entityId: session.id,
+        meta: { revoked: true },
+      });
       await this.revoke(tenantId, session.id); // token theft signal
       throw new UnauthorizedException('Invalid refresh token');
     }

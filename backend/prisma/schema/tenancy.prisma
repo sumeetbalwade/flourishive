@@ -22,6 +22,10 @@ model Tenant {
   persons         Person[]
   engagements     Engagement[]
   internDetails   InternDetail[]
+  auditLogs       AuditLog[]
+  auditChainHead  AuditChainHead?
+  files           File[]
+  notifications   Notification[]
 
   @@map("tenants")
 }

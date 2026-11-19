@@ -253,6 +253,58 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { college: 'hacked' },
   },
+  AuditLog: {
+    delegate: 'auditLog',
+    where: (r) => ({ seq: r.seq }),
+    unique: (r) => ({ seq: r.seq }),
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        actorType: 'SYSTEM',
+        action: 'test.event',
+        createdAt: new Date(),
+        prevHash: '0'.repeat(64),
+        hash: 'f'.repeat(64),
+      },
+    }),
+    change: { action: 'hacked' },
+  },
+  AuditChainHead: {
+    delegate: 'auditChainHead',
+    where: (r) => ({ tenantId: r.tenantId }),
+    unique: (r) => ({ tenantId: r.tenantId }),
+    create: async (tenantId) => ({
+      data: { tenantId, lastHash: '0'.repeat(64) },
+    }),
+    change: { lastHash: 'f'.repeat(64) },
+  },
+  File: {
+    delegate: 'file',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        storageKey: `${tenantId}/${crypto.randomUUID()}`,
+        originalName: 'a.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 5,
+        sha256: 'a'.repeat(64),
+      },
+    }),
+    change: { originalName: 'hacked.pdf' },
+  },
+  Notification: {
+    delegate: 'notification',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        event: 'test',
+        toEmail: 'a@b.test',
+        subject: 's',
+        body: 'b',
+      },
+    }),
+    change: { subject: 'hacked' },
+  },
   RefreshToken: {
     delegate: 'refreshToken',
     create: async (tenantId) => ({

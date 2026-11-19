@@ -8,8 +8,10 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { RequirePermission } from '../access/require-permission.js';
+import type { AuditableRequest } from '../audit/audit.interceptor.js';
 import { CurrentAuth } from '../identity/auth.context.js';
 import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
@@ -50,7 +52,9 @@ export class PeopleController {
     @Body() csv: unknown,
     @Query('dryRun') dryRun = 'true',
     @Query('createMissing') createMissing = 'false',
+    @Req() req: AuditableRequest,
   ) {
+    req.auditSkip = dryRun !== 'false'; // a preview changes nothing
     if (typeof csv !== 'string')
       throw new BadRequestException('Send the CSV as text/csv');
     return this.importer.run(a, csv, {
