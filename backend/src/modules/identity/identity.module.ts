@@ -30,6 +30,6 @@ import { TokenService } from './token.service.js';
     { provide: APP_GUARD, useClass: PermissionGuard },
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
   ],
-  exports: [PasswordService, TokenService, SessionService],
+  exports: [AuthService, PasswordService, TokenService, SessionService],
 })
 export class IdentityModule {}

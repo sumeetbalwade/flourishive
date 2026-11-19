@@ -351,17 +351,36 @@ export class AuthService {
       : null;
     if (!user || user.status === 'DISABLED') return;
 
+    await this.sendPasswordLink(user.tenantId, user.id, user.email, 'reset');
+  }
+
+  /** Emails a one-hour, single-use link to choose a password (reset or first-time invite). */
+  async sendPasswordLink(
+    tenantId: string,
+    userId: string,
+    to: string,
+    kind: 'reset' | 'invite',
+  ): Promise<void> {
     const token = randomBytes(32).toString('base64url');
     await this.redis.setJson(
       `pwreset:${sha256(token)}`,
-      { tenantId: user.tenantId, userId: user.id },
-      3600,
+      { tenantId, userId },
+      kind === 'invite' ? 7 * 24 * 3600 : 3600,
     );
-    await this.mail.send({
-      to: user.email,
-      subject: 'Reset your Flourishive password',
-      text: `Use this link within one hour to choose a new password:\n\n${this.config.WEB_URL}/#/reset-password?token=${token}\n\nIf you did not ask for this, you can ignore this email.`,
-    });
+    const link = `${this.config.WEB_URL}/#/reset-password?token=${token}`;
+    await this.mail.send(
+      kind === 'invite'
+        ? {
+            to,
+            subject: 'You have been invited to Flourishive',
+            text: `Choose a password to activate your account (link valid for 7 days):\n\n${link}`,
+          }
+        : {
+            to,
+            subject: 'Reset your Flourishive password',
+            text: `Use this link within one hour to choose a new password:\n\n${link}\n\nIf you did not ask for this, you can ignore this email.`,
+          },
+    );
   }
 
   async resetPassword(input: {

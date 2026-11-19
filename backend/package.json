@@ -34,6 +34,7 @@
     "@prisma/client": "7.10.1",
     "bullmq": "^6.7.7",
     "cookie-parser": "^1.4.7",
+    "csv-parse": "^7.0.3",
     "google-auth-library": "^11.3.4",
     "hash-wasm": "^4.13.0",
     "ioredis": "^6.0.0",

@@ -1,0 +1,88 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
+import { z } from 'zod';
+import { RequirePermission } from '../access/require-permission.js';
+import { CurrentAuth } from '../identity/auth.context.js';
+import type { AccessClaims } from '../identity/token.service.js';
+import { ZodPipe } from '../identity/zod.pipe.js';
+import { ORG_KINDS, OrgService, type OrgKind } from './org.service.js';
+
+const name = z.string().trim().min(1).max(100);
+const bodies = {
+  locations: z.object({
+    name,
+    city: z.string().trim().max(100).nullish(),
+    state: z.string().trim().max(100).nullish(),
+  }),
+  departments: z.object({ name }),
+  designations: z.object({ name }),
+} satisfies Record<OrgKind, z.ZodType>;
+
+function kindOf(raw: string): OrgKind {
+  if (!(ORG_KINDS as readonly string[]).includes(raw))
+    throw new BadRequestException('Unknown catalogue');
+  return raw as OrgKind;
+}
+
+@Controller('org')
+export class OrgController {
+  constructor(private readonly org: OrgService) {}
+
+  @Get(':kind')
+  @RequirePermission('org.read')
+  list(@CurrentAuth() a: AccessClaims, @Param('kind') kind: string) {
+    return this.org.list(a.tenantId, kindOf(kind));
+  }
+
+  @Post(':kind')
+  @RequirePermission('org.write')
+  create(
+    @CurrentAuth() a: AccessClaims,
+    @Param('kind') kind: string,
+    @Body() body: unknown,
+  ) {
+    const k = kindOf(kind);
+    return this.org.create(
+      a.tenantId,
+      k,
+      new ZodPipe(bodies[k]).transform(body),
+    );
+  }
+
+  @Patch(':kind/:id')
+  @RequirePermission('org.write')
+  update(
+    @CurrentAuth() a: AccessClaims,
+    @Param('kind') kind: string,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const k = kindOf(kind);
+    return this.org.update(
+      a.tenantId,
+      k,
+      id,
+      new ZodPipe(bodies[k].partial()).transform(body),
+    );
+  }
+
+  @Delete(':kind/:id')
+  @HttpCode(204)
+  @RequirePermission('org.write')
+  remove(
+    @CurrentAuth() a: AccessClaims,
+    @Param('kind') kind: string,
+    @Param('id') id: string,
+  ) {
+    return this.org.remove(a.tenantId, kindOf(kind), id);
+  }
+}

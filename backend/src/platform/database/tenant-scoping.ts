@@ -16,6 +16,12 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'RolePermission',
   'UserRole',
   'SettingValue',
+  'Location',
+  'Department',
+  'Designation',
+  'Person',
+  'Engagement',
+  'InternDetail',
 ]);
 
 /** The tenants table itself is scoped by its own id. */

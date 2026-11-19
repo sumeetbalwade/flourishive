@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { CacheModule } from './platform/cache/cache.module.js';
 import { ConfigModule } from './platform/config/config.module.js';
+import { OrgModule } from './modules/org/org.module.js';
+import { PeopleModule } from './modules/people/people.module.js';
 import { AccessModule } from './modules/access/access.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
@@ -23,6 +25,8 @@ import { StorageModule } from './platform/storage/storage.module.js';
     IdentityModule,
     AccessModule,
     SettingsModule,
+    OrgModule,
+    PeopleModule,
   ],
   controllers: [HealthController],
 })

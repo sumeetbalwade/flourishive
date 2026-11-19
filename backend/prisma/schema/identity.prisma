@@ -18,6 +18,7 @@ model User {
   recoveryCodes RecoveryCode[]
   sessions      Session[]
   userRoles     UserRole[]
+  person        Person?
 
   @@unique([tenantId, email])
   @@unique([tenantId, googleSub])

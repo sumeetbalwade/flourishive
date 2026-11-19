@@ -1,4 +1,5 @@
 import { INestApplication, VersioningType } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 
 /**
@@ -17,6 +18,11 @@ export function configureApp(app: INestApplication): void {
     .filter(Boolean);
   app.enableCors({ origin: origins, credentials: true });
 
+  // Raw CSV uploads (people import) arrive as text/csv.
+  (app as NestExpressApplication).useBodyParser('text', {
+    type: 'text/csv',
+    limit: '2mb',
+  });
   app.use(cookieParser());
   // Behind cPanel's proxy; needed so req.ip is the client, not the proxy.
   (app as INestApplication & { set(k: string, v: unknown): void }).set(

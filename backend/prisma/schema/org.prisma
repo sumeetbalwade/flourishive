@@ -1,0 +1,46 @@
+model Location {
+  id        String   @id @default(uuid(7)) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  name      String   @db.VarChar(100)
+  city      String?  @db.VarChar(100)
+  state     String?  @db.VarChar(100)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  engagements Engagement[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("locations")
+}
+
+model Department {
+  id        String   @id @default(uuid(7)) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  engagements Engagement[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("departments")
+}
+
+model Designation {
+  id        String   @id @default(uuid(7)) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  engagements Engagement[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("designations")
+}

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -118,6 +119,20 @@ export class AccessService {
     );
   }
 
+  /**
+   * Which entities a permission covers for this user: '*' for all, a list of entity ids,
+   * or null when they do not hold it at all.
+   */
+  async entityScope(
+    tenantId: string,
+    userId: string,
+    code: PermissionCode,
+  ): Promise<'*' | string[] | null> {
+    const scopes = (await this.permissionsFor(tenantId, userId))[code];
+    if (!scopes) return null;
+    return scopes.includes('*') ? '*' : scopes;
+  }
+
   /** Whether any of the user's roles requires MFA. */
   async hasMfaRequiredRole(tenantId: string, userId: string): Promise<boolean> {
     return await runInTenant(tenantId, async () => {
@@ -200,6 +215,15 @@ export class AccessService {
         where: { tenantId_key: { tenantId, key: input.roleKey } },
       });
       if (!role) throw new NotFoundException('Unknown role');
+      if (role.key === 'tenant_admin') {
+        const holders = await this.prisma.db.userRole.count({
+          where: { roleId: role.id },
+        });
+        if (holders <= 1)
+          throw new ConflictException(
+            'A tenant needs at least one Tenant Admin',
+          );
+      }
       await this.prisma.db.userRole.deleteMany({
         where: {
           userId: input.userId,

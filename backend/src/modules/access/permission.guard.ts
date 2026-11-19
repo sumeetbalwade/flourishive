@@ -26,7 +26,13 @@ export class PermissionGuard implements CanActivate {
     if (!required) return true;
     const auth = context.switchToHttp().getRequest<AuthedRequest>().auth;
     if (!auth) throw new UnauthorizedException();
-    if (!(await this.access.can(auth.tenantId, auth.userId, required))) {
+    // Holding it for any company is enough here; services check the specific company.
+    const scope = await this.access.entityScope(
+      auth.tenantId,
+      auth.userId,
+      required,
+    );
+    if (scope === null) {
       throw new ForbiddenException('You do not have permission to do this');
     }
     return true;

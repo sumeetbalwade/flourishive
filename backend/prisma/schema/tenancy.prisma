@@ -16,6 +16,12 @@ model Tenant {
   rolePermissions RolePermission[]
   userRoles       UserRole[]
   settingValues   SettingValue[]
+  locations       Location[]
+  departments     Department[]
+  designations    Designation[]
+  persons         Person[]
+  engagements     Engagement[]
+  internDetails   InternDetail[]
 
   @@map("tenants")
 }
@@ -34,8 +40,9 @@ model Entity {
   createdAt DateTime @default(now()) @db.DateTime(3)
   updatedAt DateTime @updatedAt @db.DateTime(3)
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id])
-  userRoles UserRole[]
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  userRoles   UserRole[]
+  engagements Engagement[]
 
   @@unique([tenantId, name])
   @@index([tenantId])

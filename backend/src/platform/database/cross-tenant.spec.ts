@@ -59,6 +59,38 @@ const newRole = (tenantId: string) =>
         },
       }),
   );
+const newEntity = (tenantId: string) =>
+  runAsSystem(
+    async () =>
+      await db.entity.create({
+        data: {
+          tenantId,
+          name: crypto.randomUUID().slice(0, 8),
+          legalName: 'Parent Ltd',
+        },
+      }),
+  );
+const newPerson = (tenantId: string) =>
+  runAsSystem(
+    async () =>
+      await db.person.create({
+        data: { tenantId, firstName: 'Pat', lastName: 'Parent' },
+      }),
+  );
+const newEngagement = async (tenantId: string) =>
+  runAsSystem(
+    async () =>
+      await db.engagement.create({
+        data: {
+          tenantId,
+          personId: (await newPerson(tenantId)).id,
+          entityId: (await newEntity(tenantId)).id,
+          type: 'EMPLOYEE',
+          employeeCode: crypto.randomUUID().slice(0, 12),
+          startDate: new Date('2026-01-01'),
+        },
+      }),
+  );
 const newSession = async (tenantId: string) =>
   runAsSystem(
     async () =>
@@ -167,6 +199,59 @@ const fixtures: Record<string, Fixture> = {
       },
     }),
     change: { value: '#ffffff' },
+  },
+  Location: {
+    delegate: 'location',
+    create: async (tenantId) => ({
+      data: { tenantId, name: crypto.randomUUID().slice(0, 8) },
+    }),
+    change: { city: 'Hacked' },
+  },
+  Department: {
+    delegate: 'department',
+    create: async (tenantId) => ({
+      data: { tenantId, name: crypto.randomUUID().slice(0, 8) },
+    }),
+    change: { name: 'hacked' },
+  },
+  Designation: {
+    delegate: 'designation',
+    create: async (tenantId) => ({
+      data: { tenantId, name: crypto.randomUUID().slice(0, 8) },
+    }),
+    change: { name: 'hacked' },
+  },
+  Person: {
+    delegate: 'person',
+    create: async (tenantId) => ({
+      data: { tenantId, firstName: 'Ada', lastName: 'Lovelace' },
+    }),
+    change: { firstName: 'hacked' },
+  },
+  Engagement: {
+    delegate: 'engagement',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        personId: (await newPerson(tenantId)).id,
+        entityId: (await newEntity(tenantId)).id,
+        type: 'EMPLOYEE',
+        employeeCode: crypto.randomUUID().slice(0, 12),
+        startDate: new Date('2026-01-01'),
+      },
+    }),
+    change: { status: 'ENDED' },
+  },
+  InternDetail: {
+    delegate: 'internDetail',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        engagementId: (await newEngagement(tenantId)).id,
+        college: 'Test College',
+      },
+    }),
+    change: { college: 'hacked' },
   },
   RefreshToken: {
     delegate: 'refreshToken',

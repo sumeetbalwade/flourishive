@@ -1,0 +1,83 @@
+enum EngagementType {
+  EMPLOYEE
+  INTERN
+}
+
+enum EngagementStatus {
+  ACTIVE
+  ENDED
+}
+
+/// A human being. Their relationship with a legal entity is an Engagement, so the
+/// same person can be an intern and later an employee without a duplicate record.
+model Person {
+  id            String   @id @default(uuid(7)) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  userId        String?  @unique @db.Char(36)
+  firstName     String   @db.VarChar(100)
+  lastName      String   @db.VarChar(100)
+  workEmail     String?  @db.VarChar(191)
+  personalEmail String?  @db.VarChar(191)
+  phone         String?  @db.VarChar(32)
+  createdAt     DateTime @default(now()) @db.DateTime(3)
+  updatedAt     DateTime @updatedAt @db.DateTime(3)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  engagements Engagement[]
+
+  @@unique([tenantId, workEmail])
+  @@index([tenantId])
+  @@map("persons")
+}
+
+model Engagement {
+  id            String           @id @default(uuid(7)) @db.Char(36)
+  tenantId      String           @db.Char(36)
+  personId      String           @db.Char(36)
+  entityId      String           @db.Char(36)
+  type          EngagementType
+  status        EngagementStatus @default(ACTIVE)
+  employeeCode  String           @db.VarChar(32)
+  departmentId  String?          @db.Char(36)
+  designationId String?          @db.Char(36)
+  locationId    String?          @db.Char(36)
+  managerId     String?          @db.Char(36)
+  startDate     DateTime         @db.Date
+  endDate       DateTime?        @db.Date
+  createdAt     DateTime         @default(now()) @db.DateTime(3)
+  updatedAt     DateTime         @updatedAt @db.DateTime(3)
+
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  person      Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  entity      Entity        @relation(fields: [entityId], references: [id])
+  department  Department?   @relation(fields: [departmentId], references: [id])
+  designation Designation?  @relation(fields: [designationId], references: [id])
+  location    Location?     @relation(fields: [locationId], references: [id])
+  manager     Engagement?   @relation("Reporting", fields: [managerId], references: [id], onDelete: SetNull)
+  reports     Engagement[]  @relation("Reporting")
+  intern      InternDetail?
+
+  @@unique([tenantId, employeeCode])
+  @@index([tenantId])
+  @@index([personId])
+  @@index([entityId])
+  @@map("engagements")
+}
+
+model InternDetail {
+  id             String   @id @default(uuid(7)) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  engagementId   String   @unique @db.Char(36)
+  college        String?  @db.VarChar(191)
+  course         String?  @db.VarChar(191)
+  graduationYear Int?
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @db.DateTime(3)
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("intern_details")
+}
