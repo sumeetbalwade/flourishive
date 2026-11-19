@@ -6,6 +6,7 @@ import {
   runAsSystem,
   runInTenant,
 } from '../../platform/database/tenant-context.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { TokenService, sha256 } from './token.service.js';
 
 export interface ClientMeta {
@@ -17,6 +18,7 @@ export interface IssuedTokens {
   accessToken: string;
   expiresIn: number;
   refreshToken: string;
+  refreshTtlMs: number;
   sessionId: string;
 }
 
@@ -28,11 +30,18 @@ export class SessionService {
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
     private readonly redis: RedisService,
+    private readonly settings: SettingsService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
-  private get refreshMs() {
-    return this.config.REFRESH_TOKEN_TTL_DAYS * 24 * 3600 * 1000;
+  /** Session length is the tenant's `security.sessionDays` setting. */
+  private async refreshMs(tenantId: string): Promise<number> {
+    return (
+      (await this.settings.get('security.sessionDays', { tenantId })) *
+      24 *
+      3600 *
+      1000
+    );
   }
 
   async start(
@@ -41,7 +50,8 @@ export class SessionService {
     meta: ClientMeta,
   ): Promise<IssuedTokens> {
     const refresh = this.tokens.newRefreshToken();
-    const expiresAt = new Date(Date.now() + this.refreshMs);
+    const refreshMs = await this.refreshMs(tenantId);
+    const expiresAt = new Date(Date.now() + refreshMs);
     const sessionId = await runInTenant(tenantId, async () => {
       const session = await this.prisma.db.session.create({
         data: {
@@ -81,6 +91,7 @@ export class SessionService {
       sessionId,
     });
     return {
+      refreshTtlMs: await this.refreshMs(tenantId),
       accessToken,
       expiresIn: this.config.ACCESS_TOKEN_TTL_SECONDS,
       refreshToken,
@@ -131,6 +142,7 @@ export class SessionService {
     }
 
     const next = this.tokens.newRefreshToken();
+    const refreshMs = await this.refreshMs(tenantId);
     const claimed = await runInTenant(tenantId, async () => {
       // Atomic claim: only one concurrent request can mark the token used.
       const res = await this.prisma.db.refreshToken.updateMany({
@@ -143,7 +155,7 @@ export class SessionService {
           tenantId,
           sessionId: session.id,
           tokenHash: next.hash,
-          expiresAt: new Date(Date.now() + this.refreshMs),
+          expiresAt: new Date(Date.now() + refreshMs),
         },
       });
       return true;

@@ -15,11 +15,11 @@ export const MIN_PASSWORD_LENGTH = 12;
 
 @Injectable()
 export class PasswordService {
-  /** Basic policy; the per-tenant password policy setting arrives with the settings module. */
-  assertAcceptable(password: string): void {
-    if (password.length < MIN_PASSWORD_LENGTH) {
+  /** The minimum comes from the tenant's `security.passwordMinLength` setting. */
+  assertAcceptable(password: string, minLength = MIN_PASSWORD_LENGTH): void {
+    if (password.length < minLength) {
       throw new BadRequestException(
-        `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+        `Password must be at least ${minLength} characters`,
       );
     }
     if (password.length > 256)

@@ -12,6 +12,10 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'RecoveryCode',
   'Session',
   'RefreshToken',
+  'Role',
+  'RolePermission',
+  'UserRole',
+  'SettingValue',
 ]);
 
 /** The tenants table itself is scoped by its own id. */

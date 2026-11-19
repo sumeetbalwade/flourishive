@@ -14,6 +14,8 @@ import {
   runInTenant,
 } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
+import { AccessService } from '../access/access.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { GoogleService } from './google.service.js';
 import { MfaService, hashRecoveryCode } from './mfa.service.js';
 import { PasswordService } from './password.service.js';
@@ -64,6 +66,8 @@ export class AuthService {
     private readonly google: GoogleService,
     private readonly redis: RedisService,
     private readonly mail: MailService,
+    private readonly access: AccessService,
+    private readonly settings: SettingsService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -92,6 +96,18 @@ export class AuthService {
     });
   }
 
+  /** MFA is required by the user's own flag, by any of their roles, or by a tenant-wide policy. */
+  private async mfaIsRequired(user: UserRow): Promise<boolean> {
+    if (user.mfaRequired) return true;
+    if (
+      (await this.settings.get('security.mfaPolicy', {
+        tenantId: user.tenantId,
+      })) === 'everyone'
+    )
+      return true;
+    return this.access.hasMfaRequiredRole(user.tenantId, user.id);
+  }
+
   /** After the first factor: decide whether MFA is needed before issuing tokens. */
   private async afterFirstFactor(
     user: UserRow,
@@ -105,7 +121,7 @@ export class AuthService {
       });
       return { status: 'mfa_required', mfaToken };
     }
-    if (user.mfaRequired) {
+    if (await this.mfaIsRequired(user)) {
       const mfaToken = await this.tokens.signMfaChallenge({
         userId: user.id,
         tenantId: user.tenantId,
@@ -314,7 +330,10 @@ export class AuthService {
       tenantId: user.tenantId,
       email: user.email,
       mfaEnabled: Boolean(user.mfaEnabledAt),
-      mfaRequired: user.mfaRequired,
+      mfaRequired: await this.mfaIsRequired(user),
+      permissions: Object.keys(
+        await this.access.permissionsFor(who.tenantId, who.userId),
+      ).sort(),
     };
   }
 
@@ -349,10 +368,19 @@ export class AuthService {
     token: string;
     password: string;
   }): Promise<void> {
-    this.passwords.assertAcceptable(input.password);
     const key = `pwreset:${sha256(input.token)}`;
     const claim = await this.redis.getJson<Principal>(key);
-    if (!claim || (await this.redis.del(key)) !== 1)
+    if (!claim)
+      throw new BadRequestException(
+        'This reset link is invalid or has expired',
+      );
+    this.passwords.assertAcceptable(
+      input.password,
+      await this.settings.get('security.passwordMinLength', {
+        tenantId: claim.tenantId,
+      }),
+    );
+    if ((await this.redis.del(key)) !== 1)
       throw new BadRequestException(
         'This reset link is invalid or has expired',
       );

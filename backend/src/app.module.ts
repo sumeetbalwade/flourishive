@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { CacheModule } from './platform/cache/cache.module.js';
 import { ConfigModule } from './platform/config/config.module.js';
+import { AccessModule } from './modules/access/access.module.js';
+import { SettingsModule } from './modules/settings/settings.module.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
 import { DatabaseModule } from './platform/database/database.module.js';
 import { CryptoModule } from './platform/crypto/crypto.module.js';
@@ -19,6 +21,8 @@ import { StorageModule } from './platform/storage/storage.module.js';
     StorageModule,
     MailModule,
     IdentityModule,
+    AccessModule,
+    SettingsModule,
   ],
   controllers: [HealthController],
 })
