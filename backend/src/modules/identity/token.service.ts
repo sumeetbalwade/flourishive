@@ -91,6 +91,45 @@ export class TokenService {
     };
   }
 
+  /** Super admin tokens use their own audiences, so they can never be used on tenant routes (or vice versa). */
+  signPlatformAccess(claims: {
+    platformUserId: string;
+    sessionId: string;
+  }): Promise<string> {
+    return this.sign(
+      { ...claims, sub: claims.platformUserId },
+      'platform',
+      this.config.ACCESS_TOKEN_TTL_SECONDS,
+    );
+  }
+
+  async verifyPlatformAccess(
+    token: string,
+  ): Promise<{ platformUserId: string; sessionId: string }> {
+    const p = await this.verify(token, 'platform');
+    return {
+      platformUserId: String(p.platformUserId),
+      sessionId: String(p.sessionId),
+    };
+  }
+
+  signPlatformMfa(claims: {
+    platformUserId: string;
+    purpose: MfaChallengePurpose;
+  }): Promise<string> {
+    return this.sign({ ...claims }, 'platform-mfa', 300);
+  }
+
+  async verifyPlatformMfa(
+    token: string,
+  ): Promise<{ platformUserId: string; purpose: MfaChallengePurpose }> {
+    const p = await this.verify(token, 'platform-mfa');
+    return {
+      platformUserId: String(p.platformUserId),
+      purpose: p.purpose as MfaChallengePurpose,
+    };
+  }
+
   /** Opaque refresh token: the client keeps `token`, the database keeps only `hash`. */
   newRefreshToken(): { token: string; hash: string } {
     const token = randomBytes(32).toString('base64url');

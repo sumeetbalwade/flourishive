@@ -71,6 +71,21 @@ console.log(
 if (dev) {
   await devAdmin(flourisense.id, 'admin@flourisense.test');
   await devAdmin(demo!.id, 'admin@demo-co.test');
+  const platformEmail = 'super@flourishive.test';
+  await runAsSystem(async () => {
+    await db.platformUser.upsert({
+      where: { email: platformEmail },
+      update: {},
+      create: {
+        email: platformEmail,
+        status: 'ACTIVE',
+        passwordHash: await passwords.hash('dev-password-change-me'),
+      },
+    });
+  });
+  console.log(
+    'Dev super admin: super@flourishive.test (same dev password; sets up MFA at first sign-in)',
+  );
   console.log(
     'Dev admins: admin@flourisense.test / admin@demo-co.test, password "dev-password-change-me" (local only)',
   );

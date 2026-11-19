@@ -143,6 +143,8 @@ export class SessionService {
       throw new UnauthorizedException('Invalid refresh token');
     }
     const now = new Date();
+    if (await this.isTenantSuspended(tenantId))
+      throw new UnauthorizedException('Session expired');
     if (
       session.revokedAt ||
       session.expiresAt < now ||
@@ -222,6 +224,13 @@ export class SessionService {
       ),
     );
     return ids.length;
+  }
+
+  /** Set by the platform console when a tenant is suspended; blocks live tokens at once. */
+  async isTenantSuspended(tenantId: string): Promise<boolean> {
+    return (
+      (await this.redis.client.exists(`tenant:suspended:${tenantId}`)) === 1
+    );
   }
 
   async isRevoked(sessionId: string): Promise<boolean> {

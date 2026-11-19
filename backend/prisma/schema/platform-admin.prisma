@@ -1,0 +1,61 @@
+/// Super admin staff. Kept apart from tenant users: separate tables, separate token audience,
+/// and MFA is mandatory for every one of them.
+model PlatformUser {
+  id           String     @id @default(uuid(7)) @db.Char(36)
+  email        String     @unique @db.VarChar(191)
+  passwordHash String?    @db.VarChar(255)
+  status       UserStatus @default(INVITED)
+  mfaSecretEnc String?    @db.VarChar(255)
+  mfaEnabledAt DateTime?  @db.DateTime(3)
+  lastLoginAt  DateTime?  @db.DateTime(3)
+  createdAt    DateTime   @default(now()) @db.DateTime(3)
+  updatedAt    DateTime   @updatedAt @db.DateTime(3)
+
+  recoveryCodes PlatformRecoveryCode[]
+  sessions      PlatformSession[]
+
+  @@map("platform_users")
+}
+
+model PlatformRecoveryCode {
+  id        String    @id @default(uuid(7)) @db.Char(36)
+  userId    String    @db.Char(36)
+  codeHash  String    @db.Char(64)
+  usedAt    DateTime? @db.DateTime(3)
+  createdAt DateTime  @default(now()) @db.DateTime(3)
+
+  user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("platform_recovery_codes")
+}
+
+model PlatformSession {
+  id        String    @id @default(uuid(7)) @db.Char(36)
+  userId    String    @db.Char(36)
+  userAgent String?   @db.VarChar(255)
+  ip        String?   @db.VarChar(64)
+  expiresAt DateTime  @db.DateTime(3)
+  revokedAt DateTime? @db.DateTime(3)
+  createdAt DateTime  @default(now()) @db.DateTime(3)
+
+  user          PlatformUser           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens PlatformRefreshToken[]
+
+  @@index([userId])
+  @@map("platform_sessions")
+}
+
+model PlatformRefreshToken {
+  id        String    @id @default(uuid(7)) @db.Char(36)
+  sessionId String    @db.Char(36)
+  tokenHash String    @unique @db.Char(64)
+  usedAt    DateTime? @db.DateTime(3)
+  expiresAt DateTime  @db.DateTime(3)
+  createdAt DateTime  @default(now()) @db.DateTime(3)
+
+  session PlatformSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("platform_refresh_tokens")
+}

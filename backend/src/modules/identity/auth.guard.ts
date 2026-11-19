@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -32,6 +33,8 @@ export class AuthGuard implements CanActivate {
     const claims = await this.tokens.verifyAccess(header.slice(7));
     if (await this.sessions.isRevoked(claims.sessionId))
       throw new UnauthorizedException('Session ended');
+    if (await this.sessions.isTenantSuspended(claims.tenantId))
+      throw new ForbiddenException('This account is suspended');
     req.auth = claims;
     return true;
   }
