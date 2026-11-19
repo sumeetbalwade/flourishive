@@ -3,6 +3,9 @@ packages:
   - frontend/*
   - packages/*
 allowBuilds:
+  '@prisma/engines': true
+  esbuild: false
   msgpackr-extract: false
+  prisma: true
 minimumReleaseAgeExclude:
   - lucide-react@1.75.0
