@@ -172,7 +172,7 @@ describe('staff and defaults', () => {
     await user.click(screen.getAllByRole('button', { name: 'Change' })[0]!);
     await user.type(await screen.findByLabelText('Value'), '10');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(client.settings.set).toHaveBeenCalledWith('security.sessionDays', 10);
+    expect(client.settings.set).toHaveBeenCalledWith('security.sessionDays', { value: 10 });
   });
 });
 
