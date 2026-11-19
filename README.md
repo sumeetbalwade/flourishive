@@ -17,7 +17,7 @@ Start with [docs/00-master-plan.md](docs/00-master-plan.md): every approved deci
 
 ## Local development
 
-Requires Node 24, pnpm, Python 3.12 and uv; MySQL, Redis, Mailpit and SoftHSM via Homebrew.
+Requires Node 24, pnpm, Python 3.12 and uv; MariaDB 10.6 (MySQL-compatible), Redis, Mailpit and SoftHSM via Homebrew. Run `infra/local/setup.sh` once to start them and create the databases.
 
 ```bash
 pnpm install

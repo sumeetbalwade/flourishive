@@ -13,7 +13,7 @@ Everything needed before feature work: hosting and accounts ready, the repo and 
 - [ ] Buy `flourishive.in`; point DNS to the cPanel host
 - [ ] Create subdomains `app.`, `admin.`, `api.`, `verify.` and their `staging-` versions; enable AutoSSL
 - [ ] Transactional email account (Zoho ZeptoMail or Amazon SES, D-17); SPF, DKIM and DMARC on `flourishive.in`
-- [ ] Private GitHub repository; branch protection on `main`
+- [x] Private GitHub repository (done). [ ] Branch protection on `main` needs GitHub Pro or a paid org plan
 - [ ] Sentry account (API, SPAs, desktop) and an external uptime monitor
 
 ### B. Repository and tooling
@@ -22,12 +22,12 @@ Everything needed before feature work: hosting and accounts ready, the repo and 
 - [x] Three Vite React SPAs (web :5173, admin :5174, verify :5175) with the shared `.htaccess`
 - [x] Desktop Python project (uv, pyHanko 0.38 with PKCS#11)
 - [x] Homebrew services installed (MySQL 8.4, Redis, Mailpit, SoftHSM, OpenSC)
-- [ ] `infra/local/setup.sh`: start the services, create the local database, write `.env` files
-- [ ] Confirm oxlint (Nest 12 / Vite default) in place of ESLint (D-26)
-- [ ] First commit and push to GitHub
+- [x] `infra/local/setup.sh`: start the services, create the local database, write `.env` files. Local DB is MariaDB 10.6 (the Mac's shared MySQL data dir already holds MariaDB data, so MySQL 8.4 would not start); verify against the host's engine before Phase 1 migrations
+- [x] Confirm oxlint (Nest 12 / Vite default) in place of ESLint (D-26): `pnpm lint` runs oxlint in every app and passes in CI
+- [x] First commit and push to GitHub (private repo `sumeetbalwade/flourishive`; work goes through feature branches and PRs; branch protection is unavailable on a free private repo, so it is by convention)
 
 ### C. CI/CD (D-22)
-- [ ] GitHub Actions on every pull request: build, typecheck, lint, test for each app
+- [x] GitHub Actions on every pull request: build, typecheck, lint, test for each app (`.github/workflows/ci.yml`)
 - [ ] Deploy workflow for the API: build on CI, rsync over SSH, run migrations, restart the Node app
 - [ ] Deploy workflows for web, admin and verify: build on CI, rsync `dist/` to each subdomain's document root
 - [ ] Cron entries: worker every minute (a no-op until Phase 1) and a keep-warm ping every 5 minutes
