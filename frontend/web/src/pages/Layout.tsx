@@ -26,9 +26,30 @@ const NAV: Item[] = [
   { id: 'people', label: 'People', icon: Users, group: 'People', needs: 'people.read' },
   { id: 'import', label: 'Import', icon: Upload, group: 'People', needs: 'people.import' },
   { id: 'org', label: 'Organisation', icon: Building2, group: 'People', needs: 'org.read' },
-  { id: 'templates', label: 'Templates', icon: LayoutTemplate, group: 'Documents', tag: 'Preview', needs: 'people.read' },
-  { id: 'letters', label: 'Letters', icon: FileText, group: 'Documents', tag: 'Preview', needs: 'people.read' },
-  { id: 'signing', label: 'Signing', icon: PenLine, group: 'Documents', tag: 'Preview', needs: 'people.read' },
+  {
+    id: 'templates',
+    label: 'Templates',
+    icon: LayoutTemplate,
+    group: 'Documents',
+    tag: 'Preview',
+    needs: 'people.read',
+  },
+  {
+    id: 'letters',
+    label: 'Letters',
+    icon: FileText,
+    group: 'Documents',
+    tag: 'Preview',
+    needs: 'people.read',
+  },
+  {
+    id: 'signing',
+    label: 'Signing',
+    icon: PenLine,
+    group: 'Documents',
+    tag: 'Preview',
+    needs: 'people.read',
+  },
   { id: 'audit', label: 'Audit log', icon: ClipboardList, group: 'Insights', needs: 'audit.read' },
   { id: 'security', label: 'My security', icon: ShieldCheck, group: 'Account' },
 ];
@@ -52,7 +73,15 @@ export function Layout({
   const commands = useMemo<Command[]>(
     () =>
       auth.can('people.write')
-        ? [{ id: 'act:add-person', label: 'Add a person', hint: 'Action', icon: UserPlus, run: () => go('/app/people?new=1') }]
+        ? [
+            {
+              id: 'act:add-person',
+              label: 'Add a person',
+              hint: 'Action',
+              icon: UserPlus,
+              run: () => go('/app/people?new=1'),
+            },
+          ]
         : [],
     [auth],
   );
@@ -65,7 +94,13 @@ export function Layout({
       active={active}
       onNavigate={(id) => go(`/app/${id}`)}
       commands={commands}
-      crumbs={section && title !== LABELS[active]?.label ? [section, LABELS[active]!.label] : section ? [section] : undefined}
+      crumbs={
+        section && title !== LABELS[active]?.label
+          ? [section, LABELS[active]!.label]
+          : section
+            ? [section]
+            : undefined
+      }
       user={{ name: me?.email ?? '…', role: roleLine(me?.mfaEnabled) }}
       onSignOut={() => void auth.signOut()}
       title={title}

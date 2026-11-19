@@ -32,10 +32,33 @@ export function Home() {
 
   const needsTwoStep = !!me && !me.mfaEnabled && me.mfaLevel !== 'OFF';
   const actions: { label: string; hint: string; icon: ReactNode; to: string; needs?: string }[] = [
-    { label: 'People', hint: 'Find someone or update their details', icon: <Users size={18} />, to: '/app/people', needs: 'people.read' },
-    { label: 'Import a spreadsheet', hint: 'Add many people at once', icon: <Upload size={18} />, to: '/app/import', needs: 'people.import' },
-    { label: 'Organisation', hint: 'Teams, designations and locations', icon: <Building2 size={18} />, to: '/app/org', needs: 'org.read' },
-    { label: 'My security', hint: 'Two-step sign-in and recovery codes', icon: <ShieldCheck size={18} />, to: '/app/security' },
+    {
+      label: 'People',
+      hint: 'Find someone or update their details',
+      icon: <Users size={18} />,
+      to: '/app/people',
+      needs: 'people.read',
+    },
+    {
+      label: 'Import a spreadsheet',
+      hint: 'Add many people at once',
+      icon: <Upload size={18} />,
+      to: '/app/import',
+      needs: 'people.import',
+    },
+    {
+      label: 'Organisation',
+      hint: 'Teams, designations and locations',
+      icon: <Building2 size={18} />,
+      to: '/app/org',
+      needs: 'org.read',
+    },
+    {
+      label: 'My security',
+      hint: 'Two-step sign-in and recovery codes',
+      icon: <ShieldCheck size={18} />,
+      to: '/app/security',
+    },
   ];
 
   return (

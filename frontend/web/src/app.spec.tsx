@@ -45,7 +45,10 @@ describe('app shell', () => {
     const { user } = open('#/app/home', client);
     await screen.findByRole('heading', { name: /Welcome/ });
     await user.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
-    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(localStorage.getItem('fh-sidebar')).toBe('collapsed');
     await user.click(screen.getByRole('button', { name: 'Expand sidebar' }));
     expect(localStorage.getItem('fh-sidebar')).toBe('open');
