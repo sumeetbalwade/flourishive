@@ -6,14 +6,14 @@ Start with [docs/00-master-plan.md](docs/00-master-plan.md): every approved deci
 
 ## Apps
 
-| Folder | What | Deploys to |
-|---|---|---|
-| `backend/` | NestJS REST API (`/v1`), the only place business logic lives | `api.flourishive.in` (cPanel Node.js App) |
-| `frontend/web/` | Customer workspace SPA | `app.flourishive.in` |
-| `frontend/admin/` | Super admin console SPA | `admin.flourishive.in` |
-| `frontend/verify/` | Public document verification | `verify.flourishive.in` |
-| `desktop/` | Flourishive Desktop (Python): DSC signing, DOCX → PDF | Windows + macOS installers |
-| `packages/` | Shared tokens, UI, API client, schemas, config | not deployed on its own |
+| Folder             | What                                                         | Deploys to                                |
+| ------------------ | ------------------------------------------------------------ | ----------------------------------------- |
+| `backend/`         | NestJS REST API (`/v1`), the only place business logic lives | `api.flourishive.in` (cPanel Node.js App) |
+| `frontend/web/`    | Customer workspace SPA                                       | `app.flourishive.in`                      |
+| `frontend/admin/`  | Super admin console SPA                                      | `admin.flourishive.in`                    |
+| `frontend/verify/` | Public document verification                                 | `verify.flourishive.in`                   |
+| `desktop/`         | Flourishive Desktop (Python): DSC signing, DOCX → PDF        | Windows + macOS installers                |
+| `packages/`        | Shared tokens, UI, API client, schemas, config               | not deployed on its own                   |
 
 ## Local development
 

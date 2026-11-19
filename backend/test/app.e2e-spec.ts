@@ -19,7 +19,9 @@ describe('API (e2e)', () => {
   });
 
   it('GET /v1/health returns ok', async () => {
-    const res = await request(app.getHttpServer()).get('/v1/health').expect(200);
+    const res = await request(app.getHttpServer())
+      .get('/v1/health')
+      .expect(200);
     expect(res.body.status).toBe('ok');
   });
 

@@ -5,5 +5,5 @@ export default function App() {
       <h1>Flourishive</h1>
       <p>Skeleton is running. Screens arrive after design approval.</p>
     </main>
-  )
+  );
 }
