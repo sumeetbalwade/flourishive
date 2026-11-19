@@ -34,10 +34,10 @@ Everything needed before feature work: hosting and accounts ready, the repo and 
 - [ ] Staging deploys on `staging-*` subdomains with a separate database
 
 ### D. Design system (D-08, D-09)
-- [ ] Direction round for approval: typefaces, bronze accent and neutrals, radius, density, chart style, light-mode treatment
-- [ ] Tokens in `packages/design-tokens`: dark and light themes plus a tenant accent override
-- [ ] Components in `packages/ui` (shadcn/ui restyled): button, input, select, date picker, table, card, badge, dialog, sheet, tabs, toast, avatar, sidebar, top bar, empty state, skeleton, chart styling
-- [ ] App shell prototype: sidebar, top bar, theme switch, tenant branding
+- [x] Direction round approved 19 Nov 2026: Hanken Grotesk + Instrument Serif + JetBrains Mono; warm black + bronze `#c4914f` with semantic green/amber/red; 20px card radius, pill buttons and inputs, comfortable density; warm-paper light theme. Chart style still to confirm when charts are built
+- [x] Tokens in `packages/design-tokens`: dark and light themes plus a tenant accent override (`--accent*` variables)
+- [ ] Components in `packages/ui` (shadcn/ui restyled). Done so far: button, input + field, badge, card, avatar, skeleton, empty state, theme toggle. Still to do: button, input, select, date picker, table, card, badge, dialog, sheet, tabs, toast, avatar, sidebar, top bar, empty state, skeleton, chart styling
+- [x] App shell: sidebar, top bar, theme switch (tenant branding via the brand slot and accent variables); shown in the web gallery
 - [ ] Clickable prototypes: login + MFA, super admin tenant list and detail, letters list, template editor, signing queue, document detail with signature timeline, verify page, Flourishive Desktop window
 - [ ] Signing animation (D-37): a signature line draws itself, then settles into a bronze checkmark; a batch variant advances page by page; failure and waiting states; reduced-motion version. Prototype for the desktop window, the web signature timeline and the candidate acceptance screen
 - [ ] Product owner sign-off on the design

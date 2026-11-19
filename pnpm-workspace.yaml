@@ -2,3 +2,5 @@ packages:
   - backend
   - frontend/*
   - packages/*
+minimumReleaseAgeExclude:
+  - lucide-react@1.75.0

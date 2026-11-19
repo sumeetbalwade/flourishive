@@ -2,5 +2,10 @@
   "name": "@flourishive/design-tokens",
   "version": "0.0.0",
   "private": true,
-  "description": "Colours, typography, spacing, radii and motion as CSS variables and TypeScript (filled after design approval)"
+  "type": "module",
+  "description": "Flourishive colours, typography, radii and motion as CSS variables",
+  "exports": {
+    "./tokens.css": "./src/tokens.css",
+    "./tailwind.css": "./src/tailwind.css"
+  }
 }

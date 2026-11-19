@@ -1,0 +1,53 @@
+/* Tailwind v4 theme that maps utilities (bg-surface, text-muted, rounded-card...) to the tokens. */
+@import './tokens.css';
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-raised: var(--surface-raised);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-hi: var(--accent-hi);
+  --color-accent-lo: var(--accent-lo);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-success-lo: var(--success-lo);
+  --color-warning: var(--warning);
+  --color-warning-lo: var(--warning-lo);
+  --color-danger: var(--danger);
+  --color-danger-lo: var(--danger-lo);
+  --color-info: var(--info);
+  --color-info-lo: var(--info-lo);
+
+  --font-sans: var(--font-ui);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+
+  --radius-card: var(--radius-lg);
+  --radius-pill: var(--radius-pill);
+  --shadow-card: var(--shadow-card);
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}

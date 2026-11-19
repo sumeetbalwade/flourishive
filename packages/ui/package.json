@@ -2,5 +2,33 @@
   "name": "@flourishive/ui",
   "version": "0.0.0",
   "private": true,
-  "description": "Shared React components for web, admin and verify (built on the design tokens)"
+  "type": "module",
+  "description": "Shared React components for web, admin and verify (built on the design tokens)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint"
+  },
+  "dependencies": {
+    "@flourishive/design-tokens": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.75.0",
+    "radix-ui": "^1.8.1",
+    "tailwind-merge": "^3.7.0"
+  },
+  "peerDependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "oxlint": "^1.90.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "~7.0.2"
+  }
 }
