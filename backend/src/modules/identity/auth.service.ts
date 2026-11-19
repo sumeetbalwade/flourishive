@@ -191,9 +191,15 @@ export class AuthService {
   ): Promise<LoginResult> {
     const acct = `${input.tenant.toLowerCase()}:${input.email.toLowerCase()}`;
     const ip = meta.ip ?? 'unknown';
-    await this.throttle.assertNotLocked('login', `acct:${acct}`, `ip:${ip}`);
-
     const tenantId = await this.tenantIdFor(input.tenant);
+    await this.throttle.assertBelow(
+      'login',
+      tenantId
+        ? await this.settings.get('security.loginAttempts', { tenantId })
+        : 5,
+      `acct:${acct}`,
+      `ip:${ip}`,
+    );
     const user = tenantId
       ? await this.findUser(tenantId, { email: input.email })
       : null;

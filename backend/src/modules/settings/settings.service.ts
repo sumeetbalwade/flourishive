@@ -126,6 +126,13 @@ export class SettingsService {
     return out;
   }
 
+  /** Keys this company has set itself (as opposed to inheriting the platform value). */
+  async tenantOverrideKeys(tenantId: string): Promise<string[]> {
+    return (await this.tenantRows(tenantId))
+      .filter((r) => r.scope === 'TENANT' && r.scopeId === tenantId)
+      .map((r) => r.key);
+  }
+
   /** Setting keys the platform has locked, so screens can show them read-only. */
   async lockedKeys(): Promise<string[]> {
     return Object.entries(await this.platformValues())

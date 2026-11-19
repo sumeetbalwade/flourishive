@@ -4,6 +4,8 @@ import {
   ClipboardList,
   FileText,
   Home,
+  KeyRound,
+  Settings,
   LayoutTemplate,
   PenLine,
   ShieldCheck,
@@ -51,6 +53,27 @@ const NAV: Item[] = [
     needs: 'people.read',
   },
   { id: 'audit', label: 'Audit log', icon: ClipboardList, group: 'Insights', needs: 'audit.read' },
+  {
+    id: 'roles',
+    label: 'Roles & access',
+    icon: KeyRound,
+    group: 'Administration',
+    needs: 'roles.read',
+  },
+  {
+    id: 'policy',
+    label: 'Security policy',
+    icon: ShieldCheck,
+    group: 'Administration',
+    needs: 'roles.read',
+  },
+  {
+    id: 'company',
+    label: 'Company settings',
+    icon: Settings,
+    group: 'Administration',
+    needs: 'settings.read',
+  },
   { id: 'security', label: 'My security', icon: ShieldCheck, group: 'Account' },
 ];
 

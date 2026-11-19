@@ -16,6 +16,10 @@ export const platformMfaConfirmBody = z.object({
   mfaToken: z.string(),
   code: z.string().regex(/^\d{6}$/),
 });
+export const platformRecoveryVerifyBody = z.object({
+  mfaToken: z.string(),
+  code: z.string().regex(/^\d{6}$/),
+});
 export const platformPasswordBody = z.object({
   token: z.string().min(1),
   password: z.string().min(1).max(256),
@@ -103,6 +107,12 @@ export const staffItem = z.object({
 export const platformSettingItem = z.object({
   key: z.string(),
   description: z.string(),
+  label: z.string(),
+  group: z.string(),
+  kind: z.enum(['boolean', 'number', 'enum', 'color', 'text']),
+  options: z.array(z.string()).optional(),
+  min: z.number().optional(),
+  max: z.number().optional(),
   levels: z.array(z.string()),
   default: z.unknown(),
   platformValue: z.unknown(),

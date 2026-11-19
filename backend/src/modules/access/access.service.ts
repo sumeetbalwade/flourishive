@@ -175,6 +175,25 @@ export class AccessService {
     return { key, name: input.name };
   }
 
+  /** The roles one person holds (entityId null means every entity). */
+  listUserRoles(tenantId: string, userId: string) {
+    return runInTenant(tenantId, async () =>
+      (
+        await this.prisma.db.userRole.findMany({
+          where: { userId },
+          select: {
+            entityId: true,
+            role: { select: { key: true, name: true } },
+          },
+        })
+      ).map((r) => ({
+        roleKey: r.role.key,
+        name: r.role.name,
+        entityId: r.entityId,
+      })),
+    );
+  }
+
   listRoles(tenantId: string) {
     return runInTenant(tenantId, async () =>
       this.prisma.db.role.findMany({

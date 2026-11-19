@@ -20,7 +20,15 @@ export class ThrottleService {
     kind: keyof typeof ThrottleService.LIMITS,
     ...keys: string[]
   ): Promise<void> {
-    const { max } = ThrottleService.LIMITS[kind];
+    return this.assertBelow(kind, ThrottleService.LIMITS[kind].max, ...keys);
+  }
+
+  /** Same as assertNotLocked, with a lock threshold chosen by the company's settings. */
+  async assertBelow(
+    kind: keyof typeof ThrottleService.LIMITS,
+    max: number,
+    ...keys: string[]
+  ): Promise<void> {
     for (const key of keys) {
       const count = Number(
         (await this.redis.client.get(`fail:${kind}:${key}`)) ?? 0,

@@ -59,6 +59,19 @@ export function createPlatformClient(opts: Opts) {
             auth: false,
           }),
         ),
+      /** Lost authenticator, after the password step: emails a code to the account. */
+      mfaRecoveryStart: (mfaToken: string) =>
+        http.request('POST', '/platform/auth/mfa/recovery/email', {
+          json: { mfaToken },
+          auth: false,
+        }),
+      /** A correct code clears the old authenticator and returns a token to set up a new one. */
+      mfaRecoveryVerify: (mfaToken: string, code: string) =>
+        http.request('POST', '/platform/auth/mfa/recovery/email/verify', {
+          json: { mfaToken, code },
+          schema: z.object({ status: z.literal('mfa_setup_required'), mfaToken: z.string() }),
+          auth: false,
+        }),
       mfaSetup: (mfaToken: string) =>
         http.request('POST', '/platform/auth/mfa/setup', {
           json: { mfaToken },

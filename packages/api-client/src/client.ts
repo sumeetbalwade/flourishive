@@ -16,6 +16,7 @@ import {
   companyPublic,
   settingsResponse,
   tenantRolePolicy,
+  userRoleItem,
   type MfaLevel,
   type TenantPolicyPatch,
   tokensResponse,
@@ -102,6 +103,26 @@ export function createApiClient(opts: Opts) {
       },
       forgotPassword: (tenant: string, email: string) =>
         http.request('POST', '/auth/forgot-password', { json: { tenant, email }, auth: false }),
+      /** Forgot password, step 1: emails a 6-digit code. Always accepted. */
+      recoveryStart: (tenant: string, email: string) =>
+        http.request('POST', '/auth/recovery/email', { json: { tenant, email }, auth: false }),
+      /** Step 2: a correct code returns a single-use token for resetPassword. */
+      recoveryVerify: (tenant: string, email: string, code: string) =>
+        http.request('POST', '/auth/recovery/email/verify', {
+          json: { tenant, email, code },
+          schema: z.object({ resetToken: z.string() }),
+          auth: false,
+        }),
+      /** Lost authenticator, after the password step: emails a code to the account. */
+      mfaRecoveryStart: (mfaToken: string) =>
+        http.request('POST', '/auth/mfa/recovery/email', { json: { mfaToken }, auth: false }),
+      /** A correct code clears the old authenticator and returns a token to set up a new one. */
+      mfaRecoveryVerify: (mfaToken: string, code: string) =>
+        http.request('POST', '/auth/mfa/recovery/email/verify', {
+          json: { mfaToken, code },
+          schema: z.object({ status: z.literal('mfa_setup_required'), mfaToken: z.string() }),
+          auth: false,
+        }),
       resetPassword: (token: string, password: string) =>
         http.request('POST', '/auth/reset-password', { json: { token, password }, auth: false }),
     },
@@ -164,6 +185,8 @@ export function createApiClient(opts: Opts) {
 
     access: {
       roles: () => http.request('GET', '/access/roles', { schema: z.array(roleResponse) }),
+      userRoles: (userId: string) =>
+        http.request('GET', `/access/users/${userId}/roles`, { schema: z.array(userRoleItem) }),
       policies: () =>
         http.request('GET', '/access/policies', { schema: z.array(tenantRolePolicy) }),
       setPolicy: (roleKey: string, patch: TenantPolicyPatch) =>

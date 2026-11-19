@@ -5,6 +5,7 @@ import { useEffect, useMemo, type ReactNode } from 'react';
 import { ApiProvider, makeClient } from './lib/api.tsx';
 import { AuthProvider, useAuth } from './lib/auth.tsx';
 import { Defaults } from './pages/Defaults.tsx';
+import { Policy } from './pages/Policy.tsx';
 import { Login, SetPassword } from './pages/Login.tsx';
 import { Staff } from './pages/Staff.tsx';
 import { TenantDetail } from './pages/TenantDetail.tsx';
@@ -37,6 +38,7 @@ function Routes() {
   else if (path.startsWith('/tenants/')) page = <TenantDetail id={path.split('/').pop()!} />;
   else if (path === '/users') page = <Staff />;
   else if (path === '/settings') page = <Defaults />;
+  else if (path === '/policy') page = <Policy />;
   else return <Login />;
   return <Private>{page}</Private>;
 }

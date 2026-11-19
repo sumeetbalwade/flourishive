@@ -1,5 +1,5 @@
 import { ApiError } from '@flourishive/api-client';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import App from './App.tsx';
@@ -63,6 +63,162 @@ describe('app shell', () => {
     await user.type(await screen.findByLabelText('Search', { selector: 'input' }), 'organ');
     await user.keyboard('{Enter}');
     expect(location.hash).toBe('#/app/org');
+  });
+});
+
+const ADMIN_PERMS = [
+  ...ME.permissions,
+  'roles.read',
+  'roles.assign',
+  'settings.read',
+  'settings.manage',
+];
+function signedInAdmin(perms = ADMIN_PERMS) {
+  const client = fakeClient();
+  client.restoreSession.mockResolvedValue(true);
+  client.auth.me.mockResolvedValue({ ...ME, permissions: perms });
+  return client;
+}
+
+describe('account recovery', () => {
+  it('resets a forgotten password with an emailed code', async () => {
+    const client = fakeClient();
+    client.auth.recoveryVerify.mockResolvedValue({ resetToken: 'rt-1' });
+    client.auth.resetPassword.mockResolvedValue(undefined);
+    const { user } = open('#/forgot-password', client);
+    await user.type(await screen.findByLabelText('Company code'), 'Flourisense');
+    await user.type(screen.getByLabelText('Work email'), 'hr@flourisense.test');
+    await user.click(screen.getByRole('button', { name: 'Email me a code' }));
+    expect(client.auth.recoveryStart).toHaveBeenCalledWith('flourisense', 'hr@flourisense.test');
+
+    await user.type(await screen.findByLabelText('6-digit code'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(client.auth.recoveryVerify).toHaveBeenCalledWith(
+      'flourisense',
+      'hr@flourisense.test',
+      '123456',
+    );
+
+    await user.type(await screen.findByLabelText('New password'), 'a brand new passphrase');
+    await user.type(screen.getByLabelText('Repeat password'), 'a brand new passphrase');
+    await user.click(screen.getByRole('button', { name: 'Save password' }));
+    expect(client.auth.resetPassword).toHaveBeenCalledWith('rt-1', 'a brand new passphrase');
+    expect(await screen.findByRole('heading', { name: 'Password saved' })).toBeInTheDocument();
+  });
+
+  it('shows the server’s message for a wrong code', async () => {
+    const client = fakeClient();
+    client.auth.recoveryVerify.mockRejectedValue(new ApiError(401, 'Invalid or expired code'));
+    const { user } = open('#/forgot-password', client);
+    await user.type(await screen.findByLabelText('Company code'), 'flourisense');
+    await user.type(screen.getByLabelText('Work email'), 'hr@flourisense.test');
+    await user.click(screen.getByRole('button', { name: 'Email me a code' }));
+    await user.type(await screen.findByLabelText('6-digit code'), '000000');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByText('Invalid or expired code')).toBeInTheDocument();
+  });
+
+  it('lets someone who lost their authenticator set up a new one by email', async () => {
+    const client = fakeClient();
+    client.auth.login.mockResolvedValue({ status: 'mfa_required', mfaToken: 'm1' });
+    client.auth.mfaRecoveryVerify.mockResolvedValue({
+      status: 'mfa_setup_required',
+      mfaToken: 'setup-1',
+    });
+    client.auth.mfaSetup.mockResolvedValue({ secret: 'ABCDEF', otpauthUri: 'otpauth://totp/x' });
+    const { user } = open('#/login', client);
+    await screen.findByRole('heading', { name: 'Sign in' });
+    await fillLogin(user);
+    await user.click(await screen.findByRole('button', { name: /Email me a code/ }));
+    expect(client.auth.mfaRecoveryStart).toHaveBeenCalledWith('m1');
+    await user.type(await screen.findByLabelText('6-digit code'), '654321');
+    await user.click(screen.getByRole('button', { name: 'Verify and set up again' }));
+    expect(client.auth.mfaRecoveryVerify).toHaveBeenCalledWith('m1', '654321');
+    expect(
+      await screen.findByRole('heading', { name: 'Set up two-step sign-in' }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('administration', () => {
+  it('shows the Administration menu only to people allowed to see it', async () => {
+    open('#/app/home', signedInAdmin());
+    await screen.findByRole('heading', { name: /Welcome/ });
+    for (const name of ['Roles & access', 'Security policy', 'Company settings'])
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+  });
+
+  it('sets a role’s two-step level, within its platform minimum', async () => {
+    const client = signedInAdmin();
+    const { user } = open('#/app/policy', client);
+    await screen.findByText('HR Lead');
+    const hr = screen.getByRole('radiogroup', { name: 'Two-step for HR Lead' });
+    expect(within(hr).getByRole('radio', { name: 'Off' })).toBeDisabled();
+    expect(screen.getByText('Platform minimum: required')).toBeInTheDocument();
+
+    const emp = screen.getByRole('radiogroup', { name: 'Two-step for Employee' });
+    await user.click(within(emp).getByRole('radio', { name: 'Required' }));
+    expect(client.access.setPolicy).toHaveBeenCalledWith('employee', { mfaLevel: 'REQUIRED' });
+    await user.click(screen.getByRole('switch', { name: 'Email recovery for Employee' }));
+    expect(client.access.setPolicy).toHaveBeenCalledWith('employee', { recoveryEmail: false });
+  });
+
+  it('adds a custom role', async () => {
+    const client = signedInAdmin();
+    const { user } = open('#/app/policy', client);
+    await user.click(await screen.findByRole('button', { name: /Add role/ }));
+    await user.type(await screen.findByLabelText('Role name'), 'Finance reviewer');
+    await user.click(
+      within(screen.getByRole('radiogroup', { name: 'Two-step for the new role' })).getByRole(
+        'radio',
+        {
+          name: 'Required',
+        },
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Add role' }));
+    expect(client.access.createRole).toHaveBeenCalledWith('Finance reviewer', 'REQUIRED');
+  });
+
+  it('is read-only without settings.manage', async () => {
+    const { user } = open(
+      '#/app/policy',
+      signedInAdmin(['self.read', 'roles.read', 'settings.read']),
+    );
+    await screen.findByText('HR Lead');
+    expect(screen.queryByRole('button', { name: /Add role/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Email recovery for Employee' })).toBeDisabled();
+    void user;
+  });
+
+  it('shows platform-locked company settings read-only and saves the rest', async () => {
+    const client = signedInAdmin();
+    const { user } = open('#/app/company', client);
+    await screen.findByText('Minimum password length', { selector: 'span' });
+    await user.click(screen.getByRole('tab', { name: 'Branding' }));
+    expect(screen.getByText('Set by the platform')).toBeInTheDocument();
+    expect(screen.getByLabelText('Accent colour')).toBeDisabled();
+    await user.click(screen.getByRole('tab', { name: 'Security' }));
+    const input = screen.getByLabelText('Minimum password length');
+    await user.clear(input);
+    await user.type(input, '14');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(client.settings.setTenant).toHaveBeenCalledWith('security.passwordMinLength', 14);
+  });
+
+  it('lists roles with their permissions', async () => {
+    open('#/app/roles', signedInAdmin());
+    expect(await screen.findByText('HR Lead')).toBeInTheDocument();
+    expect(screen.getByText('people.write')).toBeInTheDocument();
+  });
+
+  it('adds and removes a role on a person’s page', async () => {
+    const client = signedInAdmin();
+    client.people.get.mockResolvedValue({ ...ASHA, person: { ...ASHA.person, userId: 'u9' } });
+    const { user } = open('#/app/people/e1', client);
+    await screen.findByText('Access');
+    await user.click(await screen.findByRole('button', { name: 'Remove Employee' }));
+    expect(client.access.remove).toHaveBeenCalledWith('u9', 'employee', undefined);
   });
 });
 

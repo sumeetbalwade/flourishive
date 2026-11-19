@@ -14,6 +14,9 @@ import { ForgotPassword, ResetPassword } from './pages/auth/Password.tsx';
 import { FindCompany } from './pages/auth/FindCompany.tsx';
 import { Login } from './pages/auth/Login.tsx';
 import { Home } from './pages/Home.tsx';
+import { Company } from './pages/admin/Company.tsx';
+import { Policy } from './pages/admin/Policy.tsx';
+import { Roles } from './pages/admin/Roles.tsx';
 import { Org } from './pages/org/Org.tsx';
 import { ImportPeople } from './pages/people/Import.tsx';
 import { PersonDetail } from './pages/people/PersonDetail.tsx';
@@ -31,6 +34,9 @@ const NEEDS: Record<string, string | undefined> = {
   '/app/import': 'people.import',
   '/app/org': 'org.read',
   '/app/audit': 'audit.read',
+  '/app/roles': 'roles.read',
+  '/app/policy': 'roles.read',
+  '/app/company': 'settings.read',
 };
 
 function Private({ children, need }: { children: ReactNode; need?: string }) {
@@ -80,6 +86,9 @@ function Routes() {
   else if (path === '/app/import') page = <ImportPeople />;
   else if (path === '/app/org') page = <Org />;
   else if (path === '/app/audit') page = <Audit />;
+  else if (path === '/app/roles') page = <Roles />;
+  else if (path === '/app/policy') page = <Policy />;
+  else if (path === '/app/company') page = <Company />;
   else if (path === '/app/security') page = <Security />;
   else if (path === '/app/signing') page = <Signing />;
   else if (path === '/app/templates') page = <Templates />;

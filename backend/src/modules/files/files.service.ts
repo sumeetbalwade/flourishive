@@ -12,6 +12,7 @@ import {
   runAsSystem,
   runInTenant,
 } from '../../platform/database/tenant-context.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { StorageService } from '../../platform/storage/storage.service.js';
 
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -43,6 +44,7 @@ export class FilesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly settings: SettingsService,
   ) {}
 
   async upload(
@@ -62,8 +64,12 @@ export class FilesService {
       );
     if (!Buffer.isBuffer(input.body) || input.body.length === 0)
       throw new BadRequestException('The file is empty');
-    if (input.body.length > MAX_FILE_BYTES)
-      throw new PayloadTooLargeException('Files can be at most 20 MB');
+    const maxMb = Math.min(
+      await this.settings.get('files.maxUploadMb', { tenantId: a.tenantId }),
+      MAX_FILE_BYTES / 1024 / 1024,
+    );
+    if (input.body.length > maxMb * 1024 * 1024)
+      throw new PayloadTooLargeException(`Files can be at most ${maxMb} MB`);
     if (!rule.magic.every((byte, i) => input.body[i] === byte)) {
       throw new UnsupportedMediaTypeException(
         'The file content does not match its type',
