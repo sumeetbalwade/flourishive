@@ -175,6 +175,9 @@ importers:
 
   backend:
     dependencies:
+      '@flourishive/schemas':
+        specifier: workspace:*
+        version: link:../packages/schemas
       '@nestjs/common':
         specifier: ^12.0.1
         version: 12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
@@ -426,13 +429,44 @@ importers:
         specifier: ^8.3.6
         version: 8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)
 
-  packages/api-client: {}
+  packages/api-client:
+    dependencies:
+      '@flourishive/schemas':
+        specifier: workspace:*
+        version: link:../schemas
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      oxlint:
+        specifier: ^1.90.0
+        version: 1.92.0(oxlint-tsgolint@7.0.2006)
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^4.1.2
+        version: 4.1.12(@types/node@24.19.2)(@vitest/coverage-v8@4.1.12)(vite@8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
   packages/config: {}
 
   packages/design-tokens: {}
 
-  packages/schemas: {}
+  packages/schemas:
+    dependencies:
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      oxlint:
+        specifier: ^1.90.0
+        version: 1.92.0(oxlint-tsgolint@7.0.2006)
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^4.1.2
+        version: 4.1.12(@types/node@24.19.2)(@vitest/coverage-v8@4.1.12)(vite@8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
   packages/ui:
     dependencies:

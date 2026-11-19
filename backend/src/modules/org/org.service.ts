@@ -6,8 +6,8 @@ import {
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
 
-export const ORG_KINDS = ['locations', 'departments', 'designations'] as const;
-export type OrgKind = (typeof ORG_KINDS)[number];
+export { ORG_KINDS, type OrgKind } from '@flourishive/schemas';
+import type { OrgKind } from '@flourishive/schemas';
 
 interface CatalogDelegate {
   findMany(args: object): Promise<unknown[]>;

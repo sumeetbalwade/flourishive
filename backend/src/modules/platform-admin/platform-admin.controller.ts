@@ -1,4 +1,11 @@
 import {
+  patchTenantBody as patchTenant,
+  inviteStaffBody as inviteBody,
+  staffStatusBody as statusBody,
+  settingValueBody as valueBody,
+  createTenantBody,
+} from '@flourishive/schemas';
+import {
   Body,
   Controller,
   Delete,
@@ -14,19 +21,8 @@ import {
 import { z } from 'zod';
 import { Public } from '../identity/auth.context.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
-import {
-  createTenantBody,
-  PlatformAdminService,
-} from './platform-admin.service.js';
+import { PlatformAdminService } from './platform-admin.service.js';
 import { PlatformGuard, type PlatformRequest } from './platform.guard.js';
-
-const patchTenant = z.object({
-  name: z.string().trim().min(1).max(191).optional(),
-  status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
-});
-const inviteBody = z.object({ email: z.string().trim().email().max(191) });
-const statusBody = z.object({ status: z.enum(['ACTIVE', 'DISABLED']) });
-const valueBody = z.object({ value: z.unknown() });
 
 /** The super admin console API. Not reachable with a tenant token. */
 @Public()

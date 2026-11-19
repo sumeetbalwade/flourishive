@@ -1,3 +1,4 @@
+import { uploadQuery } from '@flourishive/schemas';
 import {
   BadRequestException,
   Controller,
@@ -21,11 +22,6 @@ import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
 import { ALLOWED_MIME_TYPES, FilesService } from './files.service.js';
 
-const uploadQuery = z.object({
-  name: z.string().trim().min(1).max(255),
-  ownerType: z.string().max(60).optional(),
-  ownerId: z.string().max(64).optional(),
-});
 const signedQuery = z.object({
   expires: z.coerce.number().int(),
   sig: z.string().regex(/^[0-9a-f]{64}$/),

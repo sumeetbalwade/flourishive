@@ -1,6 +1,6 @@
 # Phase 1 — Minimal, tenant-aware core
 
-**Status:** In progress (PR 7 of 10 in review: platform admin) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
+**Status:** In progress (PR 8 of 10 in review: shared packages) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
 
 ## Goal
 
@@ -29,7 +29,7 @@ The smallest platform core that signing needs, built on the final data model: Fl
 - [x] Redis-backed rate limits and lockouts on login and MFA
 
 ### Frontend
-- [ ] `packages/schemas` (shared Zod) and `packages/api-client` generated from the OpenAPI spec
+- [x] `packages/schemas` (shared Zod, used by the API and the clients) and `packages/api-client` (typed fetch client with token refresh; hand-written on the shared schemas instead of generated, because the controllers use Zod pipes and have no DTO classes for an OpenAPI generator to read)
 - [ ] **web:** login, MFA setup and challenge, Google sign-in, forgot password, app shell, people list and detail, import wizard, org settings, my security page
 - [ ] **admin:** login with MFA, tenants list and detail, platform users, basic settings editor
 

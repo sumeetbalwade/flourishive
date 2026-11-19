@@ -1,3 +1,4 @@
+import { auditListQuery as listQuery } from '@flourishive/schemas';
 import { Controller, Get, Query } from '@nestjs/common';
 import { z } from 'zod';
 import { RequirePermission } from '../access/require-permission.js';
@@ -5,14 +6,6 @@ import { CurrentAuth } from '../identity/auth.context.js';
 import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
 import { AuditService } from './audit.service.js';
-
-const listQuery = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(50),
-  entityType: z.string().max(60).optional(),
-  entityId: z.string().max(64).optional(),
-  action: z.string().max(120).optional(),
-});
 
 @Controller('audit')
 export class AuditController {

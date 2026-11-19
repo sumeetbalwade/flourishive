@@ -1,3 +1,4 @@
+import { assignRoleBody as assignBody } from '@flourishive/schemas';
 import { Body, Controller, Delete, Get, HttpCode, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { CurrentAuth } from '../identity/auth.context.js';
@@ -5,12 +6,6 @@ import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
 import { AccessService } from './access.service.js';
 import { RequirePermission } from './require-permission.js';
-
-const assignBody = z.object({
-  userId: z.string().uuid(),
-  roleKey: z.string().min(1).max(64),
-  entityId: z.string().uuid().optional(),
-});
 
 @Controller('access')
 export class AccessController {

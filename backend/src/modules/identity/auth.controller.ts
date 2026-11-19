@@ -1,4 +1,14 @@
 import {
+  loginBody,
+  googleBody,
+  mfaVerifyBody,
+  mfaSetupBody,
+  mfaConfirmBody,
+  refreshBody,
+  forgotBody,
+  resetBody,
+} from '@flourishive/schemas';
+import {
   Body,
   Controller,
   Get,
@@ -23,36 +33,6 @@ import { TokenService, type AccessClaims } from './token.service.js';
 import { ZodPipe } from './zod.pipe.js';
 
 const COOKIE = 'fh_refresh';
-const tenant = z.string().min(1).max(63);
-const email = z.string().email().max(191);
-
-const loginBody = z.object({
-  tenant,
-  email,
-  password: z.string().min(1).max(256),
-});
-const googleBody = z.object({ tenant, idToken: z.string().min(1) });
-const mfaVerifyBody = z
-  .object({
-    mfaToken: z.string(),
-    code: z.string().optional(),
-    recoveryCode: z.string().optional(),
-  })
-  .refine((b) => b.code || b.recoveryCode, 'code or recoveryCode is required');
-const mfaSetupBody = z.object({ mfaToken: z.string().optional() });
-const mfaConfirmBody = z.object({
-  mfaToken: z.string().optional(),
-  code: z.string().regex(/^\d{6}$/),
-});
-const refreshBody = z
-  .object({ refreshToken: z.string().optional() })
-  .default({});
-const forgotBody = z.object({ tenant, email });
-const resetBody = z.object({
-  token: z.string().min(1),
-  password: z.string().min(1).max(256),
-});
-
 const body = <T>(schema: z.ZodType<T>) => new ZodPipe(schema);
 
 @Controller('auth')
