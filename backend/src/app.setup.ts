@@ -1,6 +1,11 @@
 import { INestApplication, VersioningType } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import {
+  CLOUDFLARE_RANGES,
+  cloudflareMatcher,
+  visitorIp,
+} from './platform/http/cloudflare.js';
 import { originMatcher } from './modules/company/tenant-host.js';
 
 /**
@@ -48,6 +53,36 @@ export function configureApp(app: INestApplication): void {
     'trust proxy',
     1,
   );
+
+  // Behind Cloudflare every request arrives from a Cloudflare address, so lockouts and rate limits
+  // would see one visitor. With TRUST_CLOUDFLARE=true the real address is read from CF-Connecting-IP,
+  // but only when the connection itself comes from a Cloudflare range.
+  if (process.env.TRUST_CLOUDFLARE === 'true') {
+    const isCloudflare = cloudflareMatcher(
+      process.env.CLOUDFLARE_IP_RANGES?.split(',')
+        .map((r) => r.trim())
+        .filter(Boolean) ?? CLOUDFLARE_RANGES,
+    );
+    app.use(
+      (
+        req: {
+          ip?: string;
+          headers: Record<string, string | string[] | undefined>;
+        },
+        _res: unknown,
+        next: () => void,
+      ) => {
+        const ip = visitorIp(
+          req.ip,
+          req.headers['cf-connecting-ip'],
+          isCloudflare,
+        );
+        if (ip && ip !== req.ip)
+          Object.defineProperty(req, 'ip', { value: ip, configurable: true });
+        next();
+      },
+    );
+  }
 
   app.enableShutdownHooks();
 }
