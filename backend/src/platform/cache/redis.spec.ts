@@ -6,6 +6,7 @@ const redis = new RedisService(
     DATABASE_URL: 'x',
     FIELD_ENCRYPTION_KEY: 'ab'.repeat(32),
     HMAC_SECRET: 'x'.repeat(32),
+    JWT_SECRET: 'j'.repeat(32),
     REDIS_URL: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
   }),
 );

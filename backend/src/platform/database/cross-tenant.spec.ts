@@ -2,8 +2,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   createPrismaClient,
+  type PrismaService,
   type ScopedPrismaClient,
 } from './prisma.service.js';
+import { deleteTenantData } from '../../../test/helpers.js';
 import { runAsSystem, runInTenant } from './tenant-context.js';
 import { TENANT_SCOPED_MODELS } from './tenant-scoping.js';
 
@@ -28,35 +30,105 @@ type Delegate = {
   create(args: object): Promise<{ id: string }>;
 };
 
-const fixtures: Record<
-  string,
-  { delegate: string; create: (tenantId: string) => object; change: object }
-> = {
+type Fixture = {
+  delegate: string;
+  create: (tenantId: string) => Promise<object>;
+  change: object;
+};
+
+// Parent rows are created with system scope: they are test plumbing, not the
+// operation under test.
+const newUser = (tenantId: string) =>
+  runAsSystem(
+    async () =>
+      await db.user.create({
+        data: { tenantId, email: `${crypto.randomUUID()}@xt.test` },
+      }),
+  );
+const newSession = async (tenantId: string) =>
+  runAsSystem(
+    async () =>
+      await db.session.create({
+        data: {
+          tenantId,
+          userId: (await newUser(tenantId)).id,
+          expiresAt: new Date(Date.now() + 3600_000),
+        },
+      }),
+  );
+
+const fixtures: Record<string, Fixture> = {
   Entity: {
     delegate: 'entity',
-    create: (tenantId) => ({
+    create: async (tenantId) => ({
       data: { tenantId, name: 'HQ', legalName: 'HQ Pvt Ltd' },
     }),
     change: { name: 'hacked' },
   },
   JobRecord: {
     delegate: 'jobRecord',
-    create: (tenantId) => ({
+    create: async (tenantId) => ({
       data: { tenantId, name: 'test.job', payload: { x: 1 } },
     }),
     change: { attempts: 99 },
+  },
+  User: {
+    delegate: 'user',
+    create: async (tenantId) => ({
+      data: { tenantId, email: `${crypto.randomUUID()}@xt.test` },
+    }),
+    change: { mfaRequired: true },
+  },
+  RecoveryCode: {
+    delegate: 'recoveryCode',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        userId: (await newUser(tenantId)).id,
+        codeHash: 'a'.repeat(64),
+      },
+    }),
+    change: { usedAt: new Date() },
+  },
+  Session: {
+    delegate: 'session',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        userId: (await newUser(tenantId)).id,
+        expiresAt: new Date(Date.now() + 3600_000),
+      },
+    }),
+    change: { userAgent: 'hacked' },
+  },
+  RefreshToken: {
+    delegate: 'refreshToken',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        sessionId: (await newSession(tenantId)).id,
+        tokenHash: crypto.randomUUID().replaceAll('-', '').padEnd(64, '0'),
+        expiresAt: new Date(Date.now() + 3600_000),
+      },
+    }),
+    change: { usedAt: new Date() },
   },
 };
 
 const delegate = (model: string) =>
   (db as unknown as Record<string, Delegate>)[fixtures[model]!.delegate]!;
 
+const wipe = () =>
+  Promise.all(
+    ['xt-a', 'xt-b'].map((slug) =>
+      deleteTenantData({ db } as PrismaService, slug),
+    ),
+  );
+
 beforeAll(async () => {
   db = createPrismaClient(process.env.DATABASE_URL!);
+  await wipe();
   await runAsSystem(async () => {
-    await db.jobRecord.deleteMany();
-    await db.entity.deleteMany();
-    await db.tenant.deleteMany({ where: { slug: { in: ['xt-a', 'xt-b'] } } });
     a = (await db.tenant.create({ data: { slug: 'xt-a', name: 'Tenant A' } }))
       .id;
     b = (await db.tenant.create({ data: { slug: 'xt-b', name: 'Tenant B' } }))
@@ -65,11 +137,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await runAsSystem(async () => {
-    await db.jobRecord.deleteMany();
-    await db.entity.deleteMany();
-    await db.tenant.deleteMany({ where: { slug: { in: ['xt-a', 'xt-b'] } } });
-  });
+  await wipe();
   await db.$disconnect();
 });
 
@@ -104,7 +172,8 @@ describe.each([...TENANT_SCOPED_MODELS])('tenant isolation on %s', (model) => {
   beforeAll(async () => {
     rowId = await runInTenant(
       a,
-      async () => (await delegate(model).create(fixtures[model]!.create(a))).id,
+      async () =>
+        (await delegate(model).create(await fixtures[model]!.create(a))).id,
     );
   });
 
@@ -161,7 +230,8 @@ describe.each([...TENANT_SCOPED_MODELS])('tenant isolation on %s', (model) => {
     await expect(
       runInTenant(
         b,
-        async () => await delegate(model).create(fixtures[model]!.create(a)),
+        async () =>
+          await delegate(model).create(await fixtures[model]!.create(a)),
       ),
     ).rejects.toThrow('Cross-tenant write refused');
   });

@@ -4,6 +4,7 @@ const valid = {
   DATABASE_URL: 'mysql://u:p@127.0.0.1:3306/db',
   FIELD_ENCRYPTION_KEY: 'a'.repeat(64),
   HMAC_SECRET: 'x'.repeat(32),
+  JWT_SECRET: 'j'.repeat(32),
 };
 
 describe('loadConfig', () => {

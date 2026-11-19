@@ -1,4 +1,5 @@
 import { INestApplication, VersioningType } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
 
 /**
  * HTTP setup shared by main.ts and the e2e tests, so tests hit the same
@@ -15,6 +16,13 @@ export function configureApp(app: INestApplication): void {
     .map((o) => o.trim())
     .filter(Boolean);
   app.enableCors({ origin: origins, credentials: true });
+
+  app.use(cookieParser());
+  // Behind cPanel's proxy; needed so req.ip is the client, not the proxy.
+  (app as INestApplication & { set(k: string, v: unknown): void }).set(
+    'trust proxy',
+    1,
+  );
 
   app.enableShutdownHooks();
 }

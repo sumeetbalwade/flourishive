@@ -7,6 +7,7 @@ const config = loadConfig({
   DATABASE_URL: process.env.DATABASE_URL!,
   FIELD_ENCRYPTION_KEY: 'ab'.repeat(32),
   HMAC_SECRET: 'x'.repeat(32),
+  JWT_SECRET: 'j'.repeat(32),
 });
 const db = createPrismaClient(config.DATABASE_URL);
 const enqueued: { name: string; jobId?: string }[] = [];
