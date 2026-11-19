@@ -110,6 +110,29 @@ interface PlannedRow {
 
 const key = (s: string) => s.trim().toLowerCase();
 
+/** Turns a validation issue into a sentence a person fixing a spreadsheet can act on. */
+function friendlyIssue(issue: z.core.$ZodIssue): string {
+  const i = issue as {
+    code: string;
+    origin?: string;
+    minimum?: number;
+    maximum?: number;
+    format?: string;
+    message: string;
+  };
+  if (i.code === 'too_small' && i.origin === 'string' && i.minimum === 1)
+    return 'Required';
+  if (i.code === 'invalid_type') return 'Required';
+  if (i.code === 'too_big' && i.origin === 'string')
+    return `Too long (at most ${i.maximum} characters)`;
+  if (i.code === 'invalid_format' && i.format === 'email')
+    return 'Not a valid email address';
+  if (i.code === 'invalid_value') return 'Must be employee or intern';
+  if (i.code === 'too_small' || i.code === 'too_big')
+    return 'Out of the allowed range';
+  return i.message;
+}
+
 @Injectable()
 export class PeopleImportService {
   constructor(
@@ -185,7 +208,7 @@ export class PeopleImportService {
             errors.push({
               line,
               field: String(issue.path[0] ?? ''),
-              message: issue.message,
+              message: friendlyIssue(issue),
             });
           return;
         }

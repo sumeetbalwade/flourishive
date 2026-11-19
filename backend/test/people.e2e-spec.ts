@@ -259,6 +259,15 @@ describe('CSV import', () => {
     const where = res.body.errors.map(
       (e: { line: number; field: string }) => `${e.line}:${e.field}`,
     );
+    // Messages are readable by someone fixing a spreadsheet, not raw validation output.
+    const message = (line: number, field: string) =>
+      res.body.errors.find(
+        (e: { line: number; field: string }) =>
+          e.line === line && e.field === field,
+      )?.message;
+    expect(message(4, 'first_name')).toBe('Required');
+    expect(message(4, 'work_email')).toBe('Not a valid email address');
+    expect(message(4, 'start_date')).toBe('Use YYYY-MM-DD or DD/MM/YYYY');
     expect(where).toEqual(
       expect.arrayContaining([
         '4:first_name',

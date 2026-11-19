@@ -1,0 +1,33 @@
+/** Plain-language names for audit entries. The raw action stays available as a tooltip. */
+const EXACT: Record<string, string> = {
+  'auth.login': 'Signed in',
+  'auth.login_failed': 'Failed sign-in attempt',
+  'auth.mfa_failed': 'Wrong authenticator code',
+  'auth.mfa_enabled': 'Turned on two-step sign-in',
+  'auth.password_changed': 'Changed password',
+  'auth.refresh_token_reuse': 'Suspicious session reuse (session ended)',
+  'POST /v1/auth/logout': 'Signed out',
+  'POST /v1/auth/logout-all': 'Signed out everywhere',
+  'POST /v1/people': 'Added a person',
+  'PATCH /v1/people/:id': 'Edited a person',
+  'POST /v1/people/import': 'Imported people from CSV',
+  'POST /v1/people/:id/invite': 'Invited to sign in',
+  'POST /v1/org/:kind': 'Added to the organisation',
+  'PATCH /v1/org/:kind/:id': 'Renamed in the organisation',
+  'DELETE /v1/org/:kind/:id': 'Removed from the organisation',
+  'POST /v1/access/user-roles': 'Gave a role',
+  'DELETE /v1/access/user-roles': 'Removed a role',
+  'PUT /v1/settings/tenant/:key': 'Changed a company setting',
+  'DELETE /v1/settings/tenant/:key': 'Reset a company setting',
+  'PUT /v1/settings/entity/:entityId/:key': 'Changed a setting for one company',
+  'PUT /v1/settings/me/:key': 'Changed a personal preference',
+  'POST /v1/files': 'Uploaded a file',
+  'DELETE /v1/files/:id': 'Deleted a file',
+  'platform.tenant_created': 'Company set up by Flourishive',
+  'platform.tenant_updated': 'Company updated by Flourishive',
+  'platform.tenant_setting_changed': 'Setting changed by Flourishive',
+};
+
+export function describeAction(action: string): string {
+  return EXACT[action] ?? action;
+}

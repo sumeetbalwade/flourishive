@@ -30,6 +30,13 @@ function kindOf(raw: string): OrgKind {
 export class OrgController {
   constructor(private readonly org: OrgService) {}
 
+  // Declared before ':kind' so "entities" is not read as a catalogue name.
+  @Get('entities')
+  @RequirePermission('org.read')
+  entities(@CurrentAuth() a: AccessClaims) {
+    return this.org.entities(a.tenantId);
+  }
+
   @Get(':kind')
   @RequirePermission('org.read')
   list(@CurrentAuth() a: AccessClaims, @Param('kind') kind: string) {
