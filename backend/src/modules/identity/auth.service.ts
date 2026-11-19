@@ -13,7 +13,8 @@ import {
   runAsSystem,
   runInTenant,
 } from '../../platform/database/tenant-context.js';
-import { MailService } from '../../platform/mail/mail.service.js';
+import { AuditService } from '../audit/audit.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { AccessService } from '../access/access.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { GoogleService } from './google.service.js';
@@ -65,7 +66,8 @@ export class AuthService {
     private readonly throttle: ThrottleService,
     private readonly google: GoogleService,
     private readonly redis: RedisService,
-    private readonly mail: MailService,
+    private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
     private readonly access: AccessService,
     private readonly settings: SettingsService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
@@ -112,6 +114,7 @@ export class AuthService {
   private async afterFirstFactor(
     user: UserRow,
     meta: ClientMeta,
+    via: 'password' | 'google',
   ): Promise<LoginResult> {
     if (user.mfaEnabledAt) {
       const mfaToken = await this.tokens.signMfaChallenge({
@@ -131,8 +134,48 @@ export class AuthService {
     }
     return {
       status: 'ok',
-      tokens: await this.sessions.start(user.tenantId, user.id, meta),
+      tokens: await this.startAudited(user.tenantId, user.id, meta, via),
     };
+  }
+
+  /** Starts a session and records the sign-in (and how: password, google, mfa). */
+  private async startAudited(
+    tenantId: string,
+    userId: string,
+    meta: ClientMeta,
+    via: string,
+  ): Promise<IssuedTokens> {
+    const tokens = await this.sessions.start(tenantId, userId, meta);
+    await this.audit.recordSafely({
+      tenantId,
+      actorType: 'USER',
+      actorId: userId,
+      action: 'auth.login',
+      entityType: 'users',
+      entityId: userId,
+      meta: { via },
+      ip: meta.ip,
+    });
+    return tokens;
+  }
+
+  private auditUser(
+    tenantId: string,
+    userId: string | null,
+    action: string,
+    meta: ClientMeta,
+    extra?: Record<string, unknown>,
+  ) {
+    return this.audit.recordSafely({
+      tenantId,
+      actorType: userId ? 'USER' : 'SYSTEM',
+      actorId: userId,
+      action,
+      entityType: 'users',
+      entityId: userId,
+      meta: extra ?? null,
+      ip: meta.ip,
+    });
   }
 
   async login(
@@ -154,10 +197,12 @@ export class AuthService {
     if (!user?.passwordHash) await this.passwords.verifyDummy(input.password);
     if (!ok || !user) {
       await this.throttle.recordFailure('login', `acct:${acct}`, `ip:${ip}`);
+      if (user)
+        await this.auditUser(user.tenantId, user.id, 'auth.login_failed', meta);
       throw new UnauthorizedException(INVALID);
     }
     await this.throttle.clear('login', `acct:${acct}`);
-    return this.afterFirstFactor(user, meta);
+    return this.afterFirstFactor(user, meta, 'password');
   }
 
   async loginWithGoogle(
@@ -187,7 +232,7 @@ export class AuthService {
         data: { googleSub: identity.sub, status: 'ACTIVE' },
       });
     });
-    return this.afterFirstFactor({ ...user, status: 'ACTIVE' }, meta);
+    return this.afterFirstFactor({ ...user, status: 'ACTIVE' }, meta, 'google');
   }
 
   async verifyMfa(
@@ -225,10 +270,21 @@ export class AuthService {
     }
     if (!ok || !user) {
       await this.throttle.recordFailure('mfa', key);
+      await this.auditUser(
+        claims.tenantId,
+        claims.userId,
+        'auth.mfa_failed',
+        meta,
+      );
       throw new UnauthorizedException('Invalid code');
     }
     await this.throttle.clear('mfa', key);
-    return this.sessions.start(claims.tenantId, user.id, meta);
+    return this.startAudited(
+      claims.tenantId,
+      user.id,
+      meta,
+      input.recoveryCode ? 'mfa-recovery-code' : 'mfa',
+    );
   }
 
   private useRecoveryCode(
@@ -293,12 +349,13 @@ export class AuthService {
         data: { mfaEnabledAt: new Date() },
       });
     });
+    await this.auditUser(who.tenantId, who.userId, 'auth.mfa_enabled', {});
     return { recoveryCodes: codes };
   }
 
   /** Completes a login that was waiting on mandatory MFA enrolment. */
   startSession(who: Principal, meta: ClientMeta): Promise<IssuedTokens> {
-    return this.sessions.start(who.tenantId, who.userId, meta);
+    return this.startAudited(who.tenantId, who.userId, meta, 'mfa-enrolment');
   }
 
   async challengePrincipal(
@@ -354,7 +411,7 @@ export class AuthService {
     await this.sendPasswordLink(user.tenantId, user.id, user.email, 'reset');
   }
 
-  /** Emails a one-hour, single-use link to choose a password (reset or first-time invite). */
+  /** Emails a single-use link to choose a password (reset: one hour, invite: seven days). */
   async sendPasswordLink(
     tenantId: string,
     userId: string,
@@ -368,18 +425,11 @@ export class AuthService {
       kind === 'invite' ? 7 * 24 * 3600 : 3600,
     );
     const link = `${this.config.WEB_URL}/#/reset-password?token=${token}`;
-    await this.mail.send(
-      kind === 'invite'
-        ? {
-            to,
-            subject: 'You have been invited to Flourishive',
-            text: `Choose a password to activate your account (link valid for 7 days):\n\n${link}`,
-          }
-        : {
-            to,
-            subject: 'Reset your Flourishive password',
-            text: `Use this link within one hour to choose a new password:\n\n${link}\n\nIf you did not ask for this, you can ignore this email.`,
-          },
+    await this.notifications.sendNow(
+      tenantId,
+      kind === 'invite' ? 'auth.invite' : 'auth.password_reset',
+      to,
+      { link },
     );
   }
 
@@ -411,5 +461,12 @@ export class AuthService {
       });
     });
     await this.sessions.revokeAll(claim.tenantId, claim.userId);
+    await this.auditUser(
+      claim.tenantId,
+      claim.userId,
+      'auth.password_changed',
+      {},
+      { via: 'reset-link' },
+    );
   }
 }

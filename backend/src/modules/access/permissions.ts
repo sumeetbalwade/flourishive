@@ -15,6 +15,8 @@ export const PERMISSIONS = {
   'settings.read': 'View tenant settings',
   'settings.manage': 'Change tenant settings',
   'audit.read': 'View the audit log',
+  'files.read': 'Download files',
+  'files.write': 'Upload and delete files',
 } as const;
 
 export type PermissionCode = keyof typeof PERMISSIONS;
@@ -50,6 +52,8 @@ export const SYSTEM_ROLES: SystemRole[] = [
       'users.manage',
       'settings.read',
       'audit.read',
+      'files.read',
+      'files.write',
     ],
   },
   {
@@ -62,6 +66,8 @@ export const SYSTEM_ROLES: SystemRole[] = [
       'people.write',
       'people.import',
       'org.read',
+      'files.read',
+      'files.write',
     ],
   },
   {

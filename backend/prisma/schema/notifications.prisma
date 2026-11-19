@@ -1,0 +1,24 @@
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+model Notification {
+  id        String             @id @default(uuid(7)) @db.Char(36)
+  tenantId  String             @db.Char(36)
+  event     String             @db.VarChar(100)
+  toEmail   String             @db.VarChar(191)
+  subject   String             @db.VarChar(255)
+  /// Rendered body, kept so a failed send can be retried and the record shows what was sent
+  body      String             @db.Text
+  status    NotificationStatus @default(QUEUED)
+  error     String?            @db.VarChar(500)
+  sentAt    DateTime?          @db.DateTime(3)
+  createdAt DateTime           @default(now()) @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@map("notifications")
+}

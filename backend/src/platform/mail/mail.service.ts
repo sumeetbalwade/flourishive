@@ -7,6 +7,8 @@ export interface MailMessage {
   subject: string;
   text: string;
   html?: string;
+  /** Display name for the From header (the tenant's branding.emailSenderName). */
+  fromName?: string;
 }
 
 /**
@@ -28,7 +30,17 @@ export class MailService {
     });
   }
 
+  /** The From address always comes from config; only the display name can vary per tenant. */
+  private from(fromName?: string): string {
+    if (!fromName) return this.config.MAIL_FROM;
+    const address =
+      /<([^>]+)>/.exec(this.config.MAIL_FROM)?.[1] ?? this.config.MAIL_FROM;
+    const name = fromName.replace(/["<>\r\n]/g, '').trim();
+    return name ? `"${name}" <${address}>` : this.config.MAIL_FROM;
+  }
+
   async send(message: MailMessage): Promise<void> {
-    await this.transport.sendMail({ from: this.config.MAIL_FROM, ...message });
+    const { fromName, ...rest } = message;
+    await this.transport.sendMail({ from: this.from(fromName), ...rest });
   }
 }

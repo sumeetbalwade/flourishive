@@ -1,0 +1,21 @@
+model File {
+  id           String    @id @default(uuid(7)) @db.Char(36)
+  tenantId     String    @db.Char(36)
+  storageKey   String    @unique @db.VarChar(255)
+  originalName String    @db.VarChar(255)
+  mimeType     String    @db.VarChar(100)
+  sizeBytes    Int
+  sha256       String    @db.Char(64)
+  uploadedBy   String?   @db.Char(36)
+  /// What it belongs to, e.g. ownerType "engagement", ownerId the engagement id
+  ownerType    String?   @db.VarChar(60)
+  ownerId      String?   @db.VarChar(64)
+  createdAt    DateTime  @default(now()) @db.DateTime(3)
+  deletedAt    DateTime? @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, ownerType, ownerId])
+  @@map("files")
+}

@@ -1,0 +1,42 @@
+enum ActorType {
+  USER
+  PLATFORM
+  SYSTEM
+}
+
+/// Append-only, hash-chained per tenant. hash = sha256(prevHash + canonical fields).
+/// Rows are never updated or deleted by the application; verifyChain() detects tampering.
+model AuditLog {
+  seq        BigInt    @id @default(autoincrement())
+  tenantId   String    @db.Char(36)
+  actorType  ActorType
+  actorId    String?   @db.Char(36)
+  action     String    @db.VarChar(120)
+  entityType String?   @db.VarChar(60)
+  entityId   String?   @db.VarChar(64)
+  /// Non-sensitive context only (never passwords, tokens or personal data values)
+  meta       Json?
+  ip         String?   @db.VarChar(64)
+  createdAt  DateTime  @db.DateTime(3)
+  prevHash   String    @db.Char(64)
+  hash       String    @db.Char(64)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, seq])
+  @@index([tenantId, entityType, entityId])
+  @@map("audit_log")
+}
+
+/// One row per tenant holding the chain tip. Updating it inside the insert transaction
+/// takes a row lock, so concurrent writers append one after another and never fork the chain.
+model AuditChainHead {
+  tenantId String @id @db.Char(36)
+  lastSeq  BigInt @default(0)
+  lastHash String @db.Char(64)
+  version  Int    @default(0)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("audit_chain_heads")
+}

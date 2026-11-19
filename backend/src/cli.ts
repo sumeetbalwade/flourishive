@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { JobRecordsService } from './platform/queue/job-records.service.js';
+import { JobHandlerRegistry } from './platform/queue/job-handlers.js';
 import { QueueService } from './platform/queue/queue.service.js';
 
 /**
@@ -22,8 +23,14 @@ async function main() {
   const requeued = await app.get(JobRecordsService).reconcile();
   if (requeued > 0)
     console.warn(`Re-queued ${requeued} stale job(s) from job_records`);
+  const handlers = app.get(JobHandlerRegistry);
+  const jobRecords = app.get(JobRecordsService);
   await app.get(QueueService).runWorker(async (job) => {
-    console.warn(`No handler registered for job "${job.name}"`);
+    await handlers.dispatch(job);
+    // Jobs created through job_records are marked done once their handler succeeds.
+    const tenantId = (job.data as { tenantId?: string }).tenantId;
+    if (job.id && tenantId)
+      await jobRecords.markDone(tenantId, job.id).catch(() => undefined);
   }, maxSeconds);
   await app.close();
 }

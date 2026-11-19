@@ -3,6 +3,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AccessModule } from '../access/access.module.js';
 import { PermissionGuard } from '../access/permission.guard.js';
 import { SettingsModule } from '../settings/settings.module.js';
+import { AuditInterceptor } from '../audit/audit.interceptor.js';
 import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
@@ -29,6 +30,7 @@ import { TokenService } from './token.service.js';
     // Must come after AuthGuard: it reads the signed-in user from the request.
     { provide: APP_GUARD, useClass: PermissionGuard },
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
   exports: [AuthService, PasswordService, TokenService, SessionService],
 })
