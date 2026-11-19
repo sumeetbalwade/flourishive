@@ -31,7 +31,7 @@ export function Login() {
 
   async function finish() {
     await auth.onSignedIn();
-    go('/app/people');
+    go('/app/home');
   }
 
   async function handle(result: LoginResponse) {

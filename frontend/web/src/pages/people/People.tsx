@@ -37,7 +37,8 @@ export function People() {
   const status = query.get('status') ?? undefined;
   const page = Number(query.get('page') ?? '1') || 1;
   const [search, setSearch] = useState(q);
-  const [adding, setAdding] = useState(false);
+  // The search palette's "Add a person" arrives as ?new=1.
+  const [adding, setAdding] = useState(query.get('new') === '1' && auth.can('people.write'));
 
   // Typing updates the URL after a short pause, so a filtered list can be shared or reloaded.
   useEffect(() => {

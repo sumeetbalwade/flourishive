@@ -19,6 +19,50 @@ async function fillLogin(user: ReturnType<typeof userEvent.setup>, password = 'a
   await user.click(screen.getByRole('button', { name: 'Continue' }));
 }
 
+describe('app shell', () => {
+  it('shows an employee a short menu and HR the full one', async () => {
+    const employee = fakeClient({ isSignedIn: vi.fn().mockReturnValue(true) });
+    employee.auth.me.mockResolvedValue({ ...ME, permissions: ['self.read'], mfaRequired: false });
+    employee.restoreSession.mockResolvedValue(true);
+    const first = render(<App client={employee} retryDelay={0} />);
+    location.hash = '#/app/home';
+    await screen.findByRole('heading', { name: /Welcome/ });
+    expect(screen.queryByRole('button', { name: 'People' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'My security' })).toBeInTheDocument();
+    first.unmount();
+
+    const hr = fakeClient();
+    hr.restoreSession.mockResolvedValue(true);
+    open('#/app/home', hr);
+    await screen.findByRole('heading', { name: /Welcome/ });
+    for (const name of ['People', 'Import', 'Organisation', 'Audit log'])
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+  });
+
+  it('collapses the sidebar and remembers it', async () => {
+    const client = fakeClient();
+    client.restoreSession.mockResolvedValue(true);
+    const { user } = open('#/app/home', client);
+    await screen.findByRole('heading', { name: /Welcome/ });
+    await user.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toHaveAttribute('aria-pressed', 'true');
+    expect(localStorage.getItem('fh-sidebar')).toBe('collapsed');
+    await user.click(screen.getByRole('button', { name: 'Expand sidebar' }));
+    expect(localStorage.getItem('fh-sidebar')).toBe('open');
+  });
+
+  it('finds a page from the search palette', async () => {
+    const client = fakeClient();
+    client.restoreSession.mockResolvedValue(true);
+    const { user } = open('#/app/home', client);
+    await screen.findByRole('heading', { name: /Welcome/ });
+    await user.keyboard('{Control>}k{/Control}');
+    await user.type(await screen.findByLabelText('Search', { selector: 'input' }), 'organ');
+    await user.keyboard('{Enter}');
+    expect(location.hash).toBe('#/app/org');
+  });
+});
+
 describe('find your company', () => {
   it('emails the sign-in link and says the same whatever the answer', async () => {
     const { client, user } = open('#/find-company');
@@ -50,8 +94,8 @@ describe('sign in', () => {
       email: 'hr@flourisense.test',
       password: 'a long password',
     });
-    expect(await screen.findByText('Asha Patil')).toBeInTheDocument();
-    expect(location.hash).toBe('#/app/people');
+    expect(await screen.findByRole('heading', { name: 'Welcome, Hr' })).toBeInTheDocument();
+    expect(location.hash).toBe('#/app/home');
   });
 
   it('shows the server’s message when the password is wrong', async () => {
@@ -76,7 +120,7 @@ describe('sign in', () => {
     await user.type(screen.getByLabelText('Authentication code'), '123456');
     await user.click(verify);
     expect(client.auth.mfaVerify).toHaveBeenCalledWith({ mfaToken: 'm1', code: '123456' });
-    expect(await screen.findByText('Asha Patil')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Welcome, Hr' })).toBeInTheDocument();
   });
 
   it('lets someone use a recovery code instead', async () => {
@@ -104,7 +148,7 @@ describe('sign in', () => {
   it('restores a session from the refresh cookie on page load', async () => {
     const client = fakeClient({ restoreSession: vi.fn().mockResolvedValue(true) });
     open('#/login', client);
-    expect(await screen.findByText('Asha Patil')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Welcome, Hr' })).toBeInTheDocument();
   });
 });
 
