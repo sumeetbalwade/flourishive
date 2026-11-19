@@ -41,7 +41,7 @@ export function createApiClient(opts: Opts) {
   return {
     http,
     /** True after a sign-in, or after a successful silent refresh on page load. */
-    restoreSession: () => http.refresh(),
+    restoreSession: () => http.refresh({ silent: true }),
     isSignedIn: () => http.accessToken !== null,
 
     auth: {

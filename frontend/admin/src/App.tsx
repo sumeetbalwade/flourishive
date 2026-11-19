@@ -1,183 +1,74 @@
-import {
-  AppShell,
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  CardTitle,
-  Stat,
-  Table,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  ToastProvider,
-  useToast,
-  type NavItem,
-} from '@flourishive/ui';
-import { Building2, CreditCard, Settings, Users } from 'lucide-react';
+import { ApiError, type PlatformClient } from '@flourishive/api-client';
+import { ToastProvider } from '@flourishive/ui';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect, useMemo, type ReactNode } from 'react';
+import { ApiProvider, makeClient } from './lib/api.tsx';
+import { AuthProvider, useAuth } from './lib/auth.tsx';
+import { Defaults } from './pages/Defaults.tsx';
+import { Login, SetPassword } from './pages/Login.tsx';
+import { Staff } from './pages/Staff.tsx';
+import { TenantDetail } from './pages/TenantDetail.tsx';
+import { Tenants } from './pages/Tenants.tsx';
 import { go, useRoute } from './router.ts';
 
-const NAV: NavItem[] = [
-  { id: 'tenants', label: 'Tenants', icon: Building2 },
-  { id: 'users', label: 'Platform users', icon: Users },
-  { id: 'billing', label: 'Billing', icon: CreditCard },
-  { id: 'settings', label: 'Settings', icon: Settings },
-];
+const Loading = () => <p className="p-10 text-sm text-muted">Loading…</p>;
 
-const TENANTS = [
-  {
-    id: 'flourisense',
-    name: 'Flourisense Technologies LLP',
-    plan: 'Internal',
-    users: 14,
-    modules: ['Signing', 'People'],
-    status: 'Active',
-    created: '8 Nov 2026',
-  },
-  {
-    id: 'acme',
-    name: 'Acme Logistics',
-    plan: 'Growth',
-    users: 62,
-    modules: ['Signing', 'People', 'Leave'],
-    status: 'Trial',
-    created: '15 Nov 2026',
-  },
-  {
-    id: 'nova',
-    name: 'Nova Retail Pvt Ltd',
-    plan: 'Starter',
-    users: 9,
-    modules: ['Signing'],
-    status: 'Suspended',
-    created: '2 Nov 2026',
-  },
-];
-const tone = { Active: 'success', Trial: 'warning', Suspended: 'danger' } as const;
-
-function List() {
-  return (
-    <>
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <Stat value="3" label="Tenants" />
-        <Stat value="85" label="Users across tenants" />
-        <Stat value="1" label="Trial ending this week" />
-      </div>
-      <Table>
-        <THead>
-          <TR>
-            <TH>Tenant</TH>
-            <TH>Plan</TH>
-            <TH>Users</TH>
-            <TH>Status</TH>
-            <TH>Created</TH>
-          </TR>
-        </THead>
-        <TBody>
-          {TENANTS.map((t) => (
-            <TR key={t.id} className="cursor-pointer" onClick={() => go(`/tenants/${t.id}`)}>
-              <TD>
-                <div className="flex items-center gap-3">
-                  <Avatar name={t.name} />
-                  {t.name}
-                </div>
-              </TD>
-              <TD className="text-muted">{t.plan}</TD>
-              <TD>{t.users}</TD>
-              <TD>
-                <Badge tone={tone[t.status as keyof typeof tone]}>{t.status}</Badge>
-              </TD>
-              <TD className="text-muted">{t.created}</TD>
-            </TR>
-          ))}
-        </TBody>
-      </Table>
-    </>
-  );
+function Private({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  const anon = auth.state.status === 'anon';
+  useEffect(() => {
+    if (anon) go('/login');
+  }, [anon]);
+  return auth.state.status === 'authed' ? <>{children}</> : <Loading />;
 }
 
-const ALL_MODULES = ['Signing', 'People', 'Leave & attendance', 'Payroll', 'Talent'];
+function Routes() {
+  const { path, query } = useRoute();
+  const auth = useAuth();
+  useEffect(() => {
+    if (auth.state.status === 'authed' && (path === '/login' || path === '/')) go('/tenants');
+  }, [auth.state.status, path]);
 
-function Detail({ id }: { id: string }) {
-  const t = TENANTS.find((x) => x.id === id) ?? TENANTS[0]!;
-  const toast = useToast();
-  return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
-      <div className="grid content-start gap-6">
-        <Card>
-          <CardTitle>Modules</CardTitle>
-          <ul className="mt-4 grid gap-3">
-            {ALL_MODULES.map((m) => (
-              <li
-                key={m}
-                className="flex items-center justify-between rounded-md border border-line px-4 py-3 text-sm"
-              >
-                {m}
-                <Badge tone={t.modules.includes(m) ? 'success' : 'neutral'}>
-                  {t.modules.includes(m) ? 'Enabled' : 'Off'}
-                </Badge>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
-      <Card className="content-start">
-        <CardTitle>{t.name}</CardTitle>
-        <dl className="mt-4 grid grid-cols-2 gap-y-3 text-sm">
-          <dt className="text-muted">Plan</dt>
-          <dd>{t.plan}</dd>
-          <dt className="text-muted">Users</dt>
-          <dd>{t.users}</dd>
-          <dt className="text-muted">Status</dt>
-          <dd>
-            <Badge tone={tone[t.status as keyof typeof tone]}>{t.status}</Badge>
-          </dd>
-        </dl>
-        <div className="mt-6 flex gap-2">
-          <Button
-            size="sm"
-            onClick={() =>
-              toast({
-                tone: 'info',
-                title: 'Opening as support',
-                description: 'Session is read-only and audited.',
-              })
-            }
-          >
-            Impersonate
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            onClick={() => toast({ tone: 'danger', title: `${t.name} suspended` })}
-          >
-            Suspend
-          </Button>
-        </div>
-      </Card>
-    </div>
-  );
+  if (path === '/login' || path === '/')
+    return auth.state.status === 'loading' ? <Loading /> : <Login />;
+  if (path === '/set-password') return <SetPassword token={query.get('token') ?? ''} />;
+  let page: ReactNode;
+  if (path === '/tenants') page = <Tenants />;
+  else if (path.startsWith('/tenants/')) page = <TenantDetail id={path.split('/').pop()!} />;
+  else if (path === '/users') page = <Staff />;
+  else if (path === '/settings') page = <Defaults />;
+  else return <Login />;
+  return <Private>{page}</Private>;
 }
 
-// Super admin console prototype (Phase 0).
-export default function App() {
-  const route = useRoute();
-  const detail = route.startsWith('/tenants/') ? route.split('/').pop()! : null;
+/** `client` and `retryDelay` exist so tests can inject a fake API and avoid waiting on backoff. */
+export default function App({
+  client: injected,
+  retryDelay,
+}: { client?: PlatformClient; retryDelay?: number } = {}) {
+  const client = useMemo(() => injected ?? makeClient(() => go('/login')), [injected]);
+  const queryClient = useMemo(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 15_000,
+            retryDelay,
+            retry: (n, e) => !(e instanceof ApiError && e.status < 500) && n < 2,
+          },
+        },
+      }),
+    [retryDelay],
+  );
   return (
-    <ToastProvider>
-      <AppShell
-        brand={<span className="font-display text-2xl text-accent-hi">F</span>}
-        nav={NAV}
-        active="tenants"
-        onNavigate={() => go('/tenants')}
-        user={{ name: 'Sumeet Balwade', role: 'Super admin' }}
-        title={detail ? 'Tenant' : 'Tenants'}
-        actions={<Button size="sm">New tenant</Button>}
-      >
-        {detail ? <Detail id={detail} /> : <List />}
-      </AppShell>
-    </ToastProvider>
+    <ApiProvider client={client}>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <AuthProvider>
+            <Routes />
+          </AuthProvider>
+        </ToastProvider>
+      </QueryClientProvider>
+    </ApiProvider>
   );
 }
