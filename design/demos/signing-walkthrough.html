@@ -1,0 +1,746 @@
+<title>Flourishive Signing Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a scaled 1000x620 "screen" that plays six scenes, with step chips and a plain-language caption underneath. Deliberately dark-only: it previews the approved black + bronze product theme. */
+:root{
+  --ink:#0b0a09; --panel:#14120f; --panel2:#1b1814; --raise:#231f1a; --line:#2c2620; --line2:#3b332b;
+  --text:#efe8de; --muted:#9d9288; --faint:#6e655c;
+  --bronze:#c4914f; --bronze-hi:#e3b47c; --bronze-lo:rgba(196,145,79,.15);
+  --ok:#7cc79a; --ok-lo:rgba(124,199,154,.13); --wait:#d8b25a; --wait-lo:rgba(216,178,90,.13);
+  --paper:#f6f2ea; --paper2:#ece5d8; --paper-ink:#2a241e; --paper-muted:#7d7164;
+  --f-ui:"Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-disp:"Instrument Serif", Georgia, "Times New Roman", serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme:dark;
+}
+html{background:var(--ink)}
+body{background:var(--ink);color:var(--text);font-family:var(--f-ui);font-size:15px;line-height:1.5}
+.page{max-width:1080px;margin:0 auto;padding-block:32px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--bronze-hi);font-weight:600}
+h1{font-family:var(--f-disp);font-weight:400;font-size:clamp(32px,5vw,48px);line-height:1.05;margin:8px 0 10px;text-wrap:balance}
+.lede{color:var(--muted);max-width:62ch;margin:0 0 24px}
+
+.frame{position:relative;width:100%;height:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+.stage{position:absolute;left:0;top:0;width:1000px;height:620px;transform-origin:0 0;overflow:hidden;font-size:13px;line-height:1.45}
+.view{position:absolute;inset:0}
+
+.bar{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;margin-top:16px}
+.ctls{display:flex;gap:8px}
+.ctl{height:40px;min-width:40px;padding:0 14px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font:600 14px var(--f-ui);display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.ctl:hover{border-color:var(--bronze)}
+.ctl:focus-visible,.step:focus-visible{outline:2px solid var(--bronze-hi);outline-offset:2px}
+.ctl svg{width:16px;height:16px;fill:currentColor}
+.ctl.play{background:var(--bronze);border-color:var(--bronze);color:#1a1209;min-width:104px}
+.steps{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0;min-width:0}
+.step{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px 0 6px;border-radius:99px;border:1px solid var(--line);background:transparent;color:var(--muted);font:500 13px var(--f-ui);cursor:pointer}
+.step .n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--raise);font-size:11.5px;font-variant-numeric:tabular-nums}
+.step.on{border-color:var(--bronze);color:var(--text)}
+.step.on .n{background:var(--bronze);color:#1a1209}
+.step.done .n{background:var(--bronze-lo);color:var(--bronze-hi)}
+.cap{display:flex;gap:16px;align-items:flex-start;margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}
+.who{flex:none;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--bronze-hi);background:var(--bronze-lo);padding:5px 10px;border-radius:99px;margin-top:3px}
+.cap h2{margin:0 0 4px;font-size:20px;font-weight:600;text-wrap:balance}
+.cap p{margin:0;color:var(--muted);max-width:65ch}
+.cap>div{min-width:0}
+.note{margin-top:28px;font-size:13px;color:var(--faint);max-width:70ch}
+@media (max-width:560px){.cap{flex-direction:column;gap:8px}}
+
+/* ---------- inside the screen ---------- */
+.logo{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--bronze-hi),var(--bronze) 55%,#7a5530);flex:none;position:relative}
+.logo::after{content:"";position:absolute;inset:6px 5px 5px 6px;border:2px solid #1a1209;border-radius:2px 8px 2px 8px;opacity:.8}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;letter-spacing:.01em}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 16px;border-radius:9px;font-size:13px;font-weight:600;border:1px solid var(--line2);color:var(--text);background:var(--panel2);transition:transform .12s,opacity .3s,background .3s;white-space:nowrap}
+.btn.primary{background:var(--bronze);border-color:var(--bronze);color:#1a1209}
+.btn.press{transform:scale(.95)}
+.btn.wide{width:100%}
+.btn.dis{opacity:.5}
+.field{height:38px;border:1px solid var(--line2);border-radius:9px;background:var(--panel);padding:0 12px;display:flex;align-items:center;font-size:13.5px;color:var(--text);transition:border-color .2s,box-shadow .2s;white-space:nowrap;overflow:hidden}
+.field .hint{color:var(--faint)}
+.field .ver{margin-left:8px;font-size:11px;color:var(--muted);border:1px solid var(--line2);border-radius:5px;padding:0 5px}
+.field.focus{border-color:var(--bronze);box-shadow:0 0 0 3px var(--bronze-lo)}
+.field.caret::after{content:"";width:1.5px;height:16px;background:var(--bronze-hi);margin-left:1px;animation:blink 1s steps(1) infinite}
+.lb{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px}
+.cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--line2);display:inline-grid;place-items:center;flex:none;transition:background .2s,border-color .2s}
+.cb.on{background:var(--bronze);border-color:var(--bronze)}
+.cb.on::after{content:"";width:7px;height:4px;border-left:2px solid #1a1209;border-bottom:2px solid #1a1209;transform:translateY(-1px) rotate(-45deg)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:600;background:var(--raise);color:var(--muted);white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--ok-lo);color:var(--ok)}
+.pill.wait{background:var(--wait-lo);color:var(--wait)}
+.pill.br{background:var(--bronze-lo);color:var(--bronze-hi)}
+.pill.pop{animation:pop .35s ease}
+.toast{position:absolute;left:50%;bottom:24px;transform:translate(-50%,16px);opacity:0;background:var(--raise);border:1px solid var(--line2);padding:11px 16px;border-radius:10px;font-size:13px;display:flex;gap:10px;align-items:center;transition:opacity .35s,transform .35s;z-index:30;box-shadow:0 16px 40px rgba(0,0,0,.45);white-space:nowrap}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast .tk{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px var(--ok-lo)}
+
+/* app shell */
+.app{position:relative;display:grid;grid-template-columns:190px 1fr;height:100%}
+.side{background:var(--panel);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:3px}
+.side .brand{padding:2px 8px 18px}
+.nav-i{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--muted);font-size:13px}
+.nav-i::before{content:"";width:13px;height:13px;border:1.5px solid currentColor;border-radius:4px;opacity:.75}
+.nav-i.on{background:var(--bronze-lo);color:var(--bronze-hi)}
+.nav-i .badge{margin-left:auto;font-size:11px;background:var(--bronze);color:#1a1209;border-radius:99px;padding:0 7px;font-weight:700}
+.tenant{margin-top:auto;display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px}
+.tenant b{display:block;font-size:12.5px}
+.tenant small{color:var(--faint);font-size:11px}
+.tlogo{width:28px;height:28px;border-radius:7px;background:var(--raise);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--bronze-hi)}
+.main{display:flex;flex-direction:column;min-width:0;background:var(--ink)}
+.top{height:54px;flex:none;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 22px;color:var(--muted)}
+.user{display:flex;gap:9px;align-items:center;color:var(--text)}
+.av{width:28px;height:28px;border-radius:50%;background:var(--raise);border:1px solid var(--line2);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--bronze-hi)}
+.content{padding:22px;position:relative;flex:1;min-height:0}
+.pagehead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:18px}
+.pagehead h2{font-size:22px;font-weight:600;margin:0;line-height:1.2}
+.pagehead p{margin:2px 0 0}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;color:var(--faint);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.07em;padding:0 12px 10px;border-bottom:1px solid var(--line)}
+.tbl td{padding:13px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl td b{font-weight:600}
+.tbl td small{display:block;color:var(--faint);font-size:11.5px}
+.tbl tr.new td{animation:rowin .6s ease}
+
+/* letter paper */
+.a4{width:300px;height:424px;background:var(--paper);color:var(--paper-ink);border-radius:3px;padding:26px 26px;font-size:9.5px;line-height:1.6;box-shadow:0 18px 40px rgba(0,0,0,.45);position:relative;transition:opacity .4s;flex:none}
+.a4.pending{opacity:.3}
+.a4 .lh{display:flex;justify-content:space-between;align-items:center;border-bottom:1.5px solid var(--bronze);padding-bottom:8px;margin-bottom:14px}
+.a4 .lh b{font-size:11.5px;letter-spacing:.16em}
+.a4 .ref{font-family:var(--f-mono);font-size:8px;color:var(--paper-muted)}
+.a4 p{margin:0 0 8px}
+.a4 .ph{background:rgba(196,145,79,.24);border-radius:2px;padding:0 2px;font-weight:600}
+.a4 .ph.empty{background:transparent;color:var(--paper-muted);font-style:italic;font-weight:400;border:1px dashed #c8b9a3}
+.bars{margin:10px 0}
+.bars i{display:block;height:4px;background:var(--paper2);border-radius:2px;margin:7px 0}
+.sigbox{position:absolute;left:26px;bottom:30px;width:140px;height:50px;border:1px dashed #bfae98;border-radius:4px;font-size:7.5px;color:var(--paper-muted);display:grid;place-items:center;text-align:center;line-height:1.4}
+.sigbox.signed{border:1px solid var(--bronze);color:var(--paper-ink);background:rgba(196,145,79,.1);font-weight:600}
+.sigslot{position:absolute;left:22px;bottom:26px;width:130px;height:50px;border-bottom:1px solid #bfae98}
+.qr{position:absolute;right:24px;bottom:28px;width:50px;height:50px;border-radius:2px}
+.qr svg{width:100%;height:100%;display:block}
+
+/* signing mark (D-37): pen stroke, then bronze tick */
+.mark{position:relative;width:120px;height:46px;--sig-ink:var(--text)}
+.mark svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.mark .sig{transition:opacity .35s,transform .35s}
+.mark .sig path{fill:none;stroke:var(--sig-ink);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1}
+.mark .chk{opacity:0}
+.mark .chk circle,.mark .chk path{fill:none;stroke:var(--bronze);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1}
+.mark .chk circle{fill:var(--bronze-lo);stroke-width:2.4}
+.mark[data-state="signing"] .sig path{animation:draw 1.25s ease-in-out forwards}
+.mark[data-state="done"] .sig{opacity:0;transform:scale(.9)}
+.mark[data-state="done"] .sig path{stroke-dashoffset:0}
+.mark[data-state="done"] .chk{opacity:1}
+.mark[data-state="done"] .chk circle{animation:draw .5s .1s ease-out forwards}
+.mark[data-state="done"] .chk path{animation:draw .35s .5s ease-out forwards}
+.mark.sm{width:58px;height:22px}
+.mark.lg{width:220px;height:84px}
+.mark.paper{--sig-ink:var(--paper-ink)}
+
+/* login */
+.login{position:absolute;inset:0;display:grid;place-items:center;background:radial-gradient(620px 420px at 50% 26%,rgba(196,145,79,.17),transparent 70%),var(--ink)}
+.lcard{width:380px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px 30px 30px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.lcard .brand{margin-bottom:22px}
+.lcard h3{font-size:19px;margin:0 0 4px;font-weight:600}
+.lcard .btn.wide{margin-top:18px;height:40px}
+.or{display:flex;align-items:center;gap:10px;color:var(--faint);font-size:11.5px;margin:16px 0 0}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.or+.btn.wide{margin-top:14px}
+.g{width:14px;height:14px;border-radius:50%;border:3px solid var(--bronze-hi);border-right-color:transparent}
+.otp{display:flex;gap:8px;margin:18px 0 0}
+.otp span{width:44px;height:52px;border:1px solid var(--line2);border-radius:10px;display:grid;place-items:center;font-family:var(--f-mono);font-size:22px;background:var(--panel2);transition:border-color .2s}
+.otp span.f{border-color:var(--bronze)}
+
+/* new-letter sheet */
+.sheet{position:absolute;top:0;right:0;bottom:0;width:690px;background:var(--panel);border-left:1px solid var(--line);display:grid;grid-template-columns:300px 1fr;transform:translateX(105%);transition:transform .55s cubic-bezier(.2,.8,.2,1);box-shadow:-30px 0 60px rgba(0,0,0,.45);z-index:5}
+.sheet.on{transform:none}
+.sheet-form{padding:22px;border-right:1px solid var(--line);display:flex;flex-direction:column}
+.sheet-form h3{margin:0;font-size:17px}
+.sheet-form .btn{margin-top:auto}
+.sheet-prev{background:var(--panel2);display:grid;place-items:center}
+
+/* approvals */
+.selbar{display:flex;gap:8px}
+
+/* phone */
+.phone-scene{position:absolute;inset:0;display:grid;grid-template-columns:1fr 290px 1fr;align-items:center;background:radial-gradient(500px 420px at 50% 50%,rgba(196,145,79,.12),transparent 70%),var(--ink)}
+.side-note{padding:0 36px 0 56px}
+.side-note h3{font-family:var(--f-disp);font-weight:400;font-size:30px;line-height:1.1;margin:10px 0}
+.side-note p{color:var(--muted);margin:0}
+.facts{list-style:none;margin:0;padding:0 40px;display:flex;flex-direction:column;gap:14px}
+.facts li{display:flex;gap:10px;align-items:flex-start;color:var(--muted);opacity:.25;transition:opacity .4s}
+.facts li.on{opacity:1}
+.facts li::before{content:"";width:8px;height:8px;margin-top:6px;border-radius:50%;background:var(--bronze);flex:none}
+.facts b{color:var(--text);font-weight:600;display:block}
+.phone{position:relative;width:280px;height:566px;border-radius:42px;background:#050505;border:1px solid var(--line2);padding:12px;box-shadow:0 40px 80px rgba(0,0,0,.55)}
+.notch{position:absolute;top:18px;left:50%;transform:translateX(-50%);width:84px;height:22px;border-radius:12px;background:#050505;z-index:3}
+.pscreen{position:relative;width:100%;height:100%;border-radius:31px;overflow:hidden;background:var(--paper);color:var(--paper-ink)}
+.pv{position:absolute;inset:0;padding:50px 16px 18px;display:flex;flex-direction:column;gap:10px;font-size:12px}
+.pv h4{margin:0;font-size:17px}
+.pv .pm{color:var(--paper-muted);font-size:11.5px}
+.mail{background:#fff;border-radius:12px;padding:12px;border:1px solid #e6dccb;display:grid;gap:2px}
+.mail b{font-size:12.5px}
+.mail.dim{opacity:.5}
+.mail .from{display:flex;justify-content:space-between;font-size:11px;color:var(--paper-muted)}
+.mail .from strong{color:var(--paper-ink)}
+.ptop{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.12em;font-size:11px}
+.mini{width:180px;height:254px;align-self:center;flex:none;overflow:hidden;border-radius:3px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.mini .a4{transform:scale(.6);transform-origin:0 0;box-shadow:none}
+.agree{display:flex;gap:9px;align-items:center;font-size:11.5px}
+.agree .cb{border-color:#c4b49f}
+.pv .btn{height:40px}
+.pv .btn:not(.primary){background:#fff;border-color:#d8cdbd;color:var(--paper-ink)}
+.otp.light span{background:#fff;border-color:#d8cdbd;color:var(--paper-ink);width:34px;height:44px;font-size:18px}
+.otp.light{gap:6px;justify-content:center;margin:8px 0}
+.pv.center{align-items:center;justify-content:center;text-align:center}
+
+/* desktop app */
+.desk{position:absolute;inset:0;background:linear-gradient(155deg,#1b2530,#0d1218 55%,#18120c);display:grid;place-items:center}
+.win{position:relative;width:910px;height:556px;background:var(--panel);border:1px solid var(--line2);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 40px 90px rgba(0,0,0,.6)}
+.titlebar{height:34px;flex:none;display:flex;align-items:center;gap:8px;padding-left:12px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);background:var(--ink)}
+.titlebar .logo{width:16px;height:16px;border-radius:4px}
+.titlebar .logo::after{inset:4px 3px 3px 4px;border-width:1.5px}
+.wctl{margin-left:auto;display:flex;height:100%}
+.wctl span{width:44px;display:grid;place-items:center}
+.wctl i{display:block;width:10px;height:10px;border:1px solid var(--muted)}
+.wctl i.min{height:0;border-width:1px 0 0}
+.wctl i.x{border:0;position:relative}
+.wctl i.x::before,.wctl i.x::after{content:"";position:absolute;left:-1px;top:4px;width:12px;height:1px;background:var(--muted);transform:rotate(45deg)}
+.wctl i.x::after{transform:rotate(-45deg)}
+.wbody{flex:1;display:grid;grid-template-columns:214px 1fr;min-height:0}
+.wside{padding:16px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.token{display:flex;gap:11px;align-items:center;padding:12px;border-radius:10px;background:var(--ok-lo);border:1px solid rgba(124,199,154,.25)}
+.tdot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px rgba(124,199,154,.18);flex:none}
+.token b,.certbox b{display:block;font-size:12.5px}
+.token small,.certbox small{display:block;color:var(--muted);font-size:11px}
+.certbox{padding:12px;border:1px solid var(--line);border-radius:10px;display:grid;gap:1px}
+.wside .nav-i{margin-top:2px}
+.wmain{padding:20px;display:grid;grid-template-columns:1fr 216px;grid-template-rows:auto auto auto;align-content:start;gap:14px 16px;background:var(--ink);min-height:0}
+.whead{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.whead h3{margin:0;font-size:18px}
+.whead p{margin:2px 0 0}
+.qlist{display:flex;flex-direction:column;gap:8px;min-width:0}
+.qi{display:grid;grid-template-columns:16px 1fr 128px;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);transition:border-color .3s,background .3s}
+.qi b{font-weight:600}
+.qi small{display:block;color:var(--faint);font-size:11px}
+.qi.cur{border-color:var(--bronze);background:var(--bronze-lo)}
+.qi.ok{border-color:rgba(124,199,154,.3)}
+.qstat{display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:12px;color:var(--muted)}
+.qi.cur .qtext{color:var(--bronze-hi)}
+.qi.ok .qtext{color:var(--ok)}
+.nowcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px 16px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.nowcard small{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.nowcard b{font-size:13px}
+.nowcard .mini{align-self:center}
+.wbanner{grid-column:1/-1;display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:10px;background:var(--ok-lo);border:1px solid rgba(124,199,154,.3);animation:rowin .5s ease}
+.wbanner .tk{width:9px;height:9px;border-radius:50%;background:var(--ok);flex:none}
+.pin{position:absolute;inset:34px 0 0;background:rgba(5,4,3,.62);display:grid;place-items:center;z-index:10}
+.pincard{width:350px;background:var(--panel2);border:1px solid var(--line2);border-radius:14px;padding:22px;box-shadow:0 30px 60px rgba(0,0,0,.5);animation:rowin .3s ease}
+.pincard h4{margin:0 0 4px;font-size:16px}
+.pincard p{margin:0 0 14px;font-size:12.5px}
+.pincard .field{letter-spacing:5px;font-size:18px}
+.pincard .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* document detail + verify */
+.docpage{display:grid;grid-template-columns:300px 1fr;gap:34px;align-items:start}
+.tl{list-style:none;margin:6px 0 0;padding:0;position:relative}
+.tl::before{content:"";position:absolute;left:12px;top:12px;bottom:26px;width:1px;background:var(--line2)}
+.tl li{position:relative;display:grid;grid-template-columns:26px 1fr;gap:14px;padding-bottom:18px;opacity:.22;transition:opacity .45s}
+.tl li.on{opacity:1}
+.tl .dot{width:25px;height:25px;border-radius:50%;border:1.5px solid var(--line2);display:grid;place-items:center;background:var(--ink);transition:border-color .3s,background .3s}
+.tl li.on .dot{border-color:var(--bronze);background:var(--bronze-lo)}
+.tl .dot::after{content:"";width:8px;height:4px;border-left:2px solid var(--bronze-hi);border-bottom:2px solid var(--bronze-hi);transform:translateY(-1px) rotate(-45deg);opacity:0;transition:opacity .3s .15s}
+.tl li.on .dot::after{opacity:1}
+.tl b{display:block;font-size:13.5px;font-weight:600}
+.tl small{color:var(--muted);font-size:12px}
+.tl .t{font-family:var(--f-mono);font-size:11px;color:var(--faint)}
+.tl-h{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin:0 0 12px}
+.browser{position:absolute;inset:30px 70px;background:var(--paper);color:var(--paper-ink);border-radius:12px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.6);transform:translateY(30px) scale(.97);opacity:0;transition:opacity .45s,transform .45s;z-index:15;display:flex;flex-direction:column;pointer-events:none}
+.browser.on{opacity:1;transform:none}
+.urlbar{height:42px;flex:none;background:var(--paper2);display:flex;align-items:center;gap:12px;padding:0 14px}
+.urlbar .dots{display:flex;gap:6px}
+.urlbar .dots i{width:10px;height:10px;border-radius:50%;background:#cfc3b1}
+.url{flex:1;background:#fff;border-radius:7px;padding:6px 12px;font-family:var(--f-mono);font-size:11.5px;color:var(--paper-muted);display:flex;align-items:center;gap:8px}
+.url .lock{width:9px;height:7px;background:var(--ok);border-radius:1.5px;position:relative;margin-top:3px}
+.url .lock::before{content:"";position:absolute;left:1.5px;top:-4px;width:6px;height:5px;border:1.5px solid var(--ok);border-bottom:0;border-radius:4px 4px 0 0;box-sizing:border-box}
+.vhead{display:flex;align-items:center;gap:9px;padding:18px 44px 0;font-weight:700;font-size:13px}
+.vbody{flex:1;display:grid;grid-template-columns:230px 1fr;gap:30px;padding:26px 44px 30px;align-items:start}
+.vbody .mark{margin-top:6px;--sig-ink:var(--paper-ink)}
+.vbody h2{font-family:var(--f-disp);font-weight:400;font-size:36px;line-height:1.05;margin:0 0 6px}
+.vbody .pm{color:var(--paper-muted);margin:0 0 18px;font-size:13px}
+.vdl{display:grid;grid-template-columns:130px 1fr;margin:0;border-top:1px solid #e0d6c6}
+.vdl dt,.vdl dd{margin:0;padding:9px 0;border-bottom:1px solid #e0d6c6;font-size:12.5px;opacity:0;transition:opacity .35s}
+.vdl dt{color:var(--paper-muted)}
+.vdl dd{font-weight:600}
+.vdl .on{opacity:1}
+.vok{color:#2f8a57}
+
+#cursor{position:absolute;left:500px;top:640px;width:22px;height:22px;z-index:50;pointer-events:none;transition:left .75s cubic-bezier(.45,0,.2,1),top .75s cubic-bezier(.45,0,.2,1),opacity .3s;opacity:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6))}
+#cursor svg{width:100%;height:100%;display:block}
+.ripple{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:2px solid var(--bronze-hi);z-index:49;pointer-events:none;animation:ripple .5s ease-out forwards}
+
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes blink{50%{opacity:0}}
+@keyframes rowin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.85)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+@keyframes ripple{from{transform:scale(.3);opacity:1}to{transform:scale(1.4);opacity:0}}
+
+@media (prefers-reduced-motion:reduce){
+  .stage *,.stage *::before,.stage *::after{animation:none!important;transition-duration:0s!important;transition-delay:0s!important}
+  .mark[data-state="signing"] .sig path,.mark[data-state="done"] .chk circle,.mark[data-state="done"] .chk path{stroke-dashoffset:0}
+  #cursor{display:none}
+}
+</style>
+
+<div class="page">
+  <div class="eyebrow">Flourishive · sample walkthrough</div>
+  <h1>From draft to signed letter</h1>
+  <p class="lede">How an intern offer letter moves through Flourishive: created by HR, approved, accepted by the candidate on their phone, signed with the HR Lead's DSC token, and checked by anyone through its QR code.</p>
+
+  <div class="frame" id="frame">
+    <div class="stage" id="stage" aria-label="Animated product walkthrough" role="img">
+      <div class="view" id="view"></div>
+      <div id="cursor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2 L4 19 L8.6 15.2 L11.6 22 L14.6 20.7 L11.7 14.1 L18 14 Z" fill="#fff" stroke="#111" stroke-width="1.3" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <div class="ctls">
+      <button class="ctl" id="prev" type="button" aria-label="Previous step"><svg viewBox="0 0 16 16"><path d="M10.5 2.5 5 8l5.5 5.5-1.4 1.4L2.2 8l6.9-6.9z"/></svg></button>
+      <button class="ctl play" id="play" type="button"><svg viewBox="0 0 16 16" id="playIcon"><path d="M4 2h3v12H4zM9 2h3v12H9z"/></svg><span id="playLabel">Pause</span></button>
+      <button class="ctl" id="next" type="button" aria-label="Next step"><svg viewBox="0 0 16 16"><path d="M5.5 2.5 11 8l-5.5 5.5 1.4 1.4L13.8 8 6.9 1.1z"/></svg></button>
+    </div>
+    <ol class="steps" id="steps"></ol>
+  </div>
+
+  <div class="cap" aria-live="polite">
+    <span class="who" id="who"></span>
+    <div><h2 id="ctitle"></h2><p id="ctext"></p></div>
+  </div>
+
+  <p class="note">Sample data only. The names, numbers and dates are made up, and the final look will follow the approved design system. In the real product the HR Lead's renewed Class 3 certificate is used; the current one has expired.</p>
+</div>
+
+<script>
+(() => {
+  const stage = document.getElementById('stage');
+  const frame = document.getElementById('frame');
+  const view = document.getElementById('view');
+  const cursor = document.getElementById('cursor');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let scale = 1, idx = 0, runId = 0, paused = false, ended = false;
+  const CANCEL = { cancelled: true };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function fit() {
+    scale = frame.clientWidth / 1000;
+    stage.style.transform = `scale(${scale})`;
+    frame.style.height = (620 * scale) + 'px';
+  }
+  fit();
+  if ('ResizeObserver' in window) new ResizeObserver(fit).observe(frame); else addEventListener('resize', fit);
+
+  /* ---------- building blocks ---------- */
+  const SIG = 'M6 42 C14 40 18 18 26 16 C34 14 30 46 38 44 C46 42 46 22 54 22 C60 22 58 40 64 40 C72 40 74 20 82 20 C88 20 86 38 94 38 C104 38 108 26 118 28 C128 30 136 36 154 30';
+  const mark = (cls = '', id = '') => `<div class="mark ${cls}" ${id ? `id="${id}"` : ''} data-state="idle"><svg class="sig" viewBox="0 0 160 60" aria-hidden="true"><path pathLength="1" d="${SIG}"/></svg><svg class="chk" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" pathLength="1"/><path pathLength="1" d="M20 33 L29 42 L45 23"/></svg></div>`;
+
+  const QR = (() => {
+    const n = 21; let d = '', s = 11;
+    const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+    const finder = (x, y) => { d += `M${x} ${y}h7v7h-7zM${x + 1} ${y + 1}v5h5v-5zM${x + 2} ${y + 2}h3v3h-3z`; };
+    finder(0, 0); finder(14, 0); finder(0, 14);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const zone = (x < 8 && y < 8) || (x > 12 && y < 8) || (x < 8 && y > 12);
+      if (!zone && rnd() > .5) d += `M${x} ${y}h1v1h-1z`;
+    }
+    return `<svg viewBox="-1 -1 23 23" aria-hidden="true"><rect x="-1" y="-1" width="23" height="23" fill="#fff"/><path fill="#2a241e" fill-rule="evenodd" d="${d}"/></svg>`;
+  })();
+
+  function letter(o = {}) {
+    const v = (k, ph) => o.empty ? `<span class="ph empty" data-p="${k}">${ph}</span>` : `<span class="ph">${o[k]}</span>`;
+    const sig = o.slot ? `<div class="sigslot">${mark('paper', o.slot)}</div>`
+      : `<div class="sigbox ${o.signed ? 'signed' : ''}">${o.signed ? 'Digitally signed by HR Lead<br>Class 3 DSC · 19 Nov 2026, 11:42 IST' : 'HR Lead signature (DSC)'}</div>`;
+    return `<div class="a4 ${o.cls || ''}">
+      <div class="lh"><b>FLOURISENSE</b><span class="ref">${o.ref || 'FS/INT/2026/0012'}</span></div>
+      <p>19 November 2026</p>
+      <p>Dear ${v('name', 'candidate name')},</p>
+      <p>We are pleased to offer you an internship as ${v('role', 'role')}, starting ${v('date', 'start date')}, with a monthly stipend of ${v('stip', 'stipend')}.</p>
+      <div class="bars"><i style="width:96%"></i><i style="width:90%"></i><i style="width:94%"></i><i style="width:58%"></i></div>
+      <div class="bars"><i style="width:92%"></i><i style="width:86%"></i><i style="width:40%"></i></div>
+      ${sig}<div class="qr">${QR}</div></div>`;
+  }
+  const ROHAN = { name: 'Rohan Patil', role: 'UI Design Intern', date: '1 December 2026', stip: '₹15,000' };
+
+  const NAV = ['Dashboard', 'People', 'Letters', 'Approvals', 'Signing', 'Settings'];
+  function shell({ active, user, ini, crumb, body, extra = '', badge }) {
+    return `<div class="app">
+      <aside class="side"><div class="brand"><span class="logo"></span>Flourishive</div>
+        ${NAV.map(n => `<div class="nav-i${n === active ? ' on' : ''}">${n}${badge && badge[0] === n ? `<span class="badge">${badge[1]}</span>` : ''}</div>`).join('')}
+        <div class="tenant"><span class="tlogo">FS</span><div><b>Flourisense</b><small>Your workspace</small></div></div>
+      </aside>
+      <main class="main"><header class="top"><div>${crumb}</div><div class="user"><span class="av">${ini}</span>${user}</div></header>
+        <section class="content">${body}</section></main>${extra}</div>`;
+  }
+
+  /* ---------- scenes ---------- */
+  const scenes = [
+    {
+      step: 'Sign in', who: 'HR team', title: 'Sign in securely',
+      text: 'HR staff sign in with their work email and password, or with Google. They also enter a 6-digit code from an authenticator app, so a stolen password alone is not enough.',
+      html: () => `<div class="login"><div class="lcard">
+        <div class="brand"><span class="logo"></span>Flourishive</div>
+        <div id="l1"><h3>Sign in to Flourisense</h3><p class="muted" style="margin:0">Use your work account.</p>
+          <span class="lb">Work email</span><div class="field" id="em"><span class="hint">name@flourisense.in</span></div>
+          <span class="lb">Password</span><div class="field" id="pw"></div>
+          <div class="btn primary wide" id="signin">Sign in</div>
+          <div class="or">or</div><div class="btn wide"><span class="g"></span>Sign in with Google</div></div>
+        <div id="l2" hidden><h3>Two-step verification</h3><p class="muted" style="margin:0">Enter the 6-digit code from your authenticator app.</p>
+          <div class="otp" id="otp"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="btn primary wide" id="verify">Verify</div></div>
+      </div></div>`,
+      async play(c) {
+        await c.wait(600);
+        await c.point('#em'); await c.type('#em', 'hr.executive@flourisense.in', { speed: 42 });
+        await c.point('#pw'); await c.type('#pw', 'xxxxxxxxxxx', { mask: true, speed: 55 });
+        await c.click('#signin');
+        c.$('#l1').hidden = true; c.$('#l2').hidden = false;
+        await c.wait(700);
+        await c.otp('#otp', '482913');
+        await c.click('#verify');
+        await c.toast('Signed in. Welcome back.');
+        await c.wait(1300);
+      }
+    },
+    {
+      step: 'Create', who: 'HR Executive', title: 'Create the letter from a template',
+      text: 'Pick a template and fill in the candidate’s details; the letter fills in as you type. The reference number is given automatically and never reused. A whole batch can also be created from a spreadsheet.',
+      html: () => shell({
+        active: 'Letters', user: 'HR Executive', ini: 'HE', crumb: 'Letters',
+        body: `<div class="pagehead"><div><h2>Letters</h2><p class="muted">Offer letters, certificates and experience letters</p></div><div class="btn primary" id="new">+ New letter</div></div>
+          <table class="tbl"><thead><tr><th>Reference</th><th>Person</th><th>Letter</th><th>Status</th></tr></thead><tbody id="rows">
+          <tr><td class="mono">FS/INT/2026/0011</td><td><b>Kavya Shinde</b></td><td>Internship certificate</td><td><span class="pill ok">Issued</span></td></tr>
+          <tr><td class="mono">FS/EXP/2026/0004</td><td><b>Omkar Jadhav</b></td><td>Experience letter</td><td><span class="pill ok">Issued</span></td></tr>
+          <tr><td class="mono">FS/INT/2026/0010</td><td><b>Pooja Kale</b></td><td>Internship offer letter</td><td><span class="pill ok">Issued</span></td></tr>
+          </tbody></table>`,
+        extra: `<div class="sheet" id="sheet"><div class="sheet-form"><h3>New letter</h3>
+          <span class="lb">Template</span><div class="field" id="f-tpl"><span class="hint">Choose a template</span></div>
+          <span class="lb">Candidate</span><div class="field" id="f-name"></div>
+          <span class="lb">Role</span><div class="field" id="f-role"></div>
+          <span class="lb">Start date</span><div class="field" id="f-date"></div>
+          <span class="lb">Monthly stipend</span><div class="field" id="f-stip"></div>
+          <div class="btn primary wide" id="submit">Submit for approval</div></div>
+          <div class="sheet-prev">${letter({ empty: true, cls: 'pending', ref: '—' })}</div></div>`
+      }),
+      async play(c) {
+        await c.wait(700);
+        await c.click('#new');
+        c.$('#sheet').classList.add('on'); await c.wait(800);
+        await c.click('#f-tpl');
+        c.$('#f-tpl').innerHTML = 'Intern offer letter<span class="ver">v3</span>';
+        c.$('.sheet-prev .a4').classList.remove('pending');
+        c.$('.sheet-prev .ref').textContent = 'FS/INT/2026/0012';
+        await c.wait(500);
+        await c.point('#f-name'); await c.type('#f-name', ROHAN.name, { mirror: '[data-p="name"]' });
+        await c.point('#f-role'); await c.type('#f-role', ROHAN.role, { mirror: '[data-p="role"]', speed: 45 });
+        await c.point('#f-date'); await c.type('#f-date', ROHAN.date, { mirror: '[data-p="date"]', speed: 45 });
+        await c.point('#f-stip'); await c.type('#f-stip', ROHAN.stip, { mirror: '[data-p="stip"]' });
+        await c.wait(400);
+        await c.click('#submit');
+        c.$('#sheet').classList.remove('on');
+        await c.wait(450);
+        c.$('#rows').insertAdjacentHTML('afterbegin', `<tr class="new"><td class="mono">FS/INT/2026/0012</td><td><b>Rohan Patil</b></td><td>Internship offer letter</td><td><span class="pill wait">Awaiting approval</span></td></tr>`);
+        await c.toast('Sent to the HR Lead for approval');
+        await c.wait(1500);
+      }
+    },
+    {
+      step: 'Approve', who: 'HR Lead', title: 'Approve, one letter or a whole batch',
+      text: 'The HR Lead reviews the letters waiting for approval and approves them together. Each candidate then gets an email asking them to read and accept their offer.',
+      html: () => shell({
+        active: 'Approvals', user: 'HR Lead', ini: 'HL', crumb: 'Approvals', badge: ['Approvals', 3],
+        body: `<div class="pagehead"><div><h2>Waiting for your approval</h2><p class="muted">3 internship offer letters · December batch</p></div>
+          <div class="selbar"><div class="btn">Request changes</div><div class="btn primary dis" id="approve">Approve selected</div></div></div>
+          <table class="tbl"><thead><tr><th style="width:28px"><span class="cb" id="all"></span></th><th>Candidate</th><th>Reference</th><th>Created by</th><th>Status</th></tr></thead><tbody>
+          ${[['Rohan Patil', 'UI Design Intern', '0012'], ['Sneha Joshi', 'Data Analyst Intern', '0013'], ['Aditya More', 'Marketing Intern', '0014']].map(r => `
+            <tr><td><span class="cb rcb"></span></td><td><b>${r[0]}</b><small>${r[1]}</small></td><td class="mono">FS/INT/2026/${r[2]}</td><td>HR Executive<small>18 Nov 2026</small></td><td class="st"><span class="pill wait">Awaiting approval</span></td></tr>`).join('')}
+          </tbody></table>`
+      }),
+      async play(c) {
+        await c.wait(800);
+        await c.click('#all');
+        c.$('#all').classList.add('on');
+        for (const cb of c.$$('.rcb')) { cb.classList.add('on'); await c.wait(120); }
+        c.$('#approve').classList.remove('dis');
+        c.$('#approve').textContent = 'Approve 3 letters';
+        await c.wait(400);
+        await c.click('#approve');
+        for (const td of c.$$('.st')) { td.innerHTML = '<span class="pill ok pop">Approved</span>'; await c.wait(380); }
+        await c.wait(500);
+        for (const td of c.$$('.st')) { td.innerHTML = '<span class="pill br pop">Sent to candidate</span>'; await c.wait(300); }
+        await c.toast('3 offer letters emailed to the candidates');
+        await c.wait(1500);
+      }
+    },
+    {
+      step: 'Candidate accepts', who: 'Candidate', title: 'The candidate accepts on their phone',
+      text: 'No account or app needed. The candidate opens the email, reads the letter, ticks that they accept and confirms with a code sent to their email. Flourishive records who accepted, when, and a fingerprint of the exact letter.',
+      html: () => `<div class="phone-scene">
+        <div class="side-note"><div class="eyebrow">Rohan’s phone</div><h3>Accepting the offer takes under a minute</h3><p>The page carries Flourisense’s branding, not Flourishive’s.</p></div>
+        <div class="phone"><div class="notch"></div><div class="pscreen">
+          <div class="pv" id="p1"><h4>Inbox</h4>
+            <div class="mail" id="mail"><div class="from"><strong>Flourisense HR</strong><span>09:10</span></div><b>Your internship offer letter</b><span class="pm">Hi Rohan, please review and accept your offer…</span></div>
+            <div class="mail dim"><div class="from"><strong>College placement cell</strong><span>Yesterday</span></div><b>Interview schedule</b></div>
+            <div class="mail dim"><div class="from"><strong>Bank</strong><span>Mon</span></div><b>Your monthly statement</b></div></div>
+          <div class="pv" id="p2" hidden><div class="ptop"><span class="logo" style="width:16px;height:16px"></span>FLOURISENSE</div>
+            <h4>Internship offer letter</h4><span class="mono" style="color:var(--paper-muted)">FS/INT/2026/0012</span>
+            <div class="mini">${letter(ROHAN)}</div>
+            <div class="agree" id="agree"><span class="cb"></span>I have read the letter and accept the offer</div>
+            <div class="btn primary wide" id="accept">Accept with email code</div></div>
+          <div class="pv" id="p3" hidden><div class="ptop"><span class="logo" style="width:16px;height:16px"></span>FLOURISENSE</div>
+            <h4 style="margin-top:30px">Enter the code</h4><span class="pm">We sent a 6-digit code to r•••••@gmail.com. It expires in 10 minutes.</span>
+            <div class="otp light" id="potp"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="btn primary wide" id="confirm">Confirm acceptance</div></div>
+          <div class="pv center" id="p4" hidden>${mark('lg paper', 'pmark')}<h4>Offer accepted</h4>
+            <span class="pm">Thank you, Rohan. You’ll get the signed letter by email once the HR Lead signs it.</span></div>
+        </div></div>
+        <ul class="facts" id="facts">
+          <li><span><b>Who</b>Rohan Patil, confirmed by email code</span></li>
+          <li><span><b>When</b>19 Nov 2026, 09:12 IST</span></li>
+          <li><span><b>What</b>A fingerprint of this exact letter</span></li>
+          <li><span><b>Sealed</b>Any later edit to the PDF shows up</span></li></ul>
+      </div>`,
+      async play(c) {
+        await c.wait(800);
+        await c.click('#mail');
+        c.$('#p1').hidden = true; c.$('#p2').hidden = false;
+        await c.wait(1200);
+        await c.click('#agree'); c.$('#agree .cb').classList.add('on');
+        await c.wait(300);
+        await c.click('#accept');
+        c.$('#p2').hidden = true; c.$('#p3').hidden = false;
+        await c.wait(800);
+        await c.otp('#potp', '739204');
+        await c.click('#confirm');
+        c.$('#p3').hidden = true; c.$('#p4').hidden = false;
+        c.hideCursor();
+        await c.wait(200);
+        c.$('#pmark').dataset.state = 'signing'; await c.wait(1400);
+        c.$('#pmark').dataset.state = 'done'; await c.wait(700);
+        for (const li of c.$$('#facts li')) { li.classList.add('on'); await c.wait(450); }
+        await c.wait(1500);
+      }
+    },
+    {
+      step: 'DSC signing', who: 'HR Lead', title: 'Sign with the DSC token, PIN once',
+      text: 'The HR Lead plugs in the mToken and opens Flourishive Desktop. The approved, accepted letters are waiting. The PIN is entered once for the whole batch, and each letter is signed with the Class 3 certificate and timestamped. The pen line turns into a tick only when a letter is really signed.',
+      html: () => {
+        const rows = [['Rohan Patil', '0012'], ['Sneha Joshi', '0013'], ['Aditya More', '0014']];
+        return `<div class="desk"><div class="win">
+          <div class="titlebar"><span class="logo"></span>Flourishive Desktop<div class="wctl"><span><i class="min"></i></span><span><i></i></span><span><i class="x"></i></span></div></div>
+          <div class="wbody">
+            <aside class="wside">
+              <div class="token" id="token"><span class="tdot"></span><div><b>mToken CryptoID</b><small>Connected</small></div></div>
+              <div class="certbox"><small>Signing certificate</small><b>HR Lead</b><small>Class 3 · Flourisense</small></div>
+              <div class="nav-i on">Signing queue<span class="badge" id="qbadge">3</span></div>
+              <div class="nav-i">History</div><div class="nav-i">Settings</div>
+            </aside>
+            <section class="wmain">
+              <div class="whead"><div><h3>Signing queue</h3><p class="muted" id="qsub">3 letters approved and accepted, waiting for your signature</p></div><div class="btn primary" id="signbtn">Sign 3 letters</div></div>
+              <div class="qlist">${rows.map((r, i) => `
+                <div class="qi" id="q${i}"><span class="cb on"></span><div><b>${r[0]}</b><small>Internship offer letter · FS/INT/2026/${r[1]}</small></div>
+                <div class="qstat"><span class="qtext">Ready</span>${mark('sm', 'm' + i)}</div></div>`).join('')}</div>
+              <div class="nowcard"><small>Now signing</small><b id="nowname">Rohan Patil</b><div class="mini">${letter({ ...ROHAN, slot: 'nowmark' })}</div></div>
+              <div id="banner" hidden></div>
+            </section>
+          </div>
+          <div class="pin" id="pin" hidden><div class="pincard"><h4>Enter token PIN</h4>
+            <p class="muted">The PIN unlocks your token for these 3 letters only. It never leaves this computer.</p>
+            <div class="field" id="pinf"></div>
+            <div class="row"><div class="btn">Cancel</div><div class="btn primary" id="pinok">Sign</div></div></div></div>
+        </div></div>`;
+      },
+      async play(c) {
+        const names = ['Rohan Patil', 'Sneha Joshi', 'Aditya More'];
+        await c.wait(700);
+        await c.point('#token'); await c.wait(500);
+        await c.click('#signbtn');
+        c.$('#pin').hidden = false;
+        await c.wait(600);
+        await c.point('#pinf'); await c.type('#pinf', 'xxxxxxxx', { mask: true, speed: 110 });
+        await c.click('#pinok');
+        c.$('#pin').hidden = true;
+        c.$('#signbtn').classList.add('dis'); c.$('#signbtn').textContent = 'Signing…';
+        c.hideCursor();
+        const now = c.$('#nowmark');
+        for (let i = 0; i < 3; i++) {
+          const q = c.$('#q' + i), m = c.$('#m' + i);
+          q.classList.add('cur'); q.querySelector('.qtext').textContent = 'Signing…';
+          c.$('#qsub').textContent = `Signing ${i + 1} of 3`;
+          c.$('#nowname').textContent = names[i];
+          now.dataset.state = 'idle'; await c.wait(80);
+          now.dataset.state = 'signing'; m.dataset.state = 'signing';
+          await c.wait(1400);
+          now.dataset.state = 'done'; m.dataset.state = 'done';
+          q.classList.remove('cur'); q.classList.add('ok'); q.querySelector('.qtext').textContent = 'Signed';
+          c.$('#qbadge').textContent = String(2 - i);
+          await c.wait(900);
+        }
+        c.$('#qsub').textContent = 'All done. Nothing left in the queue.';
+        c.$('#signbtn').textContent = 'All signed';
+        const b = c.$('#banner'); b.className = 'wbanner'; b.hidden = false;
+        b.innerHTML = '<span class="tk"></span><span><b>3 letters signed and timestamped</b> · 19 Nov 2026, 11:42 IST. Uploaded to Flourishive and emailed to the candidates.</span>';
+        await c.wait(2200);
+      }
+    },
+    {
+      step: 'Verify', who: 'Anyone', title: 'Issued, tracked and verifiable',
+      text: 'The signed letter is emailed and every step is on the letter’s timeline. Anyone, such as a college or a future employer, can scan the QR code to confirm the letter is genuine and has not been changed. Adobe Reader also shows the signature as valid.',
+      html: () => shell({
+        active: 'Letters', user: 'HR Lead', ini: 'HL', crumb: 'Letters / FS/INT/2026/0012',
+        body: `<div class="pagehead"><div><h2>Rohan Patil · Internship offer letter</h2><p class="mono">FS/INT/2026/0012</p></div><span class="pill ok">Issued</span></div>
+          <div class="docpage">${letter({ ...ROHAN, signed: true })}
+            <div><p class="tl-h">Signature timeline</p><ol class="tl" id="tl">
+              <li><span class="dot"></span><div><b>Created from template</b><small>HR Executive · Intern offer letter v3</small><div class="t">18 Nov 2026, 10:05</div></div></li>
+              <li><span class="dot"></span><div><b>Approved</b><small>HR Lead</small><div class="t">18 Nov 2026, 16:20</div></div></li>
+              <li><span class="dot"></span><div><b>Accepted by candidate</b><small>Rohan Patil · email code</small><div class="t">19 Nov 2026, 09:12</div></div></li>
+              <li><span class="dot"></span><div><b>Signed with DSC</b><small>HR Lead · Class 3 certificate, timestamped</small><div class="t">19 Nov 2026, 11:42</div></div></li>
+              <li><span class="dot"></span><div><b>Delivered</b><small>Emailed to Rohan with a secure download link</small><div class="t">19 Nov 2026, 11:43</div></div></li>
+            </ol></div></div>`,
+        extra: `<div class="browser" id="browser"><div class="urlbar"><div class="dots"><i></i><i></i><i></i></div><div class="url"><span class="lock"></span>verify.flourishive.in/FS-INT-2026-0012</div></div>
+          <div class="vhead"><span class="logo" style="width:18px;height:18px"></span>Flourishive Verify</div>
+          <div class="vbody"><div>${mark('lg paper', 'vmark')}</div>
+            <div><h2>This letter is genuine</h2><p class="pm">It matches the original issued by Flourisense and has not been changed.</p>
+            <dl class="vdl"><dt>Issued by</dt><dd>Flourisense</dd><dt>Letter</dt><dd>Internship offer letter</dd><dt>Reference</dt><dd>FS/INT/2026/0012</dd><dt>Issued to</dt><dd>Rohan Patil</dd><dt>Signed by</dt><dd>HR Lead · Class 3 DSC</dd><dt>Status</dt><dd class="vok">Valid · not revoked</dd></dl></div></div></div>`
+      }),
+      async play(c) {
+        await c.wait(600);
+        for (const li of c.$$('#tl li')) { li.classList.add('on'); await c.wait(650); }
+        await c.wait(600);
+        await c.click('.docpage .qr');
+        c.$('#browser').classList.add('on');
+        c.hideCursor();
+        await c.wait(500);
+        c.$('#vmark').dataset.state = 'done';
+        await c.wait(700);
+        for (const el of c.$$('.vdl dt, .vdl dd')) { el.classList.add('on'); await c.wait(110); }
+        await c.wait(2600);
+      }
+    }
+  ];
+
+  /* ---------- engine ---------- */
+  function makeCtx(id) {
+    const alive = () => { if (id !== runId) throw CANCEL; };
+    const c = {
+      $: s => view.querySelector(s),
+      $$: s => [...view.querySelectorAll(s)],
+      async wait(ms) {
+        alive();
+        if (reduced) return;
+        let t = 0;
+        while (t < ms) { await sleep(40); alive(); if (!paused) t += 40; }
+      },
+      async point(s) {
+        const el = c.$(s); if (!el || reduced) return;
+        const r = el.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+        cursor.style.opacity = 1;
+        cursor.style.left = ((r.left + Math.min(r.width * .5, 60) - sr.left) / scale) + 'px';
+        cursor.style.top = ((r.top + r.height * .55 - sr.top) / scale) + 'px';
+        await c.wait(800);
+      },
+      async click(s) {
+        await c.point(s);
+        const el = c.$(s);
+        if (!reduced) {
+          const rp = document.createElement('div'); rp.className = 'ripple';
+          rp.style.left = cursor.style.left; rp.style.top = cursor.style.top;
+          stage.appendChild(rp); setTimeout(() => rp.remove(), 600);
+        }
+        el && el.classList.add('press'); await c.wait(160);
+        el && el.classList.remove('press'); await c.wait(200);
+      },
+      async type(s, text, { speed = 60, mirror, mask } = {}) {
+        const el = c.$(s); el.classList.add('focus', 'caret');
+        const ms = mirror ? c.$$(mirror) : [];
+        ms.forEach(m => m.classList.remove('empty'));
+        let out = '';
+        for (const ch of text) {
+          out += ch;
+          el.textContent = mask ? '•'.repeat(out.length) : out;
+          ms.forEach(m => m.textContent = out);
+          await c.wait(speed);
+        }
+        el.classList.remove('caret'); await c.wait(250); el.classList.remove('focus');
+      },
+      async otp(s, digits) {
+        const spans = c.$$(s + ' span');
+        for (let i = 0; i < digits.length; i++) { spans[i].textContent = digits[i]; spans[i].classList.add('f'); await c.wait(170); }
+        await c.wait(250);
+      },
+      async toast(msg) {
+        const t = document.createElement('div'); t.className = 'toast';
+        t.innerHTML = `<span class="tk"></span>${msg}`; view.appendChild(t);
+        await c.wait(40); t.classList.add('on');
+      },
+      hideCursor() { cursor.style.opacity = 0; }
+    };
+    return c;
+  }
+
+  const stepsEl = document.getElementById('steps');
+  stepsEl.innerHTML = scenes.map((s, i) => `<li><button class="step" type="button" data-i="${i}"><span class="n">${i + 1}</span>${s.step}</button></li>`).join('');
+  const playBtn = document.getElementById('play'), playLabel = document.getElementById('playLabel'), playIcon = document.getElementById('playIcon');
+  const ICON_PAUSE = '<path d="M4 2h3v12H4zM9 2h3v12H9z"/>', ICON_PLAY = '<path d="M4 2l10 6-10 6z"/>', ICON_REPLAY = '<path d="M8 2a6 6 0 1 1-5.7 7.9l1.9-.6A4 4 0 1 0 8 4v2.5L4 3.3 8 0z"/>';
+
+  function setPlayUI() {
+    if (reduced) { playBtn.hidden = true; return; }
+    if (ended) { playLabel.textContent = 'Replay'; playIcon.innerHTML = ICON_REPLAY; }
+    else if (paused) { playLabel.textContent = 'Play'; playIcon.innerHTML = ICON_PLAY; }
+    else { playLabel.textContent = 'Pause'; playIcon.innerHTML = ICON_PAUSE; }
+  }
+  function updateUI() {
+    const s = scenes[idx];
+    document.getElementById('who').textContent = s.who;
+    document.getElementById('ctitle').textContent = s.title;
+    document.getElementById('ctext').textContent = s.text;
+    stepsEl.querySelectorAll('.step').forEach((b, i) => {
+      b.classList.toggle('on', i === idx); b.classList.toggle('done', i < idx);
+      b.setAttribute('aria-current', i === idx ? 'step' : 'false');
+    });
+    setPlayUI();
+  }
+
+  async function show(i) {
+    idx = Math.max(0, Math.min(scenes.length - 1, i));
+    ended = false;
+    const id = ++runId;
+    view.innerHTML = scenes[idx].html();
+    cursor.style.opacity = 0;
+    updateUI();
+    try {
+      await scenes[idx].play(makeCtx(id));
+      if (id !== runId) return;
+      if (idx < scenes.length - 1) { if (!reduced) { await makeCtx(id).wait(1200); show(idx + 1); } }
+      else { ended = true; setPlayUI(); }
+    } catch (e) { if (e !== CANCEL) console.error(e); }
+  }
+
+  playBtn.addEventListener('click', () => {
+    if (ended) { paused = false; show(0); return; }
+    paused = !paused; setPlayUI();
+  });
+  document.getElementById('prev').addEventListener('click', () => { paused = false; show(idx - 1); });
+  document.getElementById('next').addEventListener('click', () => { paused = false; show(idx + 1); });
+  stepsEl.addEventListener('click', e => { const b = e.target.closest('.step'); if (b) { paused = false; show(+b.dataset.i); } });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') { paused = false; show(idx + 1); }
+    else if (e.key === 'ArrowLeft') { paused = false; show(idx - 1); }
+  });
+
+  const start = () => show(0);
+  if (document.fonts && document.fonts.ready) Promise.race([document.fonts.ready, sleep(1500)]).then(start); else start();
+})();
+</script>

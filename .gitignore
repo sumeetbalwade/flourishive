@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+.pnpm-store/
+.venv/
+__pycache__/
+*.pyc
+
+# builds
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+desktop/packaging/out/
+
+# env and secrets: never commit
+.env
+.env.*
+!.env.example
+*.p12
+*.pfx
+*.pem
+*.key
+*.der
+
+# local data
+storage/
+*.log
+coverage/
+desktop/spikes/out/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

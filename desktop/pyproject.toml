@@ -1,0 +1,16 @@
+[project]
+name = "flourishive-desktop"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Sumeet Balwade", email = "41995680+sumeetbalwade@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pyhanko[pkcs11]>=0.38.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"

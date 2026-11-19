@@ -1,0 +1,20 @@
+import { INestApplication, VersioningType } from '@nestjs/common';
+
+/**
+ * HTTP setup shared by main.ts and the e2e tests, so tests hit the same
+ * routes (/v1/...) and CORS rules as production.
+ */
+export function configureApp(app: INestApplication): void {
+  // Every route is versioned in the URL: /v1/health, /v1/tenants, ...
+  app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+
+  // Only the known Flourishive frontends may call the API from a browser.
+  // Mobile, desktop and external systems authenticate with tokens instead.
+  const origins = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  app.enableCors({ origin: origins, credentials: true });
+
+  app.enableShutdownHooks();
+}
