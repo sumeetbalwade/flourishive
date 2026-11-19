@@ -3,6 +3,7 @@ import { CacheModule } from './platform/cache/cache.module.js';
 import { ConfigModule } from './platform/config/config.module.js';
 import { OrgModule } from './modules/org/org.module.js';
 import { PeopleModule } from './modules/people/people.module.js';
+import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { FilesModule } from './modules/files/files.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
@@ -31,6 +32,7 @@ import { StorageModule } from './platform/storage/storage.module.js';
     AuditModule,
     FilesModule,
     NotificationsModule,
+    PlatformAdminModule,
     OrgModule,
     PeopleModule,
   ],
