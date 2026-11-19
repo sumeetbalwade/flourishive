@@ -22,4 +22,6 @@ export const orgItem = z.object({
   _count: z.object({ engagements: z.number() }),
 });
 export const orgList = z.array(orgItem);
+export const entityItem = z.object({ id: z.string(), name: z.string(), legalName: z.string() });
+export type EntityItem = z.infer<typeof entityItem>;
 export type OrgItem = z.infer<typeof orgItem>;

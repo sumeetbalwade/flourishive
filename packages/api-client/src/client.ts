@@ -11,6 +11,7 @@ import {
   orgItem,
   peopleListResponse,
   engagementResponse,
+  entityItem,
   roleResponse,
   settingsResponse,
   tokensResponse,
@@ -122,6 +123,7 @@ export function createApiClient(opts: Opts) {
     },
 
     org: {
+      entities: () => http.request('GET', '/org/entities', { schema: z.array(entityItem) }),
       list: (kind: OrgKind) => http.request('GET', `/org/${kind}`, { schema: z.array(orgItem) }),
       create: (
         kind: OrgKind,

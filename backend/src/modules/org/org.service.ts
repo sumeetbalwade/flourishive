@@ -35,6 +35,16 @@ export class OrgService {
     ]!;
   }
 
+  /** The legal companies inside the tenant (needed to pick one when adding a person). */
+  entities(tenantId: string) {
+    return runInTenant(tenantId, async () =>
+      this.prisma.db.entity.findMany({
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, legalName: true },
+      }),
+    );
+  }
+
   list(tenantId: string, kind: OrgKind) {
     return runInTenant(tenantId, async () =>
       this.delegate(kind).findMany({

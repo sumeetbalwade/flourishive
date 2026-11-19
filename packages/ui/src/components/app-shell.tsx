@@ -13,6 +13,7 @@ export function AppShell({
   active,
   onNavigate,
   user,
+  onSignOut,
   title,
   actions,
   children,
@@ -22,6 +23,7 @@ export function AppShell({
   active: string;
   onNavigate: (id: string) => void;
   user: { name: string; role: string };
+  onSignOut?: () => void;
   title: string;
   actions?: ReactNode;
   children: ReactNode;
@@ -53,6 +55,7 @@ export function AppShell({
         </nav>
         <button
           type="button"
+          onClick={onSignOut}
           className="mt-auto flex h-11 items-center justify-center gap-3 rounded-pill px-3 text-sm text-muted hover:bg-surface-2 hover:text-fg md:justify-start md:px-4"
         >
           <LogOut size={19} />

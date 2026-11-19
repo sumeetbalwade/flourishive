@@ -2,6 +2,7 @@ import {
   auditListResponse,
   chainCheck,
   engagementResponse,
+  entityItem,
   fileResponse,
   importResult,
   loginResponse,
@@ -168,6 +169,12 @@ describe('tenant API matches @flourishive/schemas', () => {
         (await call('get', `/org/${kind}`, adminToken).expect(200)).body,
       );
     }
+    expect(
+      parse(
+        z.array(entityItem),
+        (await call('get', '/org/entities', adminToken).expect(200)).body,
+      ),
+    ).toHaveLength(1);
     parse(
       z.array(roleResponse),
       (await call('get', '/access/roles', adminToken).expect(200)).body,
