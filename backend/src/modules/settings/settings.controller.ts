@@ -29,11 +29,14 @@ export class SettingsController {
         tenantId: a.tenantId,
         userId: a.userId,
       }),
+      locked: await this.settings.lockedKeys(),
       definitions: Object.fromEntries(
-        Object.entries(SETTINGS).map(([k, d]) => [
-          k,
-          { levels: d.levels, description: d.description },
-        ]),
+        Object.entries(SETTINGS)
+          .filter(([, d]) => d.levels.length > 0)
+          .map(([k, d]) => [
+            k,
+            { levels: d.levels, description: d.description },
+          ]),
       ),
     };
   }

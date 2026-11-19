@@ -4,6 +4,8 @@ import {
   staffStatusBody as statusBody,
   settingValueBody as valueBody,
   createTenantBody,
+  platformPolicyPatch,
+  platformSettingBody,
 } from '@flourishive/schemas';
 import {
   Body,
@@ -90,9 +92,37 @@ export class PlatformAdminController {
   setDefault(
     @Req() req: PlatformRequest,
     @Param('key') key: string,
-    @Body(new ZodPipe(valueBody)) b: z.infer<typeof valueBody>,
+    @Body(new ZodPipe(platformSettingBody))
+    b: z.infer<typeof platformSettingBody>,
   ) {
-    return this.admin.setPlatformSetting(this.actor(req), key, b.value);
+    return this.admin.setPlatformSetting(
+      this.actor(req),
+      key,
+      b.value,
+      b.locked,
+    );
+  }
+
+  @Delete('settings/:key')
+  @HttpCode(204)
+  clearDefault(@Req() req: PlatformRequest, @Param('key') key: string) {
+    return this.admin.clearPlatformSetting(this.actor(req), key);
+  }
+
+  /** Two-step and recovery defaults, and the floor tenants cannot go below, per system role. */
+  @Get('policies') policies() {
+    return this.admin.platformPolicies();
+  }
+
+  @Put('policies/:roleKey')
+  @HttpCode(204)
+  setPolicy(
+    @Req() req: PlatformRequest,
+    @Param('roleKey') roleKey: string,
+    @Body(new ZodPipe(platformPolicyPatch))
+    b: z.infer<typeof platformPolicyPatch>,
+  ) {
+    return this.admin.setPlatformPolicy(this.actor(req), roleKey, b);
   }
 
   @Put('tenants/:id/settings/:key')

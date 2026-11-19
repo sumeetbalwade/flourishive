@@ -32,7 +32,11 @@ interface Row {
 
 const TTL = 300;
 const tenantCache = (tenantId: string) => `settings:t:${tenantId}`;
-const PLATFORM_CACHE = 'settings:platform';
+const PLATFORM_CACHE = 'settings:platform:v2';
+interface PlatformEntry {
+  value: unknown;
+  locked: boolean;
+}
 
 /**
  * Resolves user → entity → tenant → plan → platform → built-in default.
@@ -63,14 +67,16 @@ export class SettingsService {
     return slim;
   }
 
-  private async platformValues(): Promise<Record<string, unknown>> {
+  private async platformValues(): Promise<Record<string, PlatformEntry>> {
     const cached =
-      await this.redis.getJson<Record<string, unknown>>(PLATFORM_CACHE);
+      await this.redis.getJson<Record<string, PlatformEntry>>(PLATFORM_CACHE);
     if (cached) return cached;
     const rows = await runAsSystem(
       async () => await this.prisma.db.platformSetting.findMany(),
     );
-    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    const map = Object.fromEntries(
+      rows.map((r) => [r.key, { value: r.value, locked: r.locked }]),
+    );
     await this.redis.setJson(PLATFORM_CACHE, map, TTL);
     return map;
   }
@@ -88,6 +94,12 @@ export class SettingsService {
           )
         : undefined;
     const platform = await this.platformValues();
+    const entry = platform[key];
+    // A locked platform value beats every override below it.
+    if (entry?.locked) {
+      const parsed = def.schema.safeParse(entry.value);
+      if (parsed.success) return parsed.data as SettingValueOf<K>;
+    }
     const candidates: unknown[] = [
       def.levels.includes('user') ? find('USER', ctx.userId)?.value : undefined,
       def.levels.includes('entity')
@@ -96,7 +108,7 @@ export class SettingsService {
       def.levels.includes('tenant')
         ? find('TENANT', ctx.tenantId)?.value
         : undefined,
-      platform[key],
+      entry?.value,
     ];
     for (const c of candidates) {
       if (c === undefined) continue;
@@ -110,8 +122,15 @@ export class SettingsService {
   async resolveAll(ctx: SettingContext): Promise<Record<string, unknown>> {
     const out: Record<string, unknown> = {};
     for (const key of Object.keys(SETTINGS) as SettingKey[])
-      out[key] = await this.get(key, ctx);
+      if (SETTINGS[key].levels.length > 0) out[key] = await this.get(key, ctx);
     return out;
+  }
+
+  /** Setting keys the platform has locked, so screens can show them read-only. */
+  async lockedKeys(): Promise<string[]> {
+    return Object.entries(await this.platformValues())
+      .filter(([, e]) => e.locked)
+      .map(([k]) => k);
   }
 
   async set(
@@ -126,6 +145,10 @@ export class SettingsService {
     if (!def.levels.includes(level))
       throw new BadRequestException(
         `${key} cannot be set at the ${level} level`,
+      );
+    if ((await this.platformValues())[key]?.locked)
+      throw new BadRequestException(
+        `${key} is locked by the platform and cannot be changed`,
       );
     const parsed = def.schema.safeParse(value);
     if (!parsed.success)
@@ -184,18 +207,48 @@ export class SettingsService {
     await this.redis.del(tenantCache(ctx.tenantId));
   }
 
-  /** Platform defaults: used by the super admin console (next PR) and tests. */
-  async setPlatform(key: string, value: unknown): Promise<void> {
+  /** A platform-only setting (no tenant context), such as the super admin two-step policy. */
+  async getPlatform<K extends SettingKey>(key: K): Promise<SettingValueOf<K>> {
+    const def = SETTINGS[key];
+    const entry = (await this.platformValues())[key];
+    if (entry) {
+      const parsed = def.schema.safeParse(entry.value);
+      if (parsed.success) return parsed.data as SettingValueOf<K>;
+    }
+    return def.default as SettingValueOf<K>;
+  }
+
+  /** Platform defaults. `locked` stops tenants overriding; leaving it out keeps the current lock. */
+  async setPlatform(
+    key: string,
+    value?: unknown,
+    locked?: boolean,
+  ): Promise<void> {
     if (!isSettingKey(key)) throw new NotFoundException('Unknown setting');
-    const parsed = SETTINGS[key].schema.safeParse(value);
+    const def = SETTINGS[key];
+    if (locked && def.levels.length === 0)
+      throw new BadRequestException('Platform-only settings cannot be locked');
+    const current = (await this.platformValues())[key];
+    const raw = value === undefined ? (current?.value ?? def.default) : value;
+    const parsed = def.schema.safeParse(raw);
     if (!parsed.success)
       throw new BadRequestException(parsed.error.issues.map((i) => i.message));
+    const lock = locked ?? current?.locked ?? false;
     await runAsSystem(async () => {
       await this.prisma.db.platformSetting.upsert({
         where: { key },
-        update: { value: parsed.data as never },
-        create: { key, value: parsed.data as never },
+        update: { value: parsed.data as never, locked: lock },
+        create: { key, value: parsed.data as never, locked: lock },
       });
+    });
+    await this.redis.del(PLATFORM_CACHE);
+  }
+
+  /** Removes a platform default (and its lock), going back to the built-in value. */
+  async clearPlatform(key: string): Promise<void> {
+    if (!isSettingKey(key)) throw new NotFoundException('Unknown setting');
+    await runAsSystem(async () => {
+      await this.prisma.db.platformSetting.deleteMany({ where: { key } });
     });
     await this.redis.del(PLATFORM_CACHE);
   }

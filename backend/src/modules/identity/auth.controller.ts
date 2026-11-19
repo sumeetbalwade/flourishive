@@ -7,6 +7,9 @@ import {
   refreshBody,
   forgotBody,
   resetBody,
+  recoveryVerifyBody,
+  mfaRecoveryStartBody,
+  mfaRecoveryVerifyBody,
 } from '@flourishive/schemas';
 import {
   Body,
@@ -225,5 +228,50 @@ export class AuthController {
   @HttpCode(204)
   async reset(@Body(body(resetBody)) b: z.infer<typeof resetBody>) {
     await this.auth.resetPassword(b);
+  }
+
+  /** Forgot password by emailed code. Always 202, so it cannot be used to find accounts. */
+  @Public()
+  @Post('recovery/email')
+  @HttpCode(202)
+  async recoveryStart(
+    @Body(body(forgotBody)) b: z.infer<typeof forgotBody>,
+    @Req() req: Request,
+  ) {
+    await this.auth.startEmailRecovery(b, this.meta(req));
+    return { status: 'accepted' };
+  }
+
+  @Public()
+  @Post('recovery/email/verify')
+  @HttpCode(200)
+  recoveryVerify(
+    @Body(body(recoveryVerifyBody)) b: z.infer<typeof recoveryVerifyBody>,
+    @Req() req: Request,
+  ) {
+    return this.auth.verifyEmailRecovery(b, this.meta(req));
+  }
+
+  /** Lost authenticator: emails a code to the account, after the password step. */
+  @Public()
+  @Post('mfa/recovery/email')
+  @HttpCode(202)
+  async mfaRecoveryStart(
+    @Body(body(mfaRecoveryStartBody)) b: z.infer<typeof mfaRecoveryStartBody>,
+    @Req() req: Request,
+  ) {
+    await this.auth.startMfaEmailRecovery(b.mfaToken, this.meta(req));
+    return { status: 'accepted' };
+  }
+
+  @Public()
+  @Post('mfa/recovery/email/verify')
+  @HttpCode(200)
+  mfaRecoveryVerify(
+    @Body(body(mfaRecoveryVerifyBody))
+    b: z.infer<typeof mfaRecoveryVerifyBody>,
+    @Req() req: Request,
+  ) {
+    return this.auth.verifyMfaEmailRecovery(b, this.meta(req));
   }
 }

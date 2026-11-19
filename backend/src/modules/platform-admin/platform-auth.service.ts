@@ -15,9 +15,11 @@ import { MfaService, hashRecoveryCode } from '../identity/mfa.service.js';
 import { PasswordService } from '../identity/password.service.js';
 import { ThrottleService } from '../identity/throttle.service.js';
 import { TokenService, sha256 } from '../identity/token.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { PlatformAuditService } from './platform-audit.service.js';
 
 export type PlatformLogin =
+  | { status: 'ok'; tokens: PlatformTokens }
   | { status: 'mfa_required'; mfaToken: string }
   | { status: 'mfa_setup_required'; mfaToken: string };
 
@@ -45,6 +47,7 @@ export class PlatformAuthService {
     private readonly redis: RedisService,
     private readonly mail: MailService,
     private readonly audit: PlatformAuditService,
+    private readonly settings: SettingsService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -60,8 +63,9 @@ export class PlatformAuthService {
 
   async login(
     input: { email: string; password: string },
-    ip?: string,
+    meta: { ip?: string; userAgent?: string },
   ): Promise<PlatformLogin> {
+    const ip = meta.ip;
     const email = input.email.toLowerCase();
     const keys = [`platform:acct:${email}`, `platform:ip:${ip ?? 'unknown'}`];
     await this.throttle.assertNotLocked('login', ...keys);
@@ -78,6 +82,12 @@ export class PlatformAuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
     await this.throttle.clear('login', keys[0]!);
+    // Someone who already enrolled is always asked for a code; otherwise the platform policy decides.
+    if (
+      !user.mfaEnabledAt &&
+      (await this.settings.getPlatform('platform.superAdminMfa')) !== 'REQUIRED'
+    )
+      return { status: 'ok', tokens: await this.startSession(user.id, meta) };
     const purpose = user.mfaEnabledAt ? 'mfa-verify' : 'mfa-setup';
     const mfaToken = await this.tokens.signPlatformMfa({
       platformUserId: user.id,

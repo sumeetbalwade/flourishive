@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   UnauthorizedException,
@@ -16,7 +17,10 @@ import {
 import { AuditService } from '../audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AccessService } from '../access/access.service.js';
+import { RolePolicyService } from '../access/role-policy.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { MailService } from '../../platform/mail/mail.service.js';
+import { OtpService } from './otp.service.js';
 import { GoogleService } from './google.service.js';
 import { MfaService, hashRecoveryCode } from './mfa.service.js';
 import { PasswordService } from './password.service.js';
@@ -70,6 +74,9 @@ export class AuthService {
     private readonly audit: AuditService,
     private readonly access: AccessService,
     private readonly settings: SettingsService,
+    private readonly policies: RolePolicyService,
+    private readonly otp: OtpService,
+    private readonly mail: MailService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -98,16 +105,16 @@ export class AuthService {
     });
   }
 
-  /** MFA is required by the user's own flag, by any of their roles, or by a tenant-wide policy. */
+  /**
+   * Two-step is required by the user's own flag or by the strictest level among their roles.
+   * OFF stops enforcement; someone who already enrolled is still asked for a code.
+   */
   private async mfaIsRequired(user: UserRow): Promise<boolean> {
     if (user.mfaRequired) return true;
-    if (
-      (await this.settings.get('security.mfaPolicy', {
-        tenantId: user.tenantId,
-      })) === 'everyone'
-    )
-      return true;
-    return this.access.hasMfaRequiredRole(user.tenantId, user.id);
+    return (
+      (await this.policies.effectiveFor(user.tenantId, user.id)).mfaLevel ===
+      'REQUIRED'
+    );
   }
 
   /** After the first factor: decide whether MFA is needed before issuing tokens. */
@@ -388,6 +395,8 @@ export class AuthService {
       email: user.email,
       mfaEnabled: Boolean(user.mfaEnabledAt),
       mfaRequired: await this.mfaIsRequired(user),
+      mfaLevel: (await this.policies.effectiveFor(user.tenantId, user.id))
+        .mfaLevel,
       permissions: Object.keys(
         await this.access.permissionsFor(who.tenantId, who.userId),
       ).sort(),
@@ -418,10 +427,9 @@ export class AuthService {
     to: string,
     kind: 'reset' | 'invite',
   ): Promise<void> {
-    const token = randomBytes(32).toString('base64url');
-    await this.redis.setJson(
-      `pwreset:${sha256(token)}`,
-      { tenantId, userId },
+    const token = await this.mintResetToken(
+      tenantId,
+      userId,
       kind === 'invite' ? 7 * 24 * 3600 : 3600,
     );
     const link = `${this.config.WEB_URL}/#/reset-password?token=${token}`;
@@ -431,6 +439,185 @@ export class AuthService {
       to,
       { link },
     );
+  }
+
+  private async mintResetToken(
+    tenantId: string,
+    userId: string,
+    ttlSeconds: number,
+  ): Promise<string> {
+    const token = randomBytes(32).toString('base64url');
+    await this.redis.setJson(
+      `pwreset:${sha256(token)}`,
+      { tenantId, userId },
+      ttlSeconds,
+    );
+    return token;
+  }
+
+  /** Emails a fresh one-time code. Only a hash is kept; the code is not stored in notifications. */
+  private async emailOtp(
+    user: UserRow,
+    purpose: 'password' | 'mfa',
+  ): Promise<void> {
+    const minutes = await this.settings.get('security.otpExpiryMinutes', {
+      tenantId: user.tenantId,
+    });
+    const code = await this.otp.issue(purpose, user.id, minutes * 60);
+    await this.mail.send({
+      to: user.email,
+      subject: `Your Flourishive code: ${code}`,
+      text: `Your one-time code is ${code}. It works once and expires in ${minutes} minutes.\n\nIf you did not ask for it, ignore this email and consider changing your password.`,
+      fromName: await this.settings.get('branding.emailSenderName', {
+        tenantId: user.tenantId,
+      }),
+    });
+  }
+
+  /** Forgot password, step 1: email a code. Looks the same to the caller whether or not the account exists. */
+  async startEmailRecovery(
+    input: { tenant: string; email: string },
+    meta: ClientMeta,
+  ): Promise<void> {
+    const ip = `ip:${meta.ip ?? 'unknown'}`;
+    const acct = `acct:${input.tenant.toLowerCase()}:${input.email.toLowerCase()}`;
+    await this.throttle.assertNotLocked('reset', ip, acct);
+    await this.throttle.recordFailure('reset', ip, acct);
+    const tenantId = await this.tenantIdFor(input.tenant);
+    const user = tenantId
+      ? await this.findUser(tenantId, { email: input.email })
+      : null;
+    if (!user || user.status === 'DISABLED') return;
+    if (
+      !(await this.policies.effectiveFor(user.tenantId, user.id)).recoveryEmail
+    )
+      return;
+    await this.emailOtp(user, 'password');
+    await this.auditUser(
+      user.tenantId,
+      user.id,
+      'auth.recovery_code_sent',
+      meta,
+      {
+        purpose: 'password',
+      },
+    );
+  }
+
+  /** Forgot password, step 2: a correct code returns a single-use reset token for POST /auth/reset-password. */
+  async verifyEmailRecovery(
+    input: { tenant: string; email: string; code: string },
+    meta: ClientMeta,
+  ): Promise<{ resetToken: string }> {
+    const keys = [
+      `ip:${meta.ip ?? 'unknown'}`,
+      `acct:${input.tenant.toLowerCase()}:${input.email.toLowerCase()}`,
+    ];
+    await this.throttle.assertNotLocked('mfa', ...keys);
+    const tenantId = await this.tenantIdFor(input.tenant);
+    const user = tenantId
+      ? await this.findUser(tenantId, { email: input.email })
+      : null;
+    const ok =
+      !!user &&
+      user.status !== 'DISABLED' &&
+      (await this.policies.effectiveFor(user.tenantId, user.id))
+        .recoveryEmail &&
+      (await this.otp.verify('password', user.id, input.code));
+    if (!ok || !user) {
+      await this.throttle.recordFailure('mfa', ...keys);
+      throw new UnauthorizedException('Invalid or expired code');
+    }
+    await this.throttle.clear('mfa', ...keys);
+    await this.auditUser(
+      user.tenantId,
+      user.id,
+      'auth.recovery_code_verified',
+      meta,
+      {
+        purpose: 'password',
+      },
+    );
+    return {
+      resetToken: await this.mintResetToken(user.tenantId, user.id, 900),
+    };
+  }
+
+  /**
+   * Lost authenticator: after the password was accepted, a code sent to the account email
+   * lets the person start two-step again. The person needs both the password and the inbox.
+   */
+  async startMfaEmailRecovery(
+    mfaToken: string,
+    meta: ClientMeta,
+  ): Promise<void> {
+    const who = await this.challengePrincipal(mfaToken, 'mfa-verify');
+    await this.throttle.assertNotLocked('reset', `user:${who.userId}`);
+    await this.throttle.recordFailure('reset', `user:${who.userId}`);
+    const user = await this.findUser(who.tenantId, { id: who.userId });
+    if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
+    if (
+      !(await this.policies.effectiveFor(who.tenantId, who.userId))
+        .recoveryEmail
+    )
+      throw new ForbiddenException(
+        'Recovery by email is not allowed for your role. Ask your administrator.',
+      );
+    await this.emailOtp(user, 'mfa');
+    await this.auditUser(
+      who.tenantId,
+      who.userId,
+      'auth.recovery_code_sent',
+      meta,
+      {
+        purpose: 'mfa',
+      },
+    );
+  }
+
+  async verifyMfaEmailRecovery(
+    input: { mfaToken: string; code: string },
+    meta: ClientMeta,
+  ): Promise<{ status: 'mfa_setup_required'; mfaToken: string }> {
+    const who = await this.challengePrincipal(input.mfaToken, 'mfa-verify');
+    const key = `user:${who.userId}`;
+    await this.throttle.assertNotLocked('mfa', key);
+    const user = await this.findUser(who.tenantId, { id: who.userId });
+    const ok =
+      !!user &&
+      user.status === 'ACTIVE' &&
+      (await this.policies.effectiveFor(who.tenantId, who.userId))
+        .recoveryEmail &&
+      (await this.otp.verify('mfa', who.userId, input.code));
+    if (!ok) {
+      await this.throttle.recordFailure('mfa', key);
+      throw new UnauthorizedException('Invalid or expired code');
+    }
+    await this.throttle.clear('mfa', key);
+    await runInTenant(who.tenantId, async () => {
+      await this.prisma.db.recoveryCode.deleteMany({
+        where: { userId: who.userId },
+      });
+      await this.prisma.db.user.update({
+        where: { id: who.userId },
+        data: { mfaSecretEnc: null, mfaEnabledAt: null },
+      });
+    });
+    await this.sessions.revokeAll(who.tenantId, who.userId);
+    await this.auditUser(
+      who.tenantId,
+      who.userId,
+      'auth.mfa_reset_via_email',
+      meta,
+    );
+    return {
+      status: 'mfa_setup_required',
+      mfaToken: await this.tokens.signMfaChallenge({
+        userId: who.userId,
+        tenantId: who.tenantId,
+        purpose: 'mfa-setup',
+      }),
+    };
   }
 
   async resetPassword(input: {

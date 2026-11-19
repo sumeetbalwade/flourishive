@@ -9,6 +9,7 @@ import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 import { GoogleService } from './google.service.js';
 import { MfaService } from './mfa.service.js';
+import { OtpService } from './otp.service.js';
 import { PasswordService } from './password.service.js';
 import { SessionService } from './session.service.js';
 import { TenantInterceptor } from './tenant.interceptor.js';
@@ -22,6 +23,7 @@ import { TokenService } from './token.service.js';
     AuthService,
     GoogleService,
     MfaService,
+    OtpService,
     PasswordService,
     SessionService,
     ThrottleService,
@@ -38,6 +40,7 @@ import { TokenService } from './token.service.js';
     TokenService,
     SessionService,
     MfaService,
+    OtpService,
     ThrottleService,
   ],
 })

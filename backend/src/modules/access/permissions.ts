@@ -22,10 +22,14 @@ export const PERMISSIONS = {
 export type PermissionCode = keyof typeof PERMISSIONS;
 export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as PermissionCode[];
 
+export type MfaLevelName = 'OFF' | 'OPTIONAL' | 'REQUIRED';
+
 export interface SystemRole {
   key: string;
   name: string;
-  mfaRequired: boolean;
+  /** Platform default and floor for two-step; tenants may only go up from the floor. */
+  mfaLevel: MfaLevelName;
+  mfaFloor: MfaLevelName;
   permissions: PermissionCode[];
 }
 
@@ -33,13 +37,15 @@ export const SYSTEM_ROLES: SystemRole[] = [
   {
     key: 'tenant_admin',
     name: 'Tenant Admin',
-    mfaRequired: true,
+    mfaLevel: 'REQUIRED',
+    mfaFloor: 'REQUIRED',
     permissions: ALL_PERMISSIONS,
   },
   {
     key: 'hr_lead',
     name: 'HR Lead',
-    mfaRequired: true,
+    mfaLevel: 'REQUIRED',
+    mfaFloor: 'REQUIRED',
     permissions: [
       'self.read',
       'people.read',
@@ -59,7 +65,8 @@ export const SYSTEM_ROLES: SystemRole[] = [
   {
     key: 'hr_executive',
     name: 'HR Executive',
-    mfaRequired: true,
+    mfaLevel: 'REQUIRED',
+    mfaFloor: 'REQUIRED',
     permissions: [
       'self.read',
       'people.read',
@@ -73,19 +80,22 @@ export const SYSTEM_ROLES: SystemRole[] = [
   {
     key: 'manager',
     name: 'Manager',
-    mfaRequired: false,
+    mfaLevel: 'OPTIONAL',
+    mfaFloor: 'OFF',
     permissions: ['self.read', 'people.read', 'org.read'],
   },
   {
     key: 'employee',
     name: 'Employee',
-    mfaRequired: false,
+    mfaLevel: 'OPTIONAL',
+    mfaFloor: 'OFF',
     permissions: ['self.read'],
   },
   {
     key: 'intern',
     name: 'Intern',
-    mfaRequired: false,
+    mfaLevel: 'OPTIONAL',
+    mfaFloor: 'OFF',
     permissions: ['self.read'],
   },
 ];

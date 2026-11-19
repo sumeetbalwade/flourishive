@@ -28,6 +28,7 @@ const ME = {
   email: 'a@b.test',
   mfaEnabled: true,
   mfaRequired: true,
+  mfaLevel: 'REQUIRED',
   permissions: ['self.read'],
 };
 const OK = { status: 'ok', accessToken: 'tok-1', expiresIn: 900 };

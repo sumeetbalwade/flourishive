@@ -5,7 +5,7 @@ export type SettingLevel = 'user' | 'entity' | 'tenant';
 export interface SettingDefinition<T = unknown> {
   schema: z.ZodType<T>;
   default: T;
-  /** Levels at which the value may be overridden (platform default is always possible). */
+  /** Levels at which the value may be overridden (platform default is always possible; empty means platform-only). */
   levels: SettingLevel[];
   description: string;
 }
@@ -40,11 +40,23 @@ export const SETTINGS = {
     levels: ['tenant'],
     description: 'Minimum password length',
   }),
-  'security.mfaPolicy': def({
-    schema: z.enum(['privileged', 'everyone']),
-    default: 'privileged',
+  'security.otpExpiryMinutes': def({
+    schema: z.number().int().min(3).max(30),
+    default: 10,
     levels: ['tenant'],
-    description: 'Who must use MFA: only roles that require it, or every user',
+    description: 'How long an emailed one-time code stays valid (minutes)',
+  }),
+  'platform.superAdminMfa': def({
+    schema: z.enum(['OFF', 'OPTIONAL', 'REQUIRED']),
+    default: 'REQUIRED',
+    levels: [],
+    description: 'Two-step policy for platform (super admin) staff',
+  }),
+  'platform.superAdminRecoveryEmail': def({
+    schema: z.boolean(),
+    default: true,
+    levels: [],
+    description: 'Let platform staff recover access with an emailed code',
   }),
   'security.sessionDays': def({
     schema: z.number().int().min(1).max(30),

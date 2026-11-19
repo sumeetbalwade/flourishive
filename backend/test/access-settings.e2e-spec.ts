@@ -119,8 +119,8 @@ describe('roles and permissions', () => {
       'manager',
       'tenant_admin',
     ]);
-    expect(byKey.hr_lead.mfaRequired).toBe(true);
-    expect(byKey.employee.mfaRequired).toBe(false);
+    expect(byKey.hr_lead.mfaLevel).toBe('REQUIRED');
+    expect(byKey.employee.mfaLevel).toBe('OPTIONAL');
   });
 
   it('requires a token, and the right permission', async () => {
@@ -246,9 +246,9 @@ describe('settings', () => {
     ).toBe('dark');
   });
 
-  it('applies the tenant MFA policy and session length to login', async () => {
-    await call('put', '/settings/tenant/security.mfaPolicy', 'admin')
-      .send({ value: 'everyone' })
+  it('applies the role two-step policy to login', async () => {
+    await call('put', '/access/policies/employee', 'admin')
+      .send({ mfaLevel: 'REQUIRED' })
       .expect(204);
     const res = await call('post', '/auth/login')
       .send({ tenant: 'acc-a', email: 'emp@a.test', password: PASSWORD })

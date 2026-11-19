@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { mfaLevel } from './policy.js';
 import { email } from './common.js';
 
 const tenant = z.string().min(1).max(63);
@@ -21,6 +22,9 @@ export const mfaSetupBody = z.object({ mfaToken: z.string().optional() });
 export const mfaConfirmBody = z.object({ mfaToken: z.string().optional(), code });
 export const refreshBody = z.object({ refreshToken: z.string().optional() }).default({});
 export const forgotBody = z.object({ tenant, email: z.string().email().max(191) });
+export const recoveryVerifyBody = z.object({ tenant, email: z.string().email().max(191), code });
+export const mfaRecoveryStartBody = z.object({ mfaToken: z.string() });
+export const mfaRecoveryVerifyBody = z.object({ mfaToken: z.string(), code });
 export const resetBody = z.object({
   token: z.string().min(1),
   password: z.string().min(1).max(256),
@@ -53,6 +57,7 @@ export const meResponse = z.object({
   email: email.or(z.string()),
   mfaEnabled: z.boolean(),
   mfaRequired: z.boolean(),
+  mfaLevel: mfaLevel,
   permissions: z.array(z.string()),
 });
 
