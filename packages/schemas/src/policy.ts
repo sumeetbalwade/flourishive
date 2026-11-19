@@ -30,7 +30,11 @@ export const platformRolePolicy = z.object({
 export type PlatformRolePolicy = z.infer<typeof platformRolePolicy>;
 
 export const tenantPolicyPatch = z
-  .object({ mfaLevel: mfaLevel.optional(), recoveryEmail: z.boolean().optional(), recoveryCodes: z.boolean().optional() })
+  .object({
+    mfaLevel: mfaLevel.optional(),
+    recoveryEmail: z.boolean().optional(),
+    recoveryCodes: z.boolean().optional(),
+  })
   .refine((b) => Object.keys(b).length > 0, 'Nothing to change');
 export const platformPolicyPatch = z
   .object({

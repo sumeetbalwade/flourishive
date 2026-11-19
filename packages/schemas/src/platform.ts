@@ -23,9 +23,31 @@ export const platformPasswordBody = z.object({
 
 /** Names the platform keeps for itself, because each company gets <slug>.flourishive.in. */
 export const RESERVED_SLUGS = [
-  'app', 'admin', 'api', 'verify', 'www', 'mail', 'smtp', 'support', 'status', 'help',
-  'docs', 'blog', 'cdn', 'static', 'assets', 'login', 'signin', 'auth', 'billing',
-  'flourishive', 'flourisense-admin', 'staging', 'dev', 'test', 'demo',
+  'app',
+  'admin',
+  'api',
+  'verify',
+  'www',
+  'mail',
+  'smtp',
+  'support',
+  'status',
+  'help',
+  'docs',
+  'blog',
+  'cdn',
+  'static',
+  'assets',
+  'login',
+  'signin',
+  'auth',
+  'billing',
+  'flourishive',
+  'flourisense-admin',
+  'staging',
+  'dev',
+  'test',
+  'demo',
 ] as const;
 export const companySlug = z
   .string()

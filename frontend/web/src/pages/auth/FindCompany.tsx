@@ -20,7 +20,12 @@ export function FindCompany() {
           <p className="mt-3 text-sm text-muted">
             If that address belongs to a company, we have sent its sign-in link.
           </p>
-          <Button className="mt-6 w-full" size="lg" variant="secondary" onClick={() => go('/login')}>
+          <Button
+            className="mt-6 w-full"
+            size="lg"
+            variant="secondary"
+            onClick={() => go('/login')}
+          >
             Back to sign in
           </Button>
         </Card>
@@ -52,7 +57,13 @@ export function FindCompany() {
           }}
         >
           <Field label="Work email" htmlFor="fc-email" error={error}>
-            <Input id="fc-email" name="email" type="email" autoComplete="username" placeholder="you@company.com" />
+            <Input
+              id="fc-email"
+              name="email"
+              type="email"
+              autoComplete="username"
+              placeholder="you@company.com"
+            />
           </Field>
           <Button type="submit" size="lg" disabled={busy}>
             {busy ? 'Sending…' : 'Email me the link'}
