@@ -13,6 +13,7 @@ import { Audit } from './pages/Audit.tsx';
 import { ForgotPassword, ResetPassword } from './pages/auth/Password.tsx';
 import { FindCompany } from './pages/auth/FindCompany.tsx';
 import { Login } from './pages/auth/Login.tsx';
+import { Home } from './pages/Home.tsx';
 import { Org } from './pages/org/Org.tsx';
 import { ImportPeople } from './pages/people/Import.tsx';
 import { PersonDetail } from './pages/people/PersonDetail.tsx';
@@ -57,7 +58,7 @@ function Routes() {
 
   // Already signed in? Skip the sign-in screens.
   useEffect(() => {
-    if (auth.state.status === 'authed' && (path === '/login' || path === '/')) go('/app/people');
+    if (auth.state.status === 'authed' && (path === '/login' || path === '/')) go('/app/home');
   }, [auth.state.status, path]);
 
   if (path === '/login' || path === '/')
@@ -73,7 +74,8 @@ function Routes() {
   if (path === '/desktop') return <Desktop />;
 
   let page: ReactNode;
-  if (path === '/app/people') page = <People />;
+  if (path === '/app/home') page = <Home />;
+  else if (path === '/app/people') page = <People />;
   else if (path.startsWith('/app/people/')) page = <PersonDetail id={path.split('/').pop()!} />;
   else if (path === '/app/import') page = <ImportPeople />;
   else if (path === '/app/org') page = <Org />;

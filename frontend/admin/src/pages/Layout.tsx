@@ -5,9 +5,9 @@ import { useAuth } from '../lib/auth.tsx';
 import { go } from '../router.ts';
 
 const NAV: NavItem[] = [
-  { id: 'tenants', label: 'Tenants', icon: Building2 },
-  { id: 'users', label: 'Platform users', icon: Users },
-  { id: 'settings', label: 'Defaults', icon: Settings },
+  { id: 'tenants', label: 'Tenants', icon: Building2, group: 'Overview' },
+  { id: 'settings', label: 'Platform defaults', icon: Settings, group: 'Platform' },
+  { id: 'users', label: 'Platform staff', icon: Users, group: 'Platform' },
 ];
 
 export function Layout({
@@ -30,6 +30,7 @@ export function Layout({
       onNavigate={(id) => go(`/${id}`)}
       user={{ name: auth.state.status === 'authed' ? auth.state.email : '…', role: 'Super admin' }}
       onSignOut={() => void auth.signOut()}
+      crumbs={['Console', NAV.find((n) => n.id === active)?.group ?? '']}
       title={title}
       actions={actions}
     >
