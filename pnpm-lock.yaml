@@ -242,6 +242,15 @@ importers:
 
   frontend/admin:
     dependencies:
+      '@flourishive/design-tokens':
+        specifier: workspace:*
+        version: link:../../packages/design-tokens
+      '@flourishive/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      lucide-react:
+        specifier: ^1.75.0
+        version: 1.75.0(@types/react@19.3.0)(react@19.3.1)
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -249,6 +258,9 @@ importers:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
     devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.3.5
+        version: 4.3.5(vite@8.3.6(@types/node@24.19.2)(jiti@2.7.0))
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
@@ -264,6 +276,9 @@ importers:
       oxlint:
         specifier: ^1.90.0
         version: 1.92.0(oxlint-tsgolint@7.0.2006)
+      tailwindcss:
+        specifier: ^4.3.5
+        version: 4.3.5
       typescript:
         specifier: ~7.0.2
         version: 7.0.2
@@ -273,6 +288,15 @@ importers:
 
   frontend/verify:
     dependencies:
+      '@flourishive/design-tokens':
+        specifier: workspace:*
+        version: link:../../packages/design-tokens
+      '@flourishive/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      lucide-react:
+        specifier: ^1.75.0
+        version: 1.75.0(@types/react@19.3.0)(react@19.3.1)
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -280,6 +304,9 @@ importers:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
     devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.3.5
+        version: 4.3.5(vite@8.3.6(@types/node@24.19.2)(jiti@2.7.0))
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
@@ -295,6 +322,9 @@ importers:
       oxlint:
         specifier: ^1.90.0
         version: 1.92.0(oxlint-tsgolint@7.0.2006)
+      tailwindcss:
+        specifier: ^4.3.5
+        version: 4.3.5
       typescript:
         specifier: ~7.0.2
         version: 7.0.2

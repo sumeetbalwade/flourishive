@@ -38,8 +38,8 @@ Everything needed before feature work: hosting and accounts ready, the repo and 
 - [x] Tokens in `packages/design-tokens`: dark and light themes plus a tenant accent override (`--accent*` variables)
 - [x] Components in `packages/ui` (Radix + Tailwind, restyled): button, input/field, select, date picker, table (with compact rows), card, badge, dialog, sheet, tabs, toast, avatar, app shell (sidebar + top bar), empty state, skeleton, bar and line charts. All shown in the `frontend/web` gallery. Dark theme checked in a browser; light theme still to eyeball
 - [x] App shell: sidebar, top bar, theme switch (tenant branding via the brand slot and accent variables); shown in the web gallery
-- [ ] Clickable prototypes: login + MFA, super admin tenant list and detail, letters list, template editor, signing queue, document detail with signature timeline, verify page, Flourishive Desktop window
-- [ ] Signing animation (D-37): a signature line draws itself, then settles into a bronze checkmark; a batch variant advances page by page; failure and waiting states; reduced-motion version. Prototype for the desktop window, the web signature timeline and the candidate acceptance screen
+- [x] Clickable prototypes (built; awaiting your review): web at `#/login` (login, MFA, letters, signing queue, document detail with timeline, template editor, `#/design` gallery, `#/desktop` window), admin tenants list and detail, verify page. Original list: login + MFA, super admin tenant list and detail, letters list, template editor, signing queue, document detail with signature timeline, verify page, Flourishive Desktop window
+- [x] Signing animation (D-37), built and used in the prototypes; batch variant is per-letter cards plus the desktop progress bar: a signature line draws itself, then settles into a bronze checkmark; a batch variant advances page by page; failure and waiting states; reduced-motion version. Prototype for the desktop window, the web signature timeline and the candidate acceptance screen
 - [ ] Product owner sign-off on the design
 
 ### E. Signing spike (plan §6.5, D-36)
