@@ -33,7 +33,9 @@ describe('StorageService', () => {
   });
 
   it('refuses keys that escape the storage root', async () => {
-    await expect(storage.save('../evil.txt', Readable.from(['x']))).rejects.toThrow('Invalid storage key');
+    await expect(
+      storage.save('../evil.txt', Readable.from(['x'])),
+    ).rejects.toThrow('Invalid storage key');
   });
 
   it('signs URLs that expire and cannot be reused for another key', () => {

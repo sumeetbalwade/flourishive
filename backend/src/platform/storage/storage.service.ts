@@ -22,7 +22,8 @@ export class StorageService {
   /** Resolves a storage key to a path, refusing anything that escapes the root. */
   private pathFor(key: string): string {
     const full = resolve(this.root, key);
-    if (!full.startsWith(this.root + sep)) throw new Error('Invalid storage key');
+    if (!full.startsWith(this.root + sep))
+      throw new Error('Invalid storage key');
     return full;
   }
 
@@ -37,7 +38,10 @@ export class StorageService {
   }
 
   async exists(key: string): Promise<boolean> {
-    return stat(this.pathFor(key)).then(() => true, () => false);
+    return stat(this.pathFor(key)).then(
+      () => true,
+      () => false,
+    );
   }
 
   async remove(key: string): Promise<void> {
@@ -45,12 +49,18 @@ export class StorageService {
   }
 
   /** Returns `expires` and `sig` query values for a download of `key`. */
-  sign(key: string, ttlSeconds = 300, now = Date.now()): { expires: number; sig: string } {
+  sign(
+    key: string,
+    ttlSeconds = 300,
+    now = Date.now(),
+  ): { expires: number; sig: string } {
     const expires = Math.floor(now / 1000) + ttlSeconds;
     return { expires, sig: this.crypto.hmac(`${key}:${expires}`) };
   }
 
   verify(key: string, expires: number, sig: string, now = Date.now()): boolean {
-    return expires * 1000 > now && this.crypto.verifyHmac(`${key}:${expires}`, sig);
+    return (
+      expires * 1000 > now && this.crypto.verifyHmac(`${key}:${expires}`, sig)
+    );
   }
 }
