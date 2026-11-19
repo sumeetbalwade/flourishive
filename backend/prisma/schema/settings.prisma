@@ -28,6 +28,8 @@ model SettingValue {
 model PlatformSetting {
   key       String   @id @db.VarChar(100)
   value     Json
+  /// When true, tenants cannot override this setting.
+  locked    Boolean  @default(false)
   updatedAt DateTime @updatedAt @db.DateTime(3)
 
   @@map("platform_settings")

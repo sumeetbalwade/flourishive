@@ -2,6 +2,7 @@ import {
   createTenantResponse,
   mfaSetupResponse,
   platformMe,
+  platformRolePolicy,
   platformSettingItem,
   staffInviteResponse,
   staffItem,
@@ -9,15 +10,20 @@ import {
   tenantListItem,
   tokensResponse,
   type CreateTenantBody,
+  type PlatformPolicyPatch,
 } from '@flourishive/schemas';
 import { z } from 'zod';
 import { Http, type HttpOptions } from './http.js';
 
 type Opts = Omit<HttpOptions, 'refreshPath'>;
 
+/** 'ok' means the platform policy did not require a code: the response then carries the tokens. */
 const platformLogin = z.object({
-  status: z.enum(['mfa_required', 'mfa_setup_required']),
-  mfaToken: z.string(),
+  status: z.enum(['ok', 'mfa_required', 'mfa_setup_required']),
+  mfaToken: z.string().optional(),
+  accessToken: z.string().optional(),
+  expiresIn: z.number().optional(),
+  refreshToken: z.string().optional(),
 });
 const platformConfirm = tokensResponse.extend({ recoveryCodes: z.array(z.string()) });
 
@@ -37,12 +43,14 @@ export function createPlatformClient(opts: Opts) {
     isSignedIn: () => http.accessToken !== null,
 
     auth: {
-      login: (email: string, password: string) =>
-        http.request('POST', '/platform/auth/login', {
-          json: { email, password },
-          schema: platformLogin,
-          auth: false,
-        }),
+      login: async (email: string, password: string) =>
+        adopt(
+          await http.request('POST', '/platform/auth/login', {
+            json: { email, password },
+            schema: platformLogin,
+            auth: false,
+          }),
+        ),
       mfaVerify: async (body: { mfaToken: string; code?: string; recoveryCode?: string }) =>
         adopt(
           await http.request('POST', '/platform/auth/mfa/verify', {
@@ -101,8 +109,17 @@ export function createPlatformClient(opts: Opts) {
     settings: {
       list: () =>
         http.request('GET', '/platform/settings', { schema: z.array(platformSettingItem) }),
-      set: (key: string, value: unknown) =>
-        http.request('PUT', `/platform/settings/${key}`, { json: { value } }),
+      /** Change the value, the lock, or both. Leaving one out keeps it as it is. */
+      set: (key: string, change: { value?: unknown; locked?: boolean }) =>
+        http.request('PUT', `/platform/settings/${key}`, { json: change }),
+      clear: (key: string) => http.request('DELETE', `/platform/settings/${key}`),
+    },
+
+    policies: {
+      list: () =>
+        http.request('GET', '/platform/policies', { schema: z.array(platformRolePolicy) }),
+      set: (roleKey: string, patch: PlatformPolicyPatch) =>
+        http.request('PUT', `/platform/policies/${roleKey}`, { json: patch }),
     },
   };
 }

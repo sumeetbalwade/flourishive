@@ -81,7 +81,7 @@ export function Defaults() {
               if (!edit) return;
               setBusy(true);
               try {
-                await api.settings.set(edit.key, parseValue(edit.value));
+                await api.settings.set(edit.key, { value: parseValue(edit.value) });
                 toast({ title: 'Default saved', tone: 'success' });
                 setEdit(null);
                 await qc.invalidateQueries({ queryKey: ['platform-settings'] });

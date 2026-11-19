@@ -1,3 +1,21 @@
+enum MfaLevel {
+  OFF
+  OPTIONAL
+  REQUIRED
+}
+
+/// Platform-wide default and floor for a system role key. Tenants may go up from the floor, never below it.
+model PlatformRolePolicy {
+  roleKey       String   @id @db.VarChar(64)
+  mfaLevel      MfaLevel
+  mfaFloor      MfaLevel @default(OFF)
+  recoveryEmail Boolean  @default(true)
+  recoveryCodes Boolean  @default(true)
+  updatedAt     DateTime @updatedAt @db.DateTime(3)
+
+  @@map("platform_role_policies")
+}
+
 /// Global catalogue of permission codes, synced from code (access/permissions.ts).
 model Permission {
   code        String @id @db.VarChar(64)
@@ -15,8 +33,13 @@ model Role {
   name        String   @db.VarChar(100)
   /// Seeded roles cannot be deleted; tenants may add their own later.
   isSystem    Boolean  @default(false)
-  /// Holders of this role must use MFA (D-16)
-  mfaRequired Boolean  @default(false)
+  /// Two-step policy for holders of this role. REQUIRED is enforced at sign-in; OFF stops enforcement.
+  /// The tenant may only go up from the platform floor (PlatformRolePolicy.mfaFloor).
+  mfaLevel      MfaLevel @default(OPTIONAL)
+  /// May holders recover their account with an emailed one-time code?
+  recoveryEmail Boolean  @default(true)
+  /// Are recovery codes handed out when two-step is set up?
+  recoveryCodes Boolean  @default(true)
   createdAt   DateTime @default(now()) @db.DateTime(3)
   updatedAt   DateTime @updatedAt @db.DateTime(3)
 

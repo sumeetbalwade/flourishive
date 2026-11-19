@@ -14,6 +14,9 @@ import {
   entityItem,
   roleResponse,
   settingsResponse,
+  tenantRolePolicy,
+  type MfaLevel,
+  type TenantPolicyPatch,
   tokensResponse,
   type CreatePersonBody,
   type LoginBody,
@@ -148,6 +151,15 @@ export function createApiClient(opts: Opts) {
 
     access: {
       roles: () => http.request('GET', '/access/roles', { schema: z.array(roleResponse) }),
+      policies: () =>
+        http.request('GET', '/access/policies', { schema: z.array(tenantRolePolicy) }),
+      setPolicy: (roleKey: string, patch: TenantPolicyPatch) =>
+        http.request('PUT', `/access/policies/${roleKey}`, { json: patch }),
+      createRole: (name: string, mfaLevel: MfaLevel = 'OPTIONAL') =>
+        http.request('POST', '/access/roles', {
+          json: { name, mfaLevel },
+          schema: z.object({ key: z.string(), name: z.string() }),
+        }),
       assign: (userId: string, roleKey: string, entityId?: string) =>
         http.request('POST', '/access/user-roles', { json: { userId, roleKey, entityId } }),
       remove: (userId: string, roleKey: string, entityId?: string) =>

@@ -62,11 +62,13 @@ export class PlatformAuthController {
 
   @Post('login')
   @HttpCode(200)
-  login(
+  async login(
     @Body(body(loginBody)) b: z.infer<typeof loginBody>,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.auth.login(b, req.ip);
+    const r = await this.auth.login(b, this.meta(req));
+    return r.status === 'ok' ? this.respond(req, res, r.tokens) : r;
   }
 
   @Post('mfa/verify')

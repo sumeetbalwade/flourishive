@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { RolePolicyService } from './role-policy.service.js';
 import { RedisService } from '../../platform/cache/redis.service.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import {
@@ -30,6 +31,7 @@ export class AccessService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly policies: RolePolicyService,
   ) {}
 
   /** Syncs the code catalogue into the permissions table (global, idempotent). */
@@ -46,21 +48,25 @@ export class AccessService {
   /** Creates or updates the seeded roles for one tenant (idempotent). */
   async provisionTenantRoles(tenantId: string): Promise<void> {
     await this.syncCatalogue();
+    const defaults = new Map(
+      await Promise.all(
+        SYSTEM_ROLES.map(
+          async (d) => [d.key, await this.policies.defaultsFor(d.key)] as const,
+        ),
+      ),
+    );
     await runInTenant(tenantId, async () => {
       for (const def of SYSTEM_ROLES) {
         const role = await this.prisma.db.role.upsert({
           where: { tenantId_key: { tenantId, key: def.key } },
-          update: {
-            name: def.name,
-            mfaRequired: def.mfaRequired,
-            isSystem: true,
-          },
+          // Re-provisioning refreshes names and permissions but never a tenant's own policy choices.
+          update: { name: def.name, isSystem: true },
           create: {
             tenantId,
             key: def.key,
             name: def.name,
-            mfaRequired: def.mfaRequired,
             isSystem: true,
+            ...defaults.get(def.key),
           },
         });
         await this.prisma.db.rolePermission.deleteMany({
@@ -134,13 +140,39 @@ export class AccessService {
   }
 
   /** Whether any of the user's roles requires MFA. */
-  async hasMfaRequiredRole(tenantId: string, userId: string): Promise<boolean> {
-    return await runInTenant(tenantId, async () => {
-      const count = await this.prisma.db.userRole.count({
-        where: { userId, role: { mfaRequired: true } },
+  /** A custom (non-system) role. The platform floor for custom roles is OFF. */
+  async createRole(
+    tenantId: string,
+    input: { name: string; mfaLevel: 'OFF' | 'OPTIONAL' | 'REQUIRED' },
+  ): Promise<{ key: string; name: string }> {
+    const slug = input.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '')
+      .slice(0, 50);
+    if (!slug) throw new BadRequestException('Give the role a name');
+    const key = `custom_${slug}`;
+    await runInTenant(tenantId, async () => {
+      if (
+        await this.prisma.db.role.findUnique({
+          where: { tenantId_key: { tenantId, key } },
+        })
+      )
+        throw new ConflictException('A role with that name already exists');
+      const role = await this.prisma.db.role.create({
+        data: {
+          tenantId,
+          key,
+          name: input.name,
+          isSystem: false,
+          mfaLevel: input.mfaLevel,
+        },
       });
-      return count > 0;
+      await this.prisma.db.rolePermission.create({
+        data: { tenantId, roleId: role.id, permissionCode: 'self.read' },
+      });
     });
+    return { key, name: input.name };
   }
 
   listRoles(tenantId: string) {

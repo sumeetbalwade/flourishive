@@ -8,6 +8,7 @@ export const ME: MeResponse = {
   email: 'hr@flourisense.test',
   mfaEnabled: true,
   mfaRequired: true,
+  mfaLevel: 'REQUIRED',
   permissions: [
     'self.read',
     'people.read',

@@ -75,7 +75,11 @@ export const platformSettingItem = z.object({
   levels: z.array(z.string()),
   default: z.unknown(),
   platformValue: z.unknown(),
+  locked: z.boolean(),
 });
+export const platformSettingBody = z
+  .object({ value: z.unknown().optional(), locked: z.boolean().optional() })
+  .refine((b) => b.value !== undefined || b.locked !== undefined, 'value or locked is required');
 export const platformMe = z.object({ id: z.string(), email: z.string(), mfaEnabled: z.boolean() });
 export const staffInviteResponse = z.object({
   id: z.string(),

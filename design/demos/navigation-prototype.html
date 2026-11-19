@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Flourishive Navigation Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root,:root[data-theme=dark]{color-scheme:dark;--bg:#0b0a09;--surface:#14120f;--surface2:#1b1814;--raised:#231f1a;--line:#2c2620;--line2:#3b332b;--text:#efe8de;--muted:#9d9288;--faint:#6e655c;--accent:#c4914f;--accent-hi:#e3b47c;--accent-lo:rgb(196 145 79/.15);--on-accent:#1a1308;--ok:#7cc79a;--ok-lo:rgb(124 199 154/.13);--warn:#d8b25a;--warn-lo:rgb(216 178 90/.13);--bad:#e07a6b;--bad-lo:rgb(224 122 107/.13);--shadow:0 12px 32px rgb(0 0 0/.4)}
+:root[data-theme=light]{color-scheme:light;--bg:#f6f2ea;--surface:#fffdf9;--surface2:#f1ebe0;--raised:#fff;--line:#e4dccd;--line2:#cfc4b0;--text:#2a241e;--muted:#6f6457;--faint:#9a8f81;--accent:#a8742f;--accent-hi:#8a5c20;--accent-lo:rgb(168 116 47/.12);--on-accent:#fff;--ok:#2f7d52;--ok-lo:rgb(47 125 82/.1);--warn:#9a7416;--warn-lo:rgb(154 116 22/.12);--bad:#b4442f;--bad-lo:rgb(180 68 47/.1);--shadow:0 12px 32px rgb(60 40 10/.14)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.5 "Hanken Grotesk",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.disp{font-family:"Instrument Serif",Georgia,serif;font-weight:400}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px}
+.muted{color:var(--muted)} .faint{color:var(--faint)}
+h1,h2,h3{margin:0;font-weight:600}
+
+/* demo bar */
+.demo{position:sticky;top:0;z-index:60;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 16px;background:var(--surface2);border-bottom:1px solid var(--line);font-size:12.5px}
+.demo b{color:var(--accent-hi);letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:2px;gap:2px}
+.seg button{border:0;background:transparent;padding:5px 11px;border-radius:8px;color:var(--muted);font-weight:500;font-size:13px}
+.seg button.on{background:var(--accent);color:var(--on-accent);font-weight:600}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+.demo .sp{flex:1}
+
+/* shell */
+.app{display:grid;grid-template-columns:248px 1fr;min-height:calc(100vh - 45px)}
+.side{background:var(--surface);border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:45px;height:calc(100vh - 45px);overflow:auto}
+.brand{display:flex;gap:10px;align-items:center;padding:4px 8px 14px}
+.logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--accent-hi),var(--accent) 55%,#7a5530);display:grid;place-items:center;color:var(--on-accent)}
+.brand .t{line-height:1.15} .brand .t b{display:block;font-size:15px} .brand .t span{font-size:11.5px;color:var(--muted)}
+.grp{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:14px 10px 4px;font-weight:600}
+.nav{display:flex;gap:11px;align-items:center;width:100%;border:0;background:transparent;text-align:left;padding:8px 10px;border-radius:10px;color:var(--muted);font-weight:500;position:relative}
+.nav:hover{background:var(--surface2);color:var(--text)}
+.nav.on{background:var(--accent-lo);color:var(--accent-hi);font-weight:600}
+.nav.on::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
+.nav .bd{margin-left:auto;font-size:11px;background:var(--accent);color:var(--on-accent);border-radius:99px;padding:0 7px;font-weight:700}
+.side .foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
+.main{min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:10px;padding:12px 28px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:45px;z-index:20}
+.crumbs{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px;min-width:0}
+.crumbs b{color:var(--text);font-weight:600}
+.search{margin-left:auto;display:flex;align-items:center;gap:10px;min-width:260px;height:38px;padding:0 12px;border:1px solid var(--line2);border-radius:10px;background:var(--surface);color:var(--muted)}
+.search:hover{border-color:var(--accent)}
+.kbd{font:500 11px "JetBrains Mono",monospace;border:1px solid var(--line2);border-radius:5px;padding:0 6px;margin-left:auto}
+.ib{width:38px;height:38px;border-radius:10px;border:1px solid var(--line2);background:var(--surface);display:grid;place-items:center;color:var(--muted);position:relative}
+.ib:hover{color:var(--text);border-color:var(--accent)}
+.dot{position:absolute;top:8px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg)}
+.av{width:38px;height:38px;border-radius:50%;background:var(--accent-lo);color:var(--accent-hi);font-weight:700;display:grid;place-items:center;border:1px solid var(--line2)}
+.content{padding:28px;max-width:1180px;width:100%}
+.ph{display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;margin-bottom:22px}
+.ph h1{font-size:34px;line-height:1.1}
+.ph p{margin:6px 0 0;color:var(--muted);max-width:64ch}
+.eyebrow{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-hi);font-weight:600}
+
+/* parts */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow)}
+.card h3{font-size:15px;margin-bottom:4px}
+.grid{display:grid;gap:16px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))} .g3{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))} .g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.stat .n{font-size:32px;font-weight:600;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.stat .d{font-size:12.5px;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:10px;border:1px solid var(--line2);background:var(--surface2);font-weight:600}
+.btn:hover{border-color:var(--accent)}
+.btn.p{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.p:hover{filter:brightness(1.08)}
+.btn.sm{height:30px;padding:0 11px;font-size:13px;border-radius:8px}
+.btn.g{background:transparent}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600;background:var(--raised);color:var(--muted);white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--ok-lo);color:var(--ok)} .pill.wait{background:var(--warn-lo);color:var(--warn)} .pill.br{background:var(--accent-lo);color:var(--accent-hi)} .pill.bad{background:var(--bad-lo);color:var(--bad)}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:10px 14px;border-bottom:1px solid var(--line);font-weight:600}
+.tbl td{padding:12px 14px;border-bottom:1px solid var(--line)}
+.tbl tr.row{cursor:pointer} .tbl tr.row:hover td{background:var(--surface2)}
+.tbl tr:last-child td{border-bottom:0}
+.tw{overflow:auto;padding:0}
+.tools{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.inp{height:38px;border:1px solid var(--line2);border-radius:10px;background:var(--surface);padding:0 12px;min-width:0;width:100%}
+.inp:focus{border-color:var(--accent);outline:0;box-shadow:0 0 0 3px var(--accent-lo)}
+.lab{display:block;font-size:12.5px;color:var(--muted);margin:14px 0 6px}
+.sw{width:42px;height:24px;border-radius:99px;border:1px solid var(--line2);background:var(--raised);position:relative;padding:0;flex:none}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:.18s}
+.sw.on{background:var(--accent);border-color:var(--accent)} .sw.on::after{left:20px;background:var(--on-accent)}
+.sw:disabled{opacity:.45;cursor:not-allowed}
+.list>div{display:flex;gap:14px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}
+.list>div:last-child{border-bottom:0}
+.list .g{flex:1;min-width:0}
+.list .g b{display:block;font-weight:600} .list .g span{color:var(--muted);font-size:13px}
+.note{display:flex;gap:12px;padding:12px 14px;border-radius:12px;background:var(--warn-lo);color:var(--warn);margin-bottom:16px;align-items:flex-start}
+.note.info{background:var(--accent-lo);color:var(--accent-hi)}
+.note.bad{background:var(--bad-lo);color:var(--bad)}
+.note div{color:var(--text)} .note div b{color:inherit}
+.setrow{display:grid;grid-template-columns:1fr minmax(160px,230px) auto;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.setrow:last-child{border-bottom:0}
+.setrow b{font-weight:600} .setrow small{display:block;color:var(--muted);font-size:12.5px}
+.lockc{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);white-space:nowrap}
+.savebar{position:sticky;bottom:16px;margin-top:18px;display:flex;gap:12px;align-items:center;padding:12px 16px;border-radius:14px;background:var(--raised);border:1px solid var(--accent);box-shadow:var(--shadow)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow:auto}
+.tabs button{border:0;background:transparent;padding:10px 14px;color:var(--muted);font-weight:500;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button.on{color:var(--accent-hi);border-color:var(--accent);font-weight:600}
+.matrix{display:grid;grid-template-columns:minmax(150px,1fr) auto;gap:10px 18px;align-items:center}
+.drop{border:1.5px dashed var(--line2);border-radius:16px;padding:36px;text-align:center;color:var(--muted)}
+.drop:hover{border-color:var(--accent);background:var(--accent-lo)}
+.steps{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.steps span{padding:4px 12px;border-radius:99px;border:1px solid var(--line);color:var(--muted);font-size:13px}
+.steps span.on{border-color:var(--accent);color:var(--text)} .steps span.done{background:var(--accent-lo);color:var(--accent-hi);border-color:transparent}
+
+/* overlays */
+.ov{position:fixed;inset:0;background:rgb(0 0 0/.55);z-index:100;display:flex;justify-content:center;align-items:flex-start;padding-top:12vh;animation:f .15s}
+.ov.right{justify-content:flex-end;padding:0;align-items:stretch}
+.pal{width:min(600px,92vw);background:var(--surface);border:1px solid var(--line2);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;align-self:flex-start}
+.pal input{width:100%;height:54px;border:0;border-bottom:1px solid var(--line);background:transparent;padding:0 18px;font-size:16px}
+.pal input:focus{outline:0}
+.pal .res{max-height:360px;overflow:auto;padding:8px}
+.pal .res button{display:flex;gap:12px;align-items:center;width:100%;border:0;background:transparent;text-align:left;padding:10px 12px;border-radius:10px}
+.pal .res button.sel{background:var(--accent-lo)}
+.pal .res small{margin-left:auto;color:var(--faint)}
+.drawer{width:min(440px,100vw);background:var(--surface);border-left:1px solid var(--line2);padding:24px;overflow:auto;animation:s .2s}
+.modal{width:min(480px,92vw);background:var(--surface);border:1px solid var(--line2);border-radius:18px;padding:24px;box-shadow:var(--shadow);align-self:flex-start}
+.pop{position:absolute;top:56px;right:0;width:320px;background:var(--surface);border:1px solid var(--line2);border-radius:14px;box-shadow:var(--shadow);z-index:40;padding:8px}
+.pop .it{padding:10px;border-radius:9px;display:flex;gap:10px} .pop .it:hover{background:var(--surface2)}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--raised);border:1px solid var(--line2);padding:11px 18px;border-radius:12px;z-index:200;box-shadow:var(--shadow);display:flex;gap:10px;align-items:center;animation:f .2s}
+.toast::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok)}
+@keyframes f{from{opacity:0}} @keyframes s{from{transform:translateX(40px);opacity:0}}
+
+/* auth */
+.auth{min-height:calc(100vh - 45px);display:grid;grid-template-columns:1.05fr 1fr}
+.hero{background:radial-gradient(900px 500px at 20% 10%,var(--accent-lo),transparent),var(--surface);border-right:1px solid var(--line);padding:56px;display:flex;flex-direction:column;justify-content:space-between}
+.hero h1{font-family:"Instrument Serif",serif;font-weight:400;font-size:clamp(38px,5vw,60px);line-height:1.02;max-width:12ch}
+.form{display:flex;align-items:center;justify-content:center;padding:32px}
+.form .box{width:min(400px,100%)}
+.host{display:flex;align-items:center;gap:8px;border:1px solid var(--line2);background:var(--surface);border-radius:10px;padding:8px 12px;margin:14px 0 4px;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+.host .lk{color:var(--ok)} .host b{color:var(--accent-hi)}
+.otp{display:flex;gap:8px;margin:16px 0}
+.otp input{width:100%;height:52px;text-align:center;font-size:22px;border:1px solid var(--line2);border-radius:10px;background:var(--surface)}
+.otp input:focus{border-color:var(--accent);outline:0;box-shadow:0 0 0 3px var(--accent-lo)}
+a.l{color:var(--accent-hi);text-decoration:none;cursor:pointer;font-weight:500} a.l:hover{text-decoration:underline}
+
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;left:0;top:45px;bottom:0;width:260px;z-index:50;transform:translateX(-100%);transition:.2s;height:auto}
+  .side.open{transform:none;box-shadow:var(--shadow)}
+  .menu{display:grid!important}
+  .top{padding:10px 16px} .content{padding:20px 16px}
+  .search{min-width:0;flex:1;margin-left:0} .search .kbd,.search span.t{display:none}
+  .auth{grid-template-columns:1fr} .hero{display:none}
+  .setrow{grid-template-columns:1fr}
+}
+.menu{display:none}
+.app{transition:grid-template-columns .2s}
+.app.col{grid-template-columns:72px 1fr}
+.app.col .side{padding:16px 10px;align-items:stretch}
+.app.col .nav span:not(.bd),.app.col .grp,.app.col .brand .t{display:none}
+.app.col .nav{justify-content:center;padding:10px 0}
+.app.col .nav .bd{position:absolute;top:2px;right:6px;font-size:10px;padding:0 5px;margin:0}
+.app.col .nav.on::before{left:-10px}
+.app.col .brand{justify-content:center;padding:4px 0 14px}
+.app.col .side .foot{border-top:1px solid var(--line)}
+.nav[title]{}
+@media (max-width:860px){.colbtn{display:none}.app.col{grid-template-columns:1fr}.app.col .nav span:not(.bd),.app.col .grp,.app.col .brand .t{display:revert}}
+</style>
+</head>
+<body>
+<div class="demo" id="demo"></div>
+<div id="root"></div>
+<div id="layer"></div>
+
+<script>
+/* ---------- icons ---------- */
+const P={panel:'M3 5h18v14H3zM9 5v14',home:'M3 11l9-8 9 8M5 10v10h14V10',user:'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',file:'M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8zM14 3v5h5',inbox:'M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5',help:'M12 21a9 9 0 100-18 9 9 0 000 18zM9.5 9.5a2.5 2.5 0 115 .5c0 1.5-2.5 2-2.5 3.5M12 17h.01',users:'M16 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM21 20v-1a4 4 0 00-3-3.8M16 4.2a3.5 3.5 0 010 6.6',upload:'M12 16V4M7 9l5-5 5 5M4 20h16',org:'M12 3v5M5 21v-5h14v5M12 8H5v8M12 8h7v8M3 21h18',tpl:'M4 4h16v6H4zM4 14h7v6H4zM15 14h5v6h-5z',pen:'M4 20l4-1L19 8a2.1 2.1 0 00-3-3L5 16zM14 6l3 3',chart:'M4 20V4M4 20h16M8 16v-5M13 16V8M18 16v-9',shield:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',key:'M15 9a4 4 0 11-3 6.7L4 21v-3H2v-2h3l4.7-4.7A4 4 0 0115 9zM16 8h.01',building:'M4 21V4h10v17M14 9h6v12M8 8h2M8 12h2M8 16h2M17 13h.01M17 17h.01M3 21h18',sliders:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4',pulse:'M3 12h4l3-8 4 16 3-8h4',staff:'M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9.5 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6',log:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',search:'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-4.3-4.3',bell:'M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 004 0',sun:'M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',moon:'M21 13A9 9 0 1111 3a7 7 0 0010 10z',menu:'M4 6h16M4 12h16M4 18h16',lock:'M6 11V8a6 6 0 1112 0v3M5 11h14v10H5z',x:'M6 6l12 12M18 6L6 18',plus:'M12 5v14M5 12h14',check:'M5 12l5 5 9-10',mail:'M3 6h18v12H3zM3 7l9 6 9-6',out:'M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9',arrow:'M5 12h14M13 6l6 6-6 6',alert:'M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z',globe:'M12 21a9 9 0 100-18 9 9 0 000 18zM3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18'};
+const I=(n)=>`<svg class="i" viewBox="0 0 24 24"><path d="${P[n]||P.file}"/></svg>`;
+const $=(s,r=document)=>r.querySelector(s);
+const esc=(s)=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- data ---------- */
+const ROLES={employee:{label:'Employee',name:'Aarti Kulkarni',sub:'Designer'},hr:{label:'HR',name:'Neha Deshmukh',sub:'HR lead'},admin:{label:'Company admin',name:'Sumeet Balwade',sub:'Flourisense admin'},super:{label:'Super admin',name:'Sumeet Balwade',sub:'Flourishive platform'}};
+const NAVS={
+ employee:[[null,[['home','Home','home'],['profile','My profile','user'],['docs','My documents','file'],['requests','My requests','inbox'],['help','Help','help']]]],
+ hr:[[null,[['home','Home','home']]],['People',[['people','People','users'],['import','Import','upload'],['org','Organisation','org']]],['Documents',[['templates','Templates','tpl'],['letters','Letters','file'],['signing','Signing queue','pen',3]]],['Insights',[['reports','Reports & audit','chart']]],['Account',[['security','My security','shield']]]],
+ admin:[[null,[['home','Home','home']]],['People',[['people','People','users'],['import','Import','upload'],['org','Organisation','org']]],['Documents',[['templates','Templates','tpl'],['letters','Letters','file'],['signing','Signing queue','pen',3]]],['Insights',[['reports','Reports & audit','chart']]],['Administration',[['roles','Roles & access','key'],['policy','Security policy','shield'],['company','Company settings','building']]],['Account',[['security','My security','shield']]]],
+ super:[['Overview',[['home','Overview','home'],['tenants','Tenants','building']]],['Platform',[['platform','Platform settings','sliders'],['policy','Security policy','shield'],['staff','Platform staff','staff']]],['Monitoring',[['audit','Audit log','log'],['health','System health','pulse']]],['Account',[['security','My security','shield']]]]
+};
+const TITLES={home:'Home',profile:'My profile',docs:'My documents',requests:'My requests',help:'Help',people:'People',import:'Import people',org:'Organisation',templates:'Templates',letters:'Letters',signing:'Signing queue',reports:'Reports & audit',security:'My security',roles:'Roles & access',policy:'Security policy',company:'Company settings',tenants:'Tenants',platform:'Platform settings',staff:'Platform staff',audit:'Audit log',health:'System health'};
+const PEOPLE=[['Aarti Kulkarni','Designer','Design','Pune','Active'],['Rohan Patil','Backend engineer','Engineering','Pune','Active'],['Neha Deshmukh','HR lead','People','Mumbai','Active'],['Vikram Joshi','Intern','Engineering','Nagpur','Onboarding'],['Sneha Pawar','Accountant','Finance','Mumbai','Active'],['Imran Shaikh','Sales executive','Sales','Nashik','On leave'],['Pooja More','QA engineer','Engineering','Pune','Active'],['Kunal Rane','Intern','Design','Pune','Onboarding']];
+const TABLES={
+ docs:{cols:['Document','Issued','Status'],rows:[['Offer letter','12 Mar 2026','<span class=\"pill ok\">Signed</span>'],['NDA','12 Mar 2026','<span class=\"pill ok\">Signed</span>'],['Appraisal letter','02 Nov 2026','<span class=\"pill wait\">Waiting for you</span>']]},
+ requests:{cols:['Request','Raised','Status'],rows:[['Address proof letter','10 Nov 2026','<span class=\"pill wait\">With HR</span>'],['Experience certificate','28 Oct 2026','<span class=\"pill ok\">Issued</span>']]},
+ templates:{cols:['Template','Type','Updated'],rows:[['Offer letter','Visual editor','04 Nov'],['Internship certificate','Uploaded DOCX','29 Oct'],['Relieving letter','Coded layout','21 Oct'],['NDA','Fillable PDF','18 Oct']]},
+ letters:{cols:['Letter','For','Status'],rows:[['Offer letter','Vikram Joshi','<span class=\"pill br\">Draft</span>'],['Internship certificate','Kunal Rane','<span class=\"pill wait\">Awaiting signature</span>'],['Appraisal letter','Aarti Kulkarni','<span class=\"pill ok\">Sent</span>']]},
+ signing:{cols:['Letter','For','Signer','Status'],rows:[['Internship certificate','Kunal Rane','Neha Deshmukh','<span class=\"pill wait\">Ready to sign</span>'],['Offer letter','Vikram Joshi','Neha Deshmukh','<span class=\"pill wait\">Ready to sign</span>'],['Relieving letter','Ex-employee','Neha Deshmukh','<span class=\"pill wait\">Ready to sign</span>']]},
+ reports:{cols:['When','Who','What'],rows:[['Today 10:42','Neha Deshmukh','Signed in with two-step'],['Today 10:15','Sumeet Balwade','Changed security policy'],['Yesterday','Neha Deshmukh','Imported 12 people']]},
+ audit:{cols:['When','Who','Tenant','What'],rows:[['10:42','super@flourishive.test','-','Signed in'],['10:20','Neha Deshmukh','flourisense','Imported 12 people'],['09:58','Sumeet Balwade','flourisense','Changed MFA policy']]},
+ staff:{cols:['Name','Role','Two-step'],rows:[['Sumeet Balwade','Owner','<span class=\"pill ok\">On</span>'],['Support agent','Support','<span class=\"pill ok\">On</span>']]}
+};
+const SETTINGS=[
+ {g:'Security',k:'mfa',l:'Two-step default',d:'Starting policy for new companies',t:'sel',o:['Optional','Required for HR and admins','Required for everyone'],v:1},
+ {g:'Security',k:'minpw',l:'Minimum password length',d:'Characters',t:'num',v:12,min:8,max:32},
+ {g:'Security',k:'idle',l:'Sign out after inactivity',d:'Minutes',t:'num',v:30,min:5,max:240},
+ {g:'Security',k:'lock',l:'Lock after failed sign-ins',d:'Attempts before a 15 minute lock',t:'num',v:5,min:3,max:10},
+ {g:'Security',k:'remail',l:'Recovery by email OTP',d:'Let people reset access with a code sent to their email',t:'tog',v:true},
+ {g:'Security',k:'rsms',l:'Recovery by SMS OTP',d:'Needs DLT registration before it can be switched on',t:'tog',v:false,off:true},
+ {g:'Technical',k:'otpexp',l:'OTP expiry',d:'Minutes a code stays valid',t:'num',v:10,min:3,max:30},
+ {g:'Technical',k:'rl',l:'Sign-in attempts per minute',d:'Per IP address',t:'num',v:10,min:3,max:60},
+ {g:'Technical',k:'mb',l:'Largest upload',d:'Megabytes',t:'num',v:15,min:1,max:50},
+ {g:'Technical',k:'ext',l:'Allowed file types',d:'Comma separated',t:'txt',v:'pdf, docx, xlsx, csv'},
+ {g:'Technical',k:'mail',l:'Email provider',d:'Used for OTP and letters',t:'sel',o:['ZeptoMail','Amazon SES'],v:0},
+ {g:'Features',k:'sign',l:'Digital signing',d:'Module visible to companies',t:'tog',v:true},
+ {g:'Features',k:'google',l:'Sign in with Google',d:'Show on the sign-in page',t:'tog',v:true},
+ {g:'Features',k:'pwa',l:'Install as app (PWA)',d:'Offer installation on phones',t:'tog',v:false},
+ {g:'Branding',k:'accent',l:'Default accent colour',d:'Companies can override it',t:'col',v:'#c4914f'},
+ {g:'Branding',k:'foot',l:'Email footer text',d:'Shown under every email',t:'txt',v:'Sent by Flourishive'}
+];
+const LEVELS=['Off','Optional','Required'];
+const RESERVED=['app','admin','api','verify','www','mail','support','status'];
+
+/* ---------- state ---------- */
+const S={role:'hr',page:'home',theme:'dark',view:'auth',auth:{step:'signin',tenant:'flourisense',email:'',mode:'tenant'},side:false,
+ tenants:[['Flourisense','flourisense','Active',42],['Acme Textiles','acme','Trial',11],['Sahyadri Clinics','sahyadri','Active',87]],
+ set:Object.fromEntries(SETTINGS.map(s=>[s.k,{v:s.v,lock:false}])),saved:null,
+ pr:[{n:'Super admin',s:'Platform owners',mfa:0,floor:0,email:1,codes:1,top:1},{n:'Company admin',s:'Floor set by platform',mfa:2,floor:2,email:1,codes:1},{n:'HR',s:'',mfa:2,floor:1,email:1,codes:1},{n:'Manager',s:'',mfa:1,floor:0,email:1,codes:0},{n:'Employee',s:'',mfa:1,floor:0,email:1,codes:0}],col:false,tab:'All',q:'',pop:null,notes:3};
+S.saved=JSON.stringify(S.set);
+
+/* ---------- helpers ---------- */
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2400)}
+function layer(h){$('#layer').innerHTML=h||''}
+function close(){layer('');S.pop=null}
+function go(p){S.page=p;S.side=false;S.pop=null;S.tab='All';S.q='';layer('');render()}
+function dirty(){return JSON.stringify(S.set)!==S.saved}
+const host=()=>S.role==='super'?'admin.flourishive.in':`${S.auth.tenant}.flourishive.in`;
+const stat=(l,n,d)=>`<div class="card stat"><span class="muted">${l}</span><div class="n">${n}</div><div class="d">${d}</div></div>`;
+const table=(t)=>`<div class="card tw"><table class="tbl"><thead><tr>${t.cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${t.rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+function head(t,p,actions=''){return `<div class="ph"><div><div class="eyebrow">${esc(ROLES[S.role].label)}</div><h1 class="disp">${t}</h1>${p?`<p>${p}</p>`:''}</div><div style="display:flex;gap:10px">${actions}</div></div>`}
+
+/* ---------- demo bar ---------- */
+function demoBar(){
+ $('#demo').innerHTML=`<b>Prototype</b><span class="muted">Preview as</span><div class="seg" role="group" aria-label="Preview as">${Object.entries(ROLES).map(([k,r])=>`<button data-a="role" data-v="${k}" class="${S.role===k?'on':''}">${r.label}</button>`).join('')}</div><span class="sp"></span><div class="seg"><button data-a="view" data-v="auth" class="${S.view==='auth'?'on':''}">Sign-in</button><button data-a="view" data-v="app" class="${S.view==='app'?'on':''}">App</button></div><button class="btn sm g" data-a="theme">${I(S.theme==='dark'?'sun':'moon')}${S.theme==='dark'?'Light':'Dark'}</button>`;
+}
+
+/* ---------- auth ---------- */
+function authView(){
+ const a=S.auth,sup=S.role==='super';
+ const h=sup?'admin.flourishive.in':`${a.tenant}.flourishive.in`;
+ let body='';
+ const hostBox=a.mode==='find'?'':`<div class="host"><span class="lk">${I('lock').replace('class="i"','class="i" style="width:14px;height:14px"')}</span><span>https://<b>${h}</b></span></div>`;
+ if(a.step==='signin'&&a.mode==='find'){
+  body=`<h2 class="disp" style="font-size:34px">Find your company</h2><p class="muted">Enter your work email. We will take you to your company's sign-in page.</p><label class="lab" for="fe">Work email</label><input class="inp" id="fe" type="email" placeholder="you@company.com" value="${esc(a.email)}"><button class="btn p" style="width:100%;justify-content:center;margin-top:18px" data-a="find">Continue ${I('arrow')}</button><p class="muted" style="margin-top:18px">Or open your company link directly, for example <span class="mono">flourisense.flourishive.in</span>.</p>`;
+ }else if(a.step==='signin'){
+  body=`<h2 class="disp" style="font-size:34px">${sup?'Platform sign-in':'Welcome back'}</h2><p class="muted" style="margin:4px 0 0">${sup?'Flourishive super admin console':'Sign in to <b style="color:var(--text)">'+esc(cap(a.tenant))+'</b>'}</p>${hostBox}${sup?'':`<a class="l" style="font-size:12.5px" data-a="notme">Not your company?</a>`}<label class="lab" for="em">Email</label><input class="inp" id="em" type="email" value="${sup?'super@flourishive.test':'neha@flourisense.test'}"><label class="lab" for="pw">Password</label><input class="inp" id="pw" type="password" value="dev-password"><div style="text-align:right;margin-top:8px"><a class="l" data-a="forgot">Forgot password?</a></div><button class="btn p" style="width:100%;justify-content:center;margin-top:16px" data-a="signin">Sign in</button>${sup?'':`<div style="display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--faint)"><hr style="flex:1;border:0;border-top:1px solid var(--line)">or<hr style="flex:1;border:0;border-top:1px solid var(--line)"></div><button class="btn" style="width:100%;justify-content:center" data-a="signin">${I('globe')} Sign in with Google</button>`}`;
+ }else if(a.step==='mfa'){
+  body=`<h2 class="disp" style="font-size:34px">Two-step check</h2><p class="muted">Enter the 6-digit code from your authenticator app.</p>${otpBoxes()}<button class="btn p" style="width:100%;justify-content:center" data-a="enter">Verify</button><p class="muted" style="margin-top:16px">Lost your device? <a class="l" data-a="forgot">Recover with email OTP</a></p>`;
+ }else if(a.step==='forgot'){
+  body=`<h2 class="disp" style="font-size:34px">Recover your account</h2><p class="muted">We will email a one-time code to the address on your account.</p><label class="lab" for="fe2">Email</label><input class="inp" id="fe2" type="email" value="neha@flourisense.test"><button class="btn p" style="width:100%;justify-content:center;margin-top:18px" data-a="sendotp">${I('mail')} Send code</button><p class="muted" style="margin-top:16px"><a class="l" data-a="back">Back to sign in</a></p>`;
+ }else if(a.step==='otp'){
+  body=`<h2 class="disp" style="font-size:34px">Check your email</h2><p class="muted">We sent a 6-digit code to <b style="color:var(--text)">n••••@flourisense.test</b>. It is valid for ${S.set.otpexp.v} minutes.</p>${otpBoxes()}<button class="btn p" style="width:100%;justify-content:center" data-a="verifyotp">Verify code</button><p class="muted" style="margin-top:16px">Did not get it? <a class="l" data-a="sendotp">Resend</a> · SMS recovery is not available yet.</p>`;
+ }else if(a.step==='reset'){
+  body=`<h2 class="disp" style="font-size:34px">Set a new password</h2><p class="muted">At least ${S.set.minpw.v} characters.</p><label class="lab" for="np">New password</label><input class="inp" id="np" type="password"><label class="lab" for="np2">Confirm password</label><input class="inp" id="np2" type="password"><button class="btn p" style="width:100%;justify-content:center;margin-top:18px" data-a="resetdone">Save and sign in</button>`;
+ }
+ return `<div class="auth"><div class="hero"><div class="brand" style="padding:0"><div class="logo">${I('pen')}</div><div class="t"><b>Flourishive</b></div></div><div><h1>People work, made calm.</h1><p class="muted" style="max-width:40ch;margin-top:16px">Every company gets its own address, so there is no company code to remember.</p></div><span class="faint mono">flourishive.in</span></div><div class="form"><div class="box">${body}</div></div></div>`;
+}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+function otpBoxes(){return `<div class="otp">${[0,1,2,3,4,5].map(i=>`<input inputmode="numeric" maxlength="1" data-otp="${i}" aria-label="Digit ${i+1}" value="${'482915'[i]}">`).join('')}</div>`}
+
+/* ---------- pages ---------- */
+function pageHome(){
+ const r=S.role;
+ if(r==='employee')return head('Good morning, Aarti','Here is what needs you today.')+`<div class="grid g2"><div class="card"><h3>To do</h3><div class="list"><div><div class="g"><b>Sign your appraisal letter</b><span>Waiting since 2 Nov</span></div><button class="btn sm p" data-a="go" data-v="docs">Open</button></div><div><div class="g"><b>Update your bank details</b><span>Needed for payroll</span></div><button class="btn sm" data-a="go" data-v="profile">Update</button></div></div></div><div class="card"><h3>Quick links</h3><div class="list"><div><div class="g"><b>Request a letter</b><span>Address proof, experience certificate</span></div><button class="btn sm" data-a="go" data-v="requests">Request</button></div><div><div class="g"><b>Need help?</b><span>Ask HR or read the guide</span></div><button class="btn sm" data-a="go" data-v="help">Help</button></div></div></div></div>`;
+ if(r==='super')return head('Platform overview','All companies at a glance.','<button class="btn p" data-a="newtenant">'+I('plus')+'New company</button>')+`<div class="grid g4">${stat('Companies',S.tenants.length,'1 on trial')}${stat('People across platform',S.tenants.reduce((a,t)=>a+t[3],0),'+9 this month')}${stat('Signed this week',128,'All verified')}${stat('Open incidents',0,'Last 30 days')}</div><div class="card" style="margin-top:16px"><h3>Needs attention</h3><div class="list"><div><div class="g"><b>Acme Textiles trial ends in 6 days</b><span>No billing details yet</span></div><button class="btn sm" data-a="go" data-v="tenants">View</button></div><div><div class="g"><b>SMS recovery is off</b><span>Waiting for DLT registration</span></div><button class="btn sm" data-a="go" data-v="platform">Settings</button></div></div></div>`;
+ return head('Good morning, '+ROLES[r].name.split(' ')[0],'Your people and paperwork today.',`<button class="btn p" data-a="go" data-v="people">${I('plus')}Add person</button>`)+`<div class="grid g4">${stat('People',42,'3 onboarding')}${stat('Waiting for signature',3,'Oldest: 2 days')}${stat('Letters this month',17,'+5 vs last month')}${stat('Open requests',4,'2 new today')}</div><div class="grid g2" style="margin-top:16px"><div class="card"><h3>Pending tasks</h3><div class="list"><div><div class="g"><b>3 letters ready to sign</b><span>Internship certificate, offer letter, relieving letter</span></div><button class="btn sm p" data-a="go" data-v="signing">Sign</button></div><div><div class="g"><b>2 interns finishing onboarding</b><span>Documents missing</span></div><button class="btn sm" data-a="go" data-v="people">Review</button></div></div></div><div class="card"><h3>Recent activity</h3><div class="list"><div><div class="g"><b>Imported 12 people</b><span>Yesterday, by Neha</span></div></div><div><div class="g"><b>Template updated: Offer letter</b><span>4 Nov</span></div></div></div></div></div>`;
+}
+function pagePeople(){
+ const q=S.q.toLowerCase();const rows=PEOPLE.filter(p=>p.join(' ').toLowerCase().includes(q));
+ return head('People','Everyone in the company. Click a person for details.',`<button class="btn" data-a="go" data-v="import">${I('upload')}Import</button><button class="btn p" data-a="toast" data-v="Add person form opens here">${I('plus')}Add person</button>`)+`<div class="tools"><input class="inp" style="max-width:320px" id="pq" placeholder="Search people" value="${esc(S.q)}" aria-label="Search people"></div><div class="card tw" id="ptab">${peopleTable(rows)}</div>`;
+}
+function peopleTable(rows){return `<table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Team</th><th>Location</th><th>Status</th></tr></thead><tbody>${rows.map(p=>`<tr class="row" data-a="person" data-v="${esc(p[0])}"><td><b>${esc(p[0])}</b></td><td>${p[1]}</td><td>${p[2]}</td><td>${p[3]}</td><td><span class="pill ${p[4]==='Active'?'ok':p[4]==='Onboarding'?'br':'wait'}">${p[4]}</span></td></tr>`).join('')||'<tr><td colspan="5" class="muted">No one matches that search.</td></tr>'}</tbody></table>`}
+function pageImport(){
+ const st=S.imp||0;
+ return head('Import people','Bring in a spreadsheet of employees or interns.')+`<div class="steps">${['Upload','Match columns','Review'].map((s,i)=>`<span class="${i<st?'done':i===st?'on':''}">${i+1}. ${s}</span>`).join('')}</div>`+(st===0?`<div class="drop"><div style="color:var(--accent-hi)">${I('upload')}</div><p><b style="color:var(--text)">Drop a CSV or Excel file here</b><br>or</p><button class="btn p" data-a="imp" data-v="1">Use sample file</button></div>`:st===1?`<div class="card"><h3>Match columns</h3><p class="muted">We matched 5 of 6 columns.</p><div class="list">${[['Full name','Name','ok'],['Email','Work email','ok'],['Joined','Joining date','ok'],['Team','Team','ok'],['City','Location','ok'],['Mobile','Choose a field','wait']].map(r=>`<div><div class="g"><b>${r[0]}</b></div><span class="muted">→ ${r[1]}</span><span class="pill ${r[2]}">${r[2]==='ok'?'Matched':'Needs you'}</span></div>`).join('')}</div><button class="btn p" data-a="imp" data-v="2" style="margin-top:12px">Continue</button></div>`:`<div class="card"><h3>Ready to import</h3><p class="muted">12 people will be added. 1 duplicate will be skipped.</p><button class="btn p" data-a="impdone">Import 12 people</button></div>`);
+}
+function pageOrg(){return head('Organisation','Teams and locations.')+`<div class="grid g3">${[['Engineering',14],['Design',6],['People',3],['Finance',4],['Sales',9],['Operations',6]].map(t=>`<div class="card"><div class="muted">${I('org')}</div><h3 style="margin-top:8px">${t[0]}</h3><span class="muted">${t[1]} people</span></div>`).join('')}</div>`}
+function pageProfile(){return head('My profile','Keep your details current.')+`<div class="card" style="max-width:560px"><label class="lab">Full name</label><input class="inp" value="Aarti Kulkarni"><label class="lab">Work email</label><input class="inp" value="aarti@flourisense.test" disabled><label class="lab">Mobile</label><input class="inp" value="+91 98•••• 1234"><button class="btn p" style="margin-top:18px" data-a="toast" data-v="Profile saved">Save changes</button></div>`}
+function pageHelp(){return head('Help','Answers and contacts.')+`<div class="grid g3">${[['Request a letter','Offer, experience, address proof'],['Two-step sign-in','Set up or recover your authenticator'],['Contact HR','neha@flourisense.test']].map(c=>`<div class="card"><h3>${c[0]}</h3><span class="muted">${c[1]}</span></div>`).join('')}</div>`}
+function pageSecurity(){const own=S.role==='employee'?'optional':'required';return head('My security','Protect your account.')+`<div class="card" style="max-width:720px"><div class="list"><div><div class="g"><b>Two-step verification</b><span>Authenticator app · ${own} for your role</span></div><span class="pill ok">On</span></div><div><div class="g"><b>Recovery email</b><span>n••••@flourisense.test · used for OTP recovery</span></div><button class="btn sm" data-a="toast" data-v="Verification code sent">Change</button></div><div><div class="g"><b>Recovery codes</b><span>8 unused codes</span></div><button class="btn sm" data-a="toast" data-v="New codes generated">Regenerate</button></div><div><div class="g"><b>Signed-in devices</b><span>MacBook · Pune · now</span></div><button class="btn sm" data-a="toast" data-v="Signed out other devices">Sign out others</button></div></div></div>`}
+function pageRoles(){const perms=['View people','Edit people','Import people','Issue letters','Sign letters','View audit'];const rl=['HR','Manager','Employee'];S.rp=S.rp||{};return head('Roles & access','Choose what each role can do.')+`<div class="card tw"><table class="tbl"><thead><tr><th>Permission</th>${rl.map(r=>`<th>${r}</th>`).join('')}</tr></thead><tbody>${perms.map((p,i)=>`<tr><td>${p}</td>${rl.map((r,j)=>{const k=i+'-'+j;const on=k in S.rp?S.rp[k]:(j===0||(j===1&&i<2)||(j===2&&i===0&&false));return `<td><button class="sw ${on?'on':''}" data-a="rp" data-v="${k}" aria-label="${p} for ${r}" aria-pressed="${on}"></button></td>`}).join('')}</tr>`).join('')}</tbody></table></div>`}
+function pageCompany(){return head('Company settings','Name, branding and sign-in address.')+`<div class="grid g2"><div class="card"><h3>Branding</h3><label class="lab">Company name</label><input class="inp" value="Flourisense"><label class="lab">Accent colour (try it, the whole app updates)</label><input type="color" id="acc" value="${getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#c4914f'}" style="width:80px;height:40px;border:0;background:none"><br><button class="btn sm g" data-a="accreset" style="margin-top:8px">Reset colour</button></div><div class="card"><h3>Sign-in address</h3><p class="muted">Your people use this link. No company code needed.</p><div class="host"><span class="lk">${I('lock')}</span><span>https://<b>flourisense</b>.flourishive.in</span></div><button class="btn sm" data-a="toast" data-v="Link copied">Copy link</button></div></div>`}
+function pageTenants(){return head('Tenants','Every company on the platform.',`<button class="btn p" data-a="newtenant">${I('plus')}New company</button>`)+`<div class="card tw"><table class="tbl"><thead><tr><th>Company</th><th>Address</th><th>People</th><th>Status</th></tr></thead><tbody>${S.tenants.map(t=>`<tr><td><b>${esc(t[0])}</b></td><td class="mono">${esc(t[1])}.flourishive.in</td><td>${t[3]}</td><td><span class="pill ${t[2]==='Active'?'ok':'wait'}">${t[2]}</span></td></tr>`).join('')}</tbody></table></div>`}
+function pageHealth(){return head('System health','Live checks.')+`<div class="grid g4">${stat('API','Up','212 ms median')}${stat('Queue','0 waiting','Worker ran 20 s ago')}${stat('Email','Healthy','ZeptoMail')}${stat('Wildcard SSL','Valid','Renews in 61 days')}</div>`}
+
+function pagePlatform(){
+ const groups=[...new Set(SETTINGS.map(s=>s.g))];const g=groups.includes(S.tab)?S.tab:groups[0];
+ const isSuper=S.role==='super';
+ const rows=SETTINGS.filter(s=>s.g===g).map(s=>{
+  const st=S.set[s.k];const mod=st.v!==s.v;
+  let ctl='';
+  if(s.t==='tog')ctl=`<button class="sw ${st.v?'on':''}" ${s.off?'disabled':''} data-a="sett" data-v="${s.k}" aria-pressed="${st.v}" aria-label="${s.l}"></button>`;
+  else if(s.t==='sel')ctl=`<select class="inp" data-set="${s.k}">${s.o.map((o,i)=>`<option value="${i}" ${st.v===i?'selected':''}>${o}</option>`).join('')}</select>`;
+  else if(s.t==='num')ctl=`<input class="inp" type="number" min="${s.min}" max="${s.max}" value="${st.v}" data-set="${s.k}">`;
+  else if(s.t==='col')ctl=`<input type="color" value="${st.v}" data-set="${s.k}" style="width:70px;height:38px;border:0;background:none">`;
+  else ctl=`<input class="inp" value="${esc(st.v)}" data-set="${s.k}">`;
+  return `<div class="setrow"><div><b>${s.l}</b>${mod?' <span class="pill br">Changed</span>':''}${s.off?' <span class="pill wait">Needs DLT</span>':''}<small>${s.d}</small></div><div>${ctl}</div><div class="lockc">${mod?`<a class="l" data-a="sreset" data-v="${s.k}">Reset</a>`:''}<button class="sw ${st.lock?'on':''}" data-a="slock" data-v="${s.k}" aria-label="Lock ${s.l} for companies" aria-pressed="${st.lock}"></button><span>${st.lock?'Locked':'Companies can change'}</span></div></div>`}).join('');
+ return head('Platform settings','Defaults for every company. Lock a setting to stop companies changing it.')+`<div class="tabs" role="tablist">${groups.map(x=>`<button role="tab" class="${x===g?'on':''}" data-a="tab" data-v="${x}">${x}</button>`).join('')}</div><div class="card">${rows}</div>${dirty()?`<div class="savebar"><span class="pill br">Unsaved changes</span><span class="muted">Applies to new companies and any setting not overridden.</span><span style="flex:1"></span><button class="btn" data-a="discard">Discard</button><button class="btn p" data-a="save">Save changes</button></div>`:''}`;
+}
+function pagePolicy(){
+ const sup=S.role==='super';
+ const rows=S.pr.map((r,i)=>[r,i]).filter(([r])=>sup||!r.top);
+ const sw=(on,act,i,dis,lbl)=>`<button class="sw ${on?'on':''}" data-a="${act}" data-i="${i}" ${dis?'disabled':''} aria-pressed="${!!on}" aria-label="${lbl}"></button>`;
+ const sa=S.pr[0];
+ const warn=sup&&sa.mfa===0;
+ const noRec=sup&&!sa.email&&!sa.codes;
+ return head('Security policy',sup?'Set two-step and recovery for each role. Companies can only go up from the floor you set.':'Set two-step and recovery for each role. Options below the platform floor are locked.',`<button class="btn p" data-a="addrole">${I('plus')}Add role</button>`)
+ +(warn?`<div class="note bad">${I('alert')}<div><b>Super admin two-step is off.</b> A stolen password would give full platform access. We will email an alert on every sign-in from a new device.</div></div>`:'')
+ +(noRec?`<div class="note">${I('alert')}<div><b>Super admin has no recovery method.</b> A locked-out owner could only be restored by hand in the database.</div></div>`:'')
+ +`<div class="card tw"><table class="tbl"><thead><tr><th>Role</th><th>Two-step verification</th><th>Email OTP recovery</th><th>Recovery codes</th><th>SMS OTP</th><th></th></tr></thead><tbody>${rows.map(([r,i])=>`<tr><td><b>${esc(r.n)}</b>${r.s?`<small class="muted" style="display:block">${esc(r.s)}</small>`:''}</td><td><div class="seg">${LEVELS.map((l,j)=>`<button data-a="pol" data-i="${i}" data-v="${j}" class="${r.mfa===j?'on':''}" ${(!sup&&j<r.floor)?'disabled title="Below the platform floor"':''}>${l}</button>`).join('')}</div></td><td>${sw(r.email,'rec-email',i,false,'Email OTP for '+r.n)}</td><td>${sw(r.codes,'rec-codes',i,false,'Recovery codes for '+r.n)}</td><td><button class="sw" disabled aria-label="SMS OTP not available" title="Needs DLT registration"></button></td><td>${r.custom?`<button class="btn sm g" data-a="delrole" data-i="${i}">Remove</button>`:''}</td></tr>`).join('')}</tbody></table></div><p class="muted" style="margin-top:12px">Email OTP sends a code to the verified email, valid ${S.set.otpexp.v} minutes. SMS OTP is planned after DLT registration.</p>`;
+}
+const PAGES={home:pageHome,people:pagePeople,import:pageImport,org:pageOrg,profile:pageProfile,help:pageHelp,security:pageSecurity,roles:pageRoles,company:pageCompany,tenants:pageTenants,health:pageHealth,platform:pagePlatform,policy:pagePolicy};
+function pageHtml(){
+ if(PAGES[S.page])return PAGES[S.page]();
+ const t=TABLES[S.page];const act=S.page==='templates'?`<button class="btn p" data-a="toast" data-v="Template editor opens here">${I('plus')}New template</button>`:S.page==='signing'?`<button class="btn p" data-a="toast" data-v="Opens the desktop signer">${I('pen')}Sign all ready</button>`:'';
+ return head(TITLES[S.page]||'Page','',act)+(t?table(t):'');
+}
+
+/* ---------- shell ---------- */
+function shell(){
+ const r=ROLES[S.role];
+ const nav=NAVS[S.role].map(([g,items])=>(g?`<div class="grp">${g}</div>`:'')+items.map(([id,l,ic,bd])=>`<button class="nav ${S.page===id?'on':''}" data-a="go" data-v="${id}" title="${l}" aria-label="${l}" ${S.page===id?'aria-current="page"':''}>${I(ic)}<span>${l}</span>${bd?`<span class="bd">${bd}</span>`:''}</button>`).join('')).join('');
+ const group=(NAVS[S.role].find(([g,items])=>items.some(i=>i[0]===S.page))||[])[0];
+ return `<div class="app ${S.col?'col':''}"><nav class="side ${S.side?'open':''}" aria-label="Main"><div class="brand"><div class="logo">${I('pen')}</div><div class="t"><b>Flourishive</b><span>${S.role==='super'?'Platform console':'Flourisense'}</span></div></div>${nav}<div class="foot"><button class="nav" data-a="signout">${I('out')}<span>Sign out</span></button></div></nav>
+ <div class="main"><header class="top"><button class="ib menu" data-a="side" aria-label="Menu">${I('menu')}</button><button class="ib colbtn" data-a="col" aria-label="${S.col?'Expand':'Collapse'} sidebar" aria-expanded="${!S.col}" title="${S.col?'Expand':'Collapse'} sidebar">${I('panel')}</button><div class="crumbs"><span>${S.role==='super'?'Console':'Flourisense'}</span>${group?`<span>/</span><span>${group}</span>`:''}<span>/</span><b>${TITLES[S.page]}</b></div>
+ <button class="search" data-a="pal" aria-label="Search">${I('search')}<span class="t">Search pages and actions</span><span class="kbd">⌘K</span></button>
+ <div style="position:relative"><button class="ib" data-a="bell" aria-label="Notifications">${I('bell')}${S.notes?'<span class="dot"></span>':''}</button>${S.pop==='bell'?bellPop():''}</div>
+ <div style="position:relative"><button class="av" data-a="acct" aria-label="Account">${r.name.split(' ').map(w=>w[0]).join('')}</button>${S.pop==='acct'?acctPop():''}</div></header><main class="content" id="page">${pageHtml()}</main></div></div>`;
+}
+function bellPop(){return `<div class="pop"><div style="display:flex;padding:8px 10px"><b>Notifications</b><span style="flex:1"></span><a class="l" data-a="readall">Mark all read</a></div>${[['3 letters are ready to sign','5 min ago'],['Vikram Joshi finished onboarding','1 h ago'],['Security policy was updated','Yesterday']].slice(0,S.notes||0).map(n=>`<div class="it"><div class="g"><b>${n[0]}</b><br><span class="muted">${n[1]}</span></div></div>`).join('')||'<div class="it muted">You are all caught up.</div>'}</div>`}
+function acctPop(){const r=ROLES[S.role];return `<div class="pop"><div class="it"><div class="g"><b>${r.name}</b><br><span class="muted">${r.sub}</span></div></div><button class="nav" data-a="go" data-v="${S.role==='employee'?'profile':'security'}">${I('user')}<span>${S.role==='employee'?'My profile':'My security'}</span></button><button class="nav" data-a="theme">${I('moon')}<span>Switch theme</span></button><button class="nav" data-a="signout">${I('out')}<span>Sign out</span></button></div>`}
+
+/* ---------- palette ---------- */
+function paletteItems(){const out=[];NAVS[S.role].forEach(([g,items])=>items.forEach(([id,l,ic])=>out.push({l,ic,g:g||'Go to',run:()=>go(id)})));
+ out.push({l:'Switch theme',ic:'sun',g:'Action',run:()=>{toggleTheme();close()}});
+ if(S.role==='hr'||S.role==='admin')out.push({l:'Add a person',ic:'plus',g:'Action',run:()=>{go('people');toast('Add person form opens here')}});
+ if(S.role==='super')out.push({l:'Create a company',ic:'plus',g:'Action',run:()=>newTenant()});
+ return out}
+let palSel=0,palQ='';
+function openPal(){palSel=0;palQ='';layer(`<div class="ov" data-a="ovclose"><div class="pal" role="dialog" aria-label="Search"><input id="pi" placeholder="Search pages and actions" autocomplete="off"><div class="res" id="pr"></div></div></div>`);palRender();$('#pi').focus()}
+function palList(){const q=palQ.toLowerCase();return paletteItems().filter(i=>i.l.toLowerCase().includes(q))}
+function palRender(){const l=palList();palSel=Math.min(palSel,Math.max(0,l.length-1));$('#pr').innerHTML=l.map((i,n)=>`<button class="${n===palSel?'sel':''}" data-pi="${n}">${I(i.ic)}<span>${i.l}</span><small>${i.g}</small></button>`).join('')||'<div class="muted" style="padding:14px">Nothing found.</div>'}
+
+/* ---------- dialogs ---------- */
+function newTenant(){layer(`<div class="ov" data-a="ovclose"><div class="modal" role="dialog" aria-label="New company"><h2 class="disp" style="font-size:30px">New company</h2><label class="lab" for="tn">Company name</label><input class="inp" id="tn" placeholder="Acme Textiles"><label class="lab" for="ts">Sign-in address</label><div style="display:flex;align-items:center;gap:8px"><input class="inp" id="ts" placeholder="acme" style="flex:1"><span class="muted mono">.flourishive.in</span></div><div id="tmsg" class="muted" style="margin-top:8px;min-height:20px">Lowercase letters, numbers and hyphens.</div><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button class="btn" data-a="close">Cancel</button><button class="btn p" id="tcreate" data-a="tcreate" disabled>Create company</button></div></div></div>`);$('#tn').focus()}
+function slugCheck(v){if(!v)return['Lowercase letters, numbers and hyphens.',0];if(!/^[a-z0-9]([a-z0-9-]{1,28})[a-z0-9]$/.test(v))return['Use 3 to 30 lowercase letters, numbers or hyphens.',-1];if(RESERVED.includes(v))return[`"${v}" is reserved by the platform.`,-1];if(S.tenants.some(t=>t[1]===v))return['That address is taken.',-1];return[`https://${v}.flourishive.in is available`,1]}
+function person(n){const p=PEOPLE.find(x=>x[0]===n);layer(`<div class="ov right" data-a="ovclose"><aside class="drawer" role="dialog" aria-label="${esc(n)}"><div style="display:flex;align-items:center"><div class="av" style="width:56px;height:56px;font-size:20px">${n.split(' ').map(w=>w[0]).join('')}</div><span style="flex:1"></span><button class="ib" data-a="close" aria-label="Close">${I('x')}</button></div><h2 class="disp" style="font-size:32px;margin-top:14px">${esc(n)}</h2><p class="muted" style="margin:0">${p[1]} · ${p[2]}</p><div class="list" style="margin-top:18px"><div><div class="g"><b>Location</b><span>${p[3]}</span></div></div><div><div class="g"><b>Status</b><span>${p[4]}</span></div></div><div><div class="g"><b>Documents</b><span>2 signed, 1 waiting</span></div></div></div><div style="display:flex;gap:10px;margin-top:18px"><button class="btn p" data-a="toast" data-v="Letter flow opens here">Issue letter</button><button class="btn" data-a="toast" data-v="Edit form opens here">Edit</button></div></aside></div>`)}
+
+/* ---------- render ---------- */
+function toggleTheme(){S.theme=S.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=S.theme;try{document.documentElement.style.removeProperty('--accent')}catch(e){}}
+function render(){demoBar();const keepScroll=window.scrollY;$('#root').innerHTML=S.view==='auth'?authView():shell();if(S.view==='app')window.scrollTo(0,keepScroll)}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+ const el=e.target.closest('[data-a]');
+ if(S.pop&&!e.target.closest('.pop')&&!(el&&['bell','acct'].includes(el.dataset.a))){S.pop=null;render()}
+ if(e.target.closest('[data-pi]')){palList()[+e.target.closest('[data-pi]').dataset.pi].run();return}
+ if(!el)return;const a=el.dataset.a,v=el.dataset.v;
+ if(a==='ovclose'){if(e.target===el)close();return}
+ const A=S.auth;
+ switch(a){
+  case'role':S.role=v;S.page='home';S.pop=null;if(S.view==='auth')A.step='signin';layer('');render();break;
+  case'view':S.view=v;A.step='signin';A.mode='tenant';layer('');render();break;
+  case'theme':toggleTheme();S.pop=null;render();break;
+  case'go':go(v);break;
+  case'side':S.side=!S.side;render();break;
+  case'signin':A.step=(S.role==='super'||S.role==='admin'||S.role==='hr')?'mfa':'mfa';if(S.role==='employee'&&S.set.mfa.v===0){enter();break}render();break;
+  case'enter':enter();break;
+  case'signout':S.view='auth';A.step='signin';S.pop=null;render();break;
+  case'forgot':A.step='forgot';render();break;
+  case'back':A.step='signin';render();break;
+  case'sendotp':if(A.step==='forgot'||A.step==='otp'){A.step='otp';render();toast('Code sent to your email')}break;
+  case'verifyotp':A.step='reset';render();break;
+  case'resetdone':toast('Password updated');enter();break;
+  case'notme':A.mode='find';render();break;
+  case'find':{const em=($('#fe').value||'').trim();const d=em.split('@')[1];if(!d){toast('Enter your work email');break}A.tenant=d.split('.')[0].toLowerCase();A.mode='tenant';toast('Taking you to '+A.tenant+'.flourishive.in');render();break}
+  case'pal':openPal();break;
+  case'bell':S.pop=S.pop==='bell'?null:'bell';render();break;
+  case'acct':S.pop=S.pop==='acct'?null:'acct';render();break;
+  case'readall':S.notes=0;S.pop=null;render();break;
+  case'close':close();break;
+  case'toast':toast(v);break;
+  case'person':person(v);break;
+  case'imp':S.imp=+v;render();break;
+  case'impdone':S.imp=0;go('people');toast('12 people imported');break;
+  case'rp':S.rp[v]=!(el.getAttribute('aria-pressed')==='true');render();break;
+  case'accreset':document.documentElement.style.removeProperty('--accent');render();break;
+  case'tab':S.tab=v;render();break;
+  case'sett':S.set[v].v=!S.set[v].v;render();break;
+  case'slock':S.set[v].lock=!S.set[v].lock;render();break;
+  case'sreset':S.set[v].v=SETTINGS.find(s=>s.k===v).v;render();break;
+  case'save':S.saved=JSON.stringify(S.set);render();toast('Platform settings saved');break;
+  case'discard':S.set=JSON.parse(S.saved);render();break;
+  case'pol':S.pr[+el.dataset.i].mfa=+v;render();break;
+  case'rec-email':{const r=S.pr[+el.dataset.i];r.email=r.email?0:1;render();break}
+  case'rec-codes':{const r=S.pr[+el.dataset.i];r.codes=r.codes?0:1;render();break}
+  case'delrole':S.pr.splice(+el.dataset.i,1);render();toast('Role removed');break;
+  case'addrole':layer(`<div class="ov" data-a="ovclose"><div class="modal" role="dialog" aria-label="Add role"><h2 class="disp" style="font-size:30px">Add role</h2><label class="lab" for="rn">Role name</label><input class="inp" id="rn" placeholder="Finance reviewer"><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button class="btn" data-a="close">Cancel</button><button class="btn p" data-a="rcreate">Add role</button></div></div></div>`);$('#rn').focus();break;
+  case'rcreate':{const n=$('#rn').value.trim();if(!n){toast('Enter a role name');break}S.pr.push({n,s:'Custom role',mfa:1,floor:0,email:1,codes:0,custom:1});close();render();toast(n+' added');break}
+  case'col':S.col=!S.col;render();break;
+  case'newtenant':newTenant();break;
+  case'tcreate':{const n=$('#tn').value.trim(),s=$('#ts').value.trim();S.tenants.push([n,s,'Trial',0]);close();go('tenants');toast(n+' created at '+s+'.flourishive.in');break}
+ }
+});
+function enter(){S.view='app';S.page='home';S.auth.step='signin';render()}
+document.addEventListener('input',e=>{
+ const t=e.target;
+ if(t.id==='pq'){S.q=t.value;$('#ptab').innerHTML=peopleTable(PEOPLE.filter(p=>p.join(' ').toLowerCase().includes(S.q.toLowerCase())))}
+ else if(t.id==='pi'){palQ=t.value;palSel=0;palRender()}
+ else if(t.id==='ts'||t.id==='tn'){if(t.id==='tn'&&!$('#ts').dataset.t){const s=t.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30);$('#ts').value=s}else if(t.id==='ts')t.dataset.t=1;const v=$('#ts').value;const[m,ok]=slugCheck(v);const msg=$('#tmsg');msg.textContent=m;msg.style.color=ok===1?'var(--ok)':ok===-1?'var(--bad)':'';$('#tcreate').disabled=!($('#tn').value.trim()&&ok===1)}
+ else if(t.id==='acc'){document.documentElement.style.setProperty('--accent',t.value);document.documentElement.style.setProperty('--accent-hi',t.value)}
+ else if(t.dataset.set){const s=SETTINGS.find(x=>x.k===t.dataset.set);S.set[s.k].v=s.t==='num'||s.t==='sel'?+t.value:t.value;if(s.k==='accent'){document.documentElement.style.setProperty('--accent',t.value)}
+  clearTimeout(window._d);window._d=setTimeout(()=>{const f=document.activeElement&&document.activeElement.dataset.set;render();if(f){const n=document.querySelector(`[data-set="${f}"]`);if(n){n.focus();try{n.setSelectionRange(n.value.length,n.value.length)}catch(_){}}}},350)}
+ else if(t.dataset.otp!==undefined){t.value=t.value.replace(/\D/g,'').slice(0,1);const n=$(`[data-otp="${+t.dataset.otp+1}"]`);if(t.value&&n)n.focus()}
+});
+document.addEventListener('change',e=>{if(e.target.dataset.set&&e.target.tagName==='SELECT'){const s=SETTINGS.find(x=>x.k===e.target.dataset.set);S.set[s.k].v=+e.target.value;render()}});
+document.addEventListener('keydown',e=>{
+ if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(S.view==='app')openPal();return}
+ if(e.key==='Escape'){close();render();return}
+ if($('#pi')){const l=palList();if(e.key==='ArrowDown'){e.preventDefault();palSel=Math.min(palSel+1,l.length-1);palRender()}else if(e.key==='ArrowUp'){e.preventDefault();palSel=Math.max(0,palSel-1);palRender()}else if(e.key==='Enter'&&l[palSel]){l[palSel].run()}}
+ else if(e.key==='Enter'&&e.target.tagName==='INPUT'&&S.view==='auth'){const b=$('.box .btn.p');if(b)b.click()}
+});
+render();
+</script>
+</body>
+</html>

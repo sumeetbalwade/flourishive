@@ -148,6 +148,11 @@ export function Login() {
             try {
               const r = await api.auth.login(email, password);
               setCode('');
+              // The platform policy may let staff in on the password alone.
+              if (r.status === 'ok' || !r.mfaToken) {
+                await finish();
+                return;
+              }
               setStep(
                 r.status === 'mfa_required'
                   ? { kind: 'mfa', token: r.mfaToken }

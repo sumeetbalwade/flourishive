@@ -16,6 +16,10 @@ import { AccessService } from '../access/access.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AuthService } from '../identity/auth.service.js';
 import { SETTINGS } from '../settings/registry.js';
+import {
+  RolePolicyService,
+  type PolicyPatch,
+} from '../access/role-policy.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import {
   PlatformAuditService,
@@ -33,6 +37,7 @@ export class PlatformAdminService {
     private readonly access: AccessService,
     private readonly auth: AuthService,
     private readonly settings: SettingsService,
+    private readonly policies: RolePolicyService,
     private readonly redis: RedisService,
     private readonly audit: PlatformAuditService,
     private readonly tenantAudit: AuditService,
@@ -252,23 +257,59 @@ export class PlatformAdminService {
     const rows = await runAsSystem(
       async () => await this.db.platformSetting.findMany(),
     );
-    const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    const stored = Object.fromEntries(rows.map((r) => [r.key, r]));
     return Object.entries(SETTINGS).map(([key, d]) => ({
       key,
       description: d.description,
       levels: d.levels,
       default: d.default,
-      platformValue: stored[key] ?? null,
+      platformValue: stored[key]?.value ?? null,
+      locked: stored[key]?.locked ?? false,
     }));
   }
 
-  async setPlatformSetting(actorId: string, key: string, value: unknown) {
-    await this.settings.setPlatform(key, value);
+  async setPlatformSetting(
+    actorId: string,
+    key: string,
+    value: unknown,
+    locked?: boolean,
+  ) {
+    await this.settings.setPlatform(key, value, locked);
     await this.audit.record({
       actorId,
       action: 'platform.setting_changed',
       entityType: 'platform_settings',
       entityId: key,
+      meta: { locked },
+    });
+  }
+
+  async clearPlatformSetting(actorId: string, key: string) {
+    await this.settings.clearPlatform(key);
+    await this.audit.record({
+      actorId,
+      action: 'platform.setting_cleared',
+      entityType: 'platform_settings',
+      entityId: key,
+    });
+  }
+
+  platformPolicies() {
+    return this.policies.platformPolicies();
+  }
+
+  async setPlatformPolicy(
+    actorId: string,
+    roleKey: string,
+    patch: PolicyPatch,
+  ) {
+    await this.policies.setPlatformPolicy(roleKey, patch);
+    await this.audit.record({
+      actorId,
+      action: 'platform.role_policy_changed',
+      entityType: 'role_policies',
+      entityId: roleKey,
+      meta: patch as Record<string, unknown>,
     });
   }
 
