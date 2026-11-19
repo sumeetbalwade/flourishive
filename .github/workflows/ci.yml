@@ -47,6 +47,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - run: pnpm --filter @flourishive/backend test:e2e
 
   desktop:
     name: Desktop (Python)

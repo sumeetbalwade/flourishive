@@ -29,6 +29,16 @@ export const envSchema = z.object({
     .string()
     .regex(/^[0-9a-f]{64}$/i, 'must be 64 hex characters'),
   HMAC_SECRET: z.string().min(32),
+
+  // Signs access and MFA-challenge JWTs.
+  JWT_SECRET: z.string().min(32),
+  ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().default(900),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().default(14),
+  COOKIE_SECURE: bool.default(false),
+  // Google sign-in is off until a client id is configured.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  // Used to build password-reset links.
+  WEB_URL: z.string().default('http://localhost:5173'),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

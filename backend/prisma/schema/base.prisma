@@ -3,10 +3,10 @@
 // model MUST have a `tenantId` column; the scoping extension and the
 // cross-tenant test harness both rely on that.
 generator client {
-  provider = "prisma-client"
-  output   = "../../src/generated/prisma"
+  provider            = "prisma-client"
+  output              = "../../src/generated/prisma"
   // ESM output with .js import suffixes, matching the rest of the backend.
-  moduleFormat = "esm"
+  moduleFormat        = "esm"
   importFileExtension = "js"
 }
 

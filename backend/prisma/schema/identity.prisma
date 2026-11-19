@@ -1,0 +1,85 @@
+model User {
+  id           String     @id @default(uuid(7)) @db.Char(36)
+  tenantId     String     @db.Char(36)
+  email        String     @db.VarChar(191) // stored lower-case
+  passwordHash String?    @db.VarChar(255)
+  status       UserStatus @default(ACTIVE)
+  googleSub    String?    @db.VarChar(64)
+  /// AES-256-GCM encrypted TOTP secret (set at enrolment, active once mfaEnabledAt is set)
+  mfaSecretEnc String?    @db.VarChar(255)
+  mfaEnabledAt DateTime?  @db.DateTime(3)
+  /// Set by the access module for HR, admin and super-admin roles (D-16)
+  mfaRequired  Boolean    @default(false)
+  lastLoginAt  DateTime?  @db.DateTime(3)
+  createdAt    DateTime   @default(now()) @db.DateTime(3)
+  updatedAt    DateTime   @updatedAt @db.DateTime(3)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  recoveryCodes RecoveryCode[]
+  sessions      Session[]
+
+  @@unique([tenantId, email])
+  @@unique([tenantId, googleSub])
+  @@index([tenantId])
+  @@map("users")
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
+
+model RecoveryCode {
+  id        String    @id @default(uuid(7)) @db.Char(36)
+  tenantId  String    @db.Char(36)
+  userId    String    @db.Char(36)
+  codeHash  String    @db.Char(64) // sha256 of the code
+  usedAt    DateTime? @db.DateTime(3)
+  createdAt DateTime  @default(now()) @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("recovery_codes")
+}
+
+/// One sign-in on one device. Refresh tokens rotate inside a session; reusing an
+/// old token revokes the whole session.
+model Session {
+  id        String    @id @default(uuid(7)) @db.Char(36)
+  tenantId  String    @db.Char(36)
+  userId    String    @db.Char(36)
+  userAgent String?   @db.VarChar(255)
+  ip        String?   @db.VarChar(64)
+  expiresAt DateTime  @db.DateTime(3)
+  revokedAt DateTime? @db.DateTime(3)
+  createdAt DateTime  @default(now()) @db.DateTime(3)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid(7)) @db.Char(36)
+  tenantId  String    @db.Char(36)
+  sessionId String    @db.Char(36)
+  tokenHash String    @unique @db.Char(64) // sha256 of the opaque token
+  usedAt    DateTime? @db.DateTime(3)
+  expiresAt DateTime  @db.DateTime(3)
+  createdAt DateTime  @default(now()) @db.DateTime(3)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([sessionId])
+  @@map("refresh_tokens")
+}

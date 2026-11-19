@@ -1,0 +1,38 @@
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { IS_PUBLIC, type AuthedRequest } from './auth.context.js';
+import { SessionService } from './session.service.js';
+import { TokenService } from './token.service.js';
+
+/** Global guard: every route needs a valid, non-revoked access token unless marked @Public(). */
+@Injectable()
+export class AuthGuard implements CanActivate {
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly tokens: TokenService,
+    private readonly sessions: SessionService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (
+      this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [
+        context.getHandler(),
+        context.getClass(),
+      ])
+    )
+      return true;
+    const req = context.switchToHttp().getRequest<AuthedRequest>();
+    const header = req.headers.authorization;
+    if (!header?.startsWith('Bearer ')) throw new UnauthorizedException();
+    const claims = await this.tokens.verifyAccess(header.slice(7));
+    if (await this.sessions.isRevoked(claims.sessionId))
+      throw new UnauthorizedException('Session ended');
+    req.auth = claims;
+    return true;
+  }
+}

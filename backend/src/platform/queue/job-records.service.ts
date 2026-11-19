@@ -25,7 +25,7 @@ export class JobRecordsService {
       tenantId,
       async () =>
         await this.prisma.db.jobRecord.create({
-          data: { name, payload } as never,
+          data: { tenantId, name, payload },
         }),
     );
     await this.queue.enqueue(

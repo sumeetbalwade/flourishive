@@ -8,6 +8,10 @@ import { currentScope } from './tenant-context.js';
 export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'Entity',
   'JobRecord',
+  'User',
+  'RecoveryCode',
+  'Session',
+  'RefreshToken',
 ]);
 
 /** The tenants table itself is scoped by its own id. */
@@ -80,7 +84,12 @@ export function scopeArgs(
   return next;
 }
 
-/** Prisma client extension: every query on a scoped model gets the current tenant. */
+/**
+ * Prisma client extension: reads, updates and deletes on a scoped model get the
+ * current tenant added. Prisma validates `create` arguments before this runs, so
+ * creates must pass `tenantId` themselves; the extension then refuses any value
+ * that is not the current tenant.
+ */
 export const tenantScopingExtension = Prisma.defineExtension({
   name: 'tenant-scoping',
   query: {

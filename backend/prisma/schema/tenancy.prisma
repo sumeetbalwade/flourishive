@@ -1,13 +1,17 @@
 model Tenant {
-  id        String   @id @default(uuid(7)) @db.Char(36)
-  slug      String   @unique @db.VarChar(63)
-  name      String   @db.VarChar(191)
+  id        String       @id @default(uuid(7)) @db.Char(36)
+  slug      String       @unique @db.VarChar(63)
+  name      String       @db.VarChar(191)
   status    TenantStatus @default(ACTIVE)
-  createdAt DateTime @default(now()) @db.DateTime(3)
-  updatedAt DateTime @updatedAt @db.DateTime(3)
+  createdAt DateTime     @default(now()) @db.DateTime(3)
+  updatedAt DateTime     @updatedAt @db.DateTime(3)
 
-  entities   Entity[]
-  jobRecords JobRecord[]
+  entities      Entity[]
+  users         User[]
+  recoveryCodes RecoveryCode[]
+  sessions      Session[]
+  refreshTokens RefreshToken[]
+  jobRecords    JobRecord[]
 
   @@map("tenants")
 }
