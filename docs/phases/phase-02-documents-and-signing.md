@@ -42,8 +42,8 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 - [ ] Adapter for one conversion API, enabled per tenant by the super admin
 
 ### Verify (`frontend/verify`)
-- [ ] Look-up by reference or QR: issuer, type, date, status, signer
-- [ ] Upload a copy to compare its hash with the original
+- [x] Look-up by reference or QR: issuer, type, date, status, signer _(signer name arrives with the DSC step in PR 5-6; acceptance time and seal are shown now)_
+- [x] Upload a copy to compare its hash with the original _(also reports a changed or extended sealed file)_
 
 ### Letters module (`modules/letters`)
 - [ ] Intern offer letter (candidate accepts by OTP or Aadhaar eSign, then HR lead signs with DSC)

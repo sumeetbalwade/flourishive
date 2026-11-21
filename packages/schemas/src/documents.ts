@@ -90,3 +90,46 @@ export const documentItem = z.object({
   createdAt: z.string(),
 });
 export type DocumentItem = z.infer<typeof documentItem>;
+
+/** Public verify page: what anyone may learn about an issued document (no personal data). */
+export const verifyResult = z.object({
+  result: z.enum(['valid', 'pending', 'revoked', 'superseded']),
+  reference: z.string(),
+  letterType: z.string(),
+  issuedBy: z.string(),
+  issuedOn: z.string(),
+  stage: z.string(),
+  acceptance: z.object({ method: z.string(), at: z.string(), sealed: z.boolean() }).nullable(),
+  /** Only on a look-up by reference: lets the page offer the file comparison. */
+  token: z.string().optional(),
+});
+export type VerifyResult = z.infer<typeof verifyResult>;
+
+export const compareResult = z.object({
+  matches: z.enum(['original', 'accepted-copy', 'different']),
+  fingerprint: z.string(),
+  reference: z.string(),
+  seal: z
+    .object({
+      intact: z.boolean(),
+      coversWholeFile: z.boolean(),
+      sealedByUs: z.boolean(),
+      timestamp: z.object({ time: z.string(), matchesSignature: z.boolean() }).nullable(),
+      reason: z.string().optional(),
+    })
+    .nullable(),
+});
+export type CompareResult = z.infer<typeof compareResult>;
+
+/** The candidate's private acceptance page. */
+export const acceptInfo = z.object({
+  reference: z.string(),
+  letterType: z.string(),
+  issuedBy: z.string(),
+  name: z.string(),
+  emailHint: z.string(),
+  status: z.enum(['PENDING', 'COMPLETED', 'DECLINED', 'EXPIRED', 'CANCELLED']),
+  expiresAt: z.string(),
+  canAccept: z.boolean(),
+});
+export type AcceptInfo = z.infer<typeof acceptInfo>;
