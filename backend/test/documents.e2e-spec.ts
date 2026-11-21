@@ -152,6 +152,14 @@ describe('documents foundations', () => {
       .expect(201);
     expect(res.body.stampLeft).toBe(105);
     expect(res.body.stampBottom).toBe(30);
+    // the 1x1 PNG is square (counts as portrait), so choosing landscape is refused
+    await call(
+      'post',
+      `/documents/letterheads?entityId=${entityId}&name=Wrong&orientation=LANDSCAPE`,
+    )
+      .set('Content-Type', 'image/png')
+      .send(png)
+      .expect(400);
     await call('post', `/documents/letterheads?entityId=${entityId}&name=Bad`)
       .set('Content-Type', 'image/png')
       .send(Buffer.from('not a png'))

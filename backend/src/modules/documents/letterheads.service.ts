@@ -13,6 +13,10 @@ export async function imageToPdf(
   const pdf = await PDFDocument.create();
   const img =
     mime === 'image/png' ? await pdf.embedPng(body) : await pdf.embedJpg(body);
+  if (img.width > img.height !== (orientation === 'LANDSCAPE'))
+    throw new BadRequestException(
+      `The image is ${img.width > img.height ? 'landscape' : 'portrait'} but you chose ${orientation.toLowerCase()}`,
+    );
   const scale = Math.max(w / img.width, h / img.height);
   const page = pdf.addPage([w, h]);
   page.drawImage(img, {
@@ -89,7 +93,8 @@ export class LetterheadsService {
           input.mimeType,
           input.orientation,
         );
-      } catch {
+      } catch (e) {
+        if (e instanceof BadRequestException) throw e;
         throw new BadRequestException('That image could not be read');
       }
     }
