@@ -20,6 +20,7 @@ export const PERMISSIONS = {
   'documents.read': 'View issued documents and templates',
   'documents.manage': 'Manage letterheads, numbering and templates',
   'documents.generate': 'Generate documents from templates',
+  'documents.approve': 'Approve documents or ask for changes',
 } as const;
 
 export type PermissionCode = keyof typeof PERMISSIONS;
@@ -66,6 +67,7 @@ export const SYSTEM_ROLES: SystemRole[] = [
       'documents.read',
       'documents.manage',
       'documents.generate',
+      'documents.approve',
     ],
   },
   {

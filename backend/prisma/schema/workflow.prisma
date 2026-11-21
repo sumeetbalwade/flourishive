@@ -1,0 +1,60 @@
+/// A flow stored as data: its states and which actions move between them, and who may act.
+/// Saved versions never change; a new flow is a new version.
+model WorkflowDefinition {
+  id          String   @id @default(uuid(7)) @db.Char(36)
+  tenantId    String   @db.Char(36)
+  key         String   @db.VarChar(60)
+  name        String   @db.VarChar(120)
+  version     Int
+  states      Json
+  transitions Json
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id])
+  instances WorkflowInstance[]
+
+  @@unique([tenantId, key, version])
+  @@index([tenantId])
+  @@map("workflow_definitions")
+}
+
+/// One thing moving through a flow (for now, one generated document).
+model WorkflowInstance {
+  id           String   @id @default(uuid(7)) @db.Char(36)
+  tenantId     String   @db.Char(36)
+  definitionId String   @db.Char(36)
+  subjectType  String   @db.VarChar(40)
+  subjectId    String   @db.Char(36)
+  state        String   @db.VarChar(60)
+  createdBy    String?  @db.Char(36)
+  createdAt    DateTime @default(now()) @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @db.DateTime(3)
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id])
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id])
+  actions    WorkflowAction[]
+
+  @@unique([tenantId, subjectType, subjectId])
+  @@index([tenantId, state])
+  @@map("workflow_instances")
+}
+
+/// The history: every move, who made it and why. Rows are only ever added.
+model WorkflowAction {
+  id         String   @id @default(uuid(7)) @db.Char(36)
+  tenantId   String   @db.Char(36)
+  instanceId String   @db.Char(36)
+  action     String   @db.VarChar(60)
+  fromState  String   @db.VarChar(60)
+  toState    String   @db.VarChar(60)
+  actorId    String?  @db.Char(36)
+  comment    String?  @db.VarChar(1000)
+  createdAt  DateTime @default(now()) @db.DateTime(3)
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id])
+  instance WorkflowInstance @relation(fields: [instanceId], references: [id])
+
+  @@index([instanceId, createdAt])
+  @@index([tenantId])
+  @@map("workflow_actions")
+}

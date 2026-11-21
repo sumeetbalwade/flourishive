@@ -120,6 +120,8 @@ async function snapshotA(): Promise<string> {
     templates: await prisma.db.template.count(),
     letterheads: await prisma.db.letterhead.count(),
     schemes: await prisma.db.numberingScheme.count(),
+    flows: await prisma.db.workflowInstance.count(),
+    flowActions: await prisma.db.workflowAction.count(),
     counters: await prisma.db.numberingCounter.count(),
   }));
   return JSON.stringify({
@@ -582,6 +584,22 @@ const PROBES = (): Record<string, Probe> => ({
   'GET /documents': {
     mode: 'contained',
     send: () => as('get', '/documents?pageSize=100'),
+  },
+  'POST /documents/:id/actions': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/documents/${ids.docA}/actions`).send({ action: 'submit' }),
+  },
+  'POST /documents/:id/revise': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/documents/${ids.docA}/revise`).send({
+        fields: { recipientName: 'Hijack' },
+      }),
+  },
+  'GET /documents/:id/history': {
+    mode: 'refuse',
+    send: () => as('get', `/documents/${ids.docA}/history`),
   },
   'GET /documents/:id': {
     mode: 'refuse',

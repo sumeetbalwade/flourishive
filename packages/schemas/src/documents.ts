@@ -70,6 +70,14 @@ export const generateBody = z.object({
 });
 export type GenerateBody = z.infer<typeof generateBody>;
 
+export const actionBody = z.object({
+  action: z.string().min(1).max(60),
+  comment: z.string().trim().max(1000).optional(),
+});
+export const reviseBody = z.object({
+  fields: z.record(z.string(), z.string().max(5000)),
+});
+
 export const documentItem = z.object({
   id: z.string(),
   reference: z.string(),

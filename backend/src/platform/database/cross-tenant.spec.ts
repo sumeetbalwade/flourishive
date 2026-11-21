@@ -417,6 +417,88 @@ const fixtures: Record<string, Fixture> = {
     },
     change: { letterType: 'hacked' },
   },
+  WorkflowDefinition: {
+    delegate: 'workflowDefinition',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        key: crypto.randomUUID().slice(0, 8),
+        name: 'Flow',
+        version: 1,
+        states: [],
+        transitions: [],
+      },
+    }),
+    change: { name: 'hacked' },
+  },
+  WorkflowInstance: {
+    delegate: 'workflowInstance',
+    create: async (tenantId) => {
+      const def = await runAsSystem(
+        async () =>
+          await db.workflowDefinition.create({
+            data: {
+              tenantId,
+              key: crypto.randomUUID().slice(0, 8),
+              name: 'Flow',
+              version: 1,
+              states: [],
+              transitions: [],
+            },
+          }),
+      );
+      return {
+        data: {
+          tenantId,
+          definitionId: def.id,
+          subjectType: 'document',
+          subjectId: crypto.randomUUID(),
+          state: 'draft',
+        },
+      };
+    },
+    change: { state: 'hacked' },
+  },
+  WorkflowAction: {
+    delegate: 'workflowAction',
+    create: async (tenantId) => {
+      const def = await runAsSystem(
+        async () =>
+          await db.workflowDefinition.create({
+            data: {
+              tenantId,
+              key: crypto.randomUUID().slice(0, 8),
+              name: 'Flow',
+              version: 1,
+              states: [],
+              transitions: [],
+            },
+          }),
+      );
+      const inst = await runAsSystem(
+        async () =>
+          await db.workflowInstance.create({
+            data: {
+              tenantId,
+              definitionId: def.id,
+              subjectType: 'document',
+              subjectId: crypto.randomUUID(),
+              state: 'draft',
+            },
+          }),
+      );
+      return {
+        data: {
+          tenantId,
+          instanceId: inst.id,
+          action: 'submit',
+          fromState: 'draft',
+          toState: 'submitted',
+        },
+      };
+    },
+    change: { comment: 'hacked' },
+  },
   Notification: {
     delegate: 'notification',
     create: async (tenantId) => ({

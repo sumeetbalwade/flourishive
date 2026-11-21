@@ -18,8 +18,8 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 - [ ] Generation and bulk generation as queue jobs; QR code and reference stamped on every page _(single generation and the stamp are done in PR 1; bulk and queue jobs come in PR 7)_
 
 ### Workflow engine v1 (`modules/workflow`)
-- [ ] Definitions stored as data: states, transitions, who can act, reminders
-- [ ] Letters flow: draft → submitted → approved / changes requested → signing → issued
+- [x] Definitions stored as data: states, transitions, who can act, reminders _(reminder times are stored; sending them is a later PR)_
+- [x] Letters flow: draft → submitted → approved / changes requested → signing → issued _(signing and issued steps are system-only; wired up in PR 3-6)_
 
 ### Signing (`modules/signing`, plan §6)
 - [ ] Signature requests with ordered parties; enforce the ordering rule (content changes before the first cryptographic signature)

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -12,9 +13,11 @@ import { runInTenant } from '../../platform/database/tenant-context.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { StorageService } from '../../platform/storage/storage.service.js';
 import { AccessService } from '../access/access.service.js';
+import { WorkflowService } from '../workflow/workflow.service.js';
 import { DocAccess, type Actor } from './doc-access.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { FilesService } from '../files/files.service.js';
+import { LETTER_FLOW_KEY } from '../workflow/definition.js';
 import { fill, longDate, resolveValues } from './fill.js';
 import { LAYOUTS } from './layouts/registry.js';
 import { LetterheadsService } from './letterheads.service.js';
@@ -33,6 +36,7 @@ export class DocumentsService {
     private readonly audit: AuditService,
     private readonly docAccess: DocAccess,
     private readonly access: AccessService,
+    private readonly workflow: WorkflowService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -100,6 +104,71 @@ export class DocumentsService {
       template.letterType,
       now,
     );
+    const verifyToken = randomBytes(16).toString('hex');
+    const built = await this.build(a, {
+      version,
+      layout,
+      lh,
+      values,
+      reference,
+      verifyToken,
+      now,
+    });
+    const { file, bytes, pageCount } = built;
+    const doc = await runInTenant(a.tenantId, async () =>
+      this.prisma.db.generatedDocument.create({
+        data: {
+          tenantId: a.tenantId,
+          entityId: b.entityId,
+          templateVersionId: version.id,
+          letterheadId: lh.id,
+          letterType: template.letterType,
+          reference,
+          verifyToken,
+          personId: b.personId ?? null,
+          engagementId: b.engagementId ?? null,
+          data: values,
+          fileId: file.id,
+          sha256: createHash('sha256').update(bytes).digest('hex'),
+          pageCount,
+          createdBy: a.userId,
+        },
+      }),
+    );
+    await this.workflow.start(a, LETTER_FLOW_KEY, {
+      type: 'document',
+      id: doc.id,
+    });
+    await this.audit.recordSafely({
+      tenantId: a.tenantId,
+      actorType: 'USER',
+      actorId: a.userId,
+      action: 'document.generate',
+      entityType: 'document',
+      entityId: doc.id,
+      meta: { reference, letterType: template.letterType },
+    });
+    return doc;
+  }
+
+  /** Draws the letter, puts it on the letterhead, stamps it and stores the file. */
+  private async build(
+    a: Actor,
+    p: {
+      version: {
+        id: string;
+        content: unknown;
+        orientation: 'PORTRAIT' | 'LANDSCAPE';
+      };
+      layout: (typeof LAYOUTS)[string];
+      lh: NonNullable<Awaited<ReturnType<LetterheadsService['latest']>>>;
+      values: Record<string, string>;
+      reference: string;
+      verifyToken: string;
+      now: Date;
+    },
+  ) {
+    const { version, layout, lh, values, reference, verifyToken, now } = p;
     const all = { ...values, reference, issueDate: longDate(now) };
     const content = Object.fromEntries(
       Object.entries(version.content as Record<string, string>).map(
@@ -112,7 +181,6 @@ export class DocumentsService {
       left: lh.marginLeft,
       right: lh.marginRight,
     };
-    const verifyToken = randomBytes(16).toString('hex');
     const body = await this.pdf.renderBody(layout, {
       content: { ...content, reference, issueDate: all.issueDate },
       orientation: version.orientation,
@@ -134,36 +202,115 @@ export class DocumentsService {
       name: `${reference.replaceAll('/', '-')}.pdf`,
       ownerType: 'document',
     });
+    return { file, bytes, pageCount };
+  }
+
+  private async visible(a: Actor, id: string) {
     const doc = await runInTenant(a.tenantId, async () =>
-      this.prisma.db.generatedDocument.create({
-        data: {
-          tenantId: a.tenantId,
-          entityId: b.entityId,
-          templateVersionId: version.id,
-          letterheadId: lh.id,
-          letterType: template.letterType,
-          reference,
-          verifyToken,
-          personId: b.personId ?? null,
-          engagementId: b.engagementId ?? null,
-          data: values,
-          fileId: file.id,
-          sha256: createHash('sha256').update(bytes).digest('hex'),
-          pageCount,
-          createdBy: a.userId,
-        },
-      }),
+      this.prisma.db.generatedDocument.findUnique({ where: { id } }),
     );
+    if (
+      !doc ||
+      !(await this.access.can(
+        a.tenantId,
+        a.userId,
+        'documents.read',
+        doc.entityId,
+      ))
+    )
+      throw new NotFoundException();
+    return doc;
+  }
+
+  async history(a: Actor, id: string) {
+    await this.visible(a, id);
+    return this.workflow.history(a.tenantId, { type: 'document', id });
+  }
+
+  /** Submit, approve, ask for changes or cancel. The flow decides who may do what and when. */
+  async act(a: Actor, id: string, action: string, comment?: string | null) {
+    const doc = await this.visible(a, id);
+    const r = await this.workflow.act(a, { type: 'document', id }, action, {
+      comment,
+      can: (p) =>
+        this.access.can(a.tenantId, a.userId, p as never, doc.entityId),
+    });
     await this.audit.recordSafely({
       tenantId: a.tenantId,
       actorType: 'USER',
       actorId: a.userId,
-      action: 'document.generate',
+      action: `document.${action}`,
       entityType: 'document',
-      entityId: doc.id,
-      meta: { reference, letterType: template.letterType },
+      entityId: id,
+      meta: { reference: doc.reference, from: r.from, to: r.to },
     });
-    return doc;
+    return r;
+  }
+
+  /**
+   * Redraws a draft with new values, keeping its reference and QR. Allowed only before approval,
+   * so nothing changes once a document is approved or being signed. The earlier file is kept.
+   */
+  async revise(
+    a: Actor,
+    id: string,
+    fields: Record<string, string>,
+    now = new Date(),
+  ) {
+    const doc = await this.visible(a, id);
+    await this.docAccess.assert(a, 'documents.generate', doc.entityId);
+    const { state } = await this.workflow.history(a.tenantId, {
+      type: 'document',
+      id,
+    });
+    if (!['draft', 'changes_requested'].includes(state))
+      throw new ConflictException('Only a draft can be changed');
+    const { version, lh } = await runInTenant(a.tenantId, async () => ({
+      version: await this.prisma.db.templateVersion.findUniqueOrThrow({
+        where: { id: doc.templateVersionId },
+      }),
+      lh: await this.prisma.db.letterhead.findUniqueOrThrow({
+        where: { id: doc.letterheadId },
+      }),
+    }));
+    const layout = LAYOUTS[version.layoutKey ?? ''];
+    if (!layout) throw new BadRequestException('The layout is not available');
+    const { values, errors } = resolveValues(
+      version.fields as unknown as FieldDef[],
+      fields,
+    );
+    if (errors.length) throw new BadRequestException(errors);
+    const built = await this.build(a, {
+      version,
+      layout,
+      lh,
+      values,
+      reference: doc.reference,
+      verifyToken: doc.verifyToken,
+      now,
+    });
+    const updated = await runInTenant(a.tenantId, async () =>
+      this.prisma.db.generatedDocument.update({
+        where: { id },
+        data: {
+          data: values,
+          fileId: built.file.id,
+          sha256: createHash('sha256').update(built.bytes).digest('hex'),
+          pageCount: built.pageCount,
+        },
+      }),
+    );
+    await this.workflow.note(a, { type: 'document', id }, 'revise');
+    await this.audit.recordSafely({
+      tenantId: a.tenantId,
+      actorType: 'USER',
+      actorId: a.userId,
+      action: 'document.revise',
+      entityType: 'document',
+      entityId: id,
+      meta: { reference: doc.reference },
+    });
+    return updated;
   }
 
   async list(
@@ -186,7 +333,17 @@ export class DocumentsService {
         }),
         this.prisma.db.generatedDocument.count({ where }),
       ]);
-      return { items, total, page: q.page, pageSize: q.pageSize };
+      const states = await this.workflow.statesFor(
+        a.tenantId,
+        'document',
+        items.map((i) => i.id),
+      );
+      return {
+        items: items.map((i) => ({ ...i, state: states.get(i.id) ?? null })),
+        total,
+        page: q.page,
+        pageSize: q.pageSize,
+      };
     });
   }
 
@@ -206,8 +363,14 @@ export class DocumentsService {
     )
       throw new NotFoundException();
     const link = await this.files.linkFor(a.tenantId, doc.fileId);
+    const workflow = await this.workflow.available(
+      a.tenantId,
+      { type: 'document', id },
+      (p) => this.access.can(a.tenantId, a.userId, p as never, doc.entityId),
+    );
     return {
       ...doc,
+      workflow,
       downloadUrl: link.url,
       downloadUrlExpiresAt: link.expiresAt,
     };

@@ -1,8 +1,10 @@
 import {
+  actionBody,
   generateBody,
   letterheadQuery,
   numberingBody,
   pageQuery,
+  reviseBody,
   templateBody,
   templateVersionBody,
 } from '@flourishive/schemas';
@@ -131,6 +133,37 @@ export class DocumentsController {
     @Query(new ZodPipe(listQuery)) q: z.infer<typeof listQuery>,
   ) {
     return this.docs.list(a, q);
+  }
+
+  @Post(':id/actions')
+  @RequirePermission('documents.read')
+  act(
+    @CurrentAuth() a: AccessClaims,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const b = new ZodPipe(actionBody).transform(body);
+    return this.docs.act(a, id, b.action, b.comment);
+  }
+
+  @Post(':id/revise')
+  @RequirePermission('documents.generate')
+  revise(
+    @CurrentAuth() a: AccessClaims,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.docs.revise(
+      a,
+      id,
+      new ZodPipe(reviseBody).transform(body).fields,
+    );
+  }
+
+  @Get(':id/history')
+  @RequirePermission('documents.read')
+  history(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
+    return this.docs.history(a, id);
   }
 
   @Get(':id')
