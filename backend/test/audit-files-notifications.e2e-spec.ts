@@ -248,11 +248,7 @@ describe('files', () => {
     type = 'application/pdf',
     name = 'offer letter.pdf',
   ) =>
-    call(
-      'post',
-      `/files?name=${encodeURIComponent(name)}&ownerType=engagement&ownerId=abc`,
-      who,
-    )
+    call('post', `/files?name=${encodeURIComponent(name)}`, who)
       .set('Content-Type', type)
       .send(body);
 

@@ -1,0 +1,574 @@
+import { INestApplication } from '@nestjs/common';
+import { DiscoveryModule, DiscoveryService } from '@nestjs/core';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
+import { AppModule } from '../src/app.module.js';
+import { configureApp } from '../src/app.setup.js';
+import { AccessService } from '../src/modules/access/access.service.js';
+import { PasswordService } from '../src/modules/identity/password.service.js';
+import { SessionService } from '../src/modules/identity/session.service.js';
+import { RedisService } from '../src/platform/cache/redis.service.js';
+import { PrismaService } from '../src/platform/database/prisma.service.js';
+import {
+  runAsSystem,
+  runInTenant,
+} from '../src/platform/database/tenant-context.js';
+import { MailService } from '../src/platform/mail/mail.service.js';
+import { deleteTenantData } from './helpers.js';
+
+/**
+ * Every HTTP endpoint, called as company B against company A's data.
+ *
+ * Two guarantees:
+ *  1. Every route the app exposes is classified below. A new endpoint that nobody classified
+ *     fails this file, so it cannot ship without a cross-tenant check (or a written reason).
+ *  2. Each tenant-scoped route is called as B with A's ids. It must be refused or do nothing to A,
+ *     must never put any of A's data into the answer, and A's data must be identical afterwards.
+ */
+
+const PASSWORD = 'correct horse battery';
+const A_SECRETS = {
+  dept: 'A-Dept-Secret',
+  location: 'A-Loc-Secret',
+  designation: 'A-Desig-Secret',
+  first: 'Alphasecret',
+  last: 'Secretperson',
+  code: 'A-SECRET-1',
+  email: 'secret@xa.test',
+  file: 'a-secret.pdf',
+  role: 'A Only Role',
+  accent: '#aa0000',
+};
+
+let app: INestApplication;
+let prisma: PrismaService;
+let ip = 0;
+const ids = {
+  tenantA: '',
+  tenantB: '',
+  entityA: '',
+  entityB: '',
+  deptA: '',
+  locA: '',
+  desigA: '',
+  engA: '',
+  personA: '',
+  userA: '',
+  fileA: '',
+  roleKeyA: '',
+  fileB: '',
+};
+const token: Record<'a' | 'b', string> = { a: '', b: '' };
+let bSigned = '';
+
+const call = (
+  who: 'a' | 'b' | null,
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+  path: string,
+) => {
+  const r = request(app.getHttpServer())
+    [method](`/v1${path}`)
+    .set('X-Forwarded-For', `10.6.0.${++ip}`);
+  return who ? r.set('Authorization', `Bearer ${token[who]}`) : r;
+};
+
+const pdf = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(64, 1)]);
+
+async function makeAdmin(tenantId: string, email: string) {
+  const passwordHash = await app.get(PasswordService).hash(PASSWORD);
+  const user = await runAsSystem(
+    async () =>
+      await prisma.db.user.create({
+        data: { tenantId, email, passwordHash },
+      }),
+  );
+  await runInTenant(tenantId, async () => {
+    const role = await prisma.db.role.findUnique({
+      where: { tenantId_key: { tenantId, key: 'tenant_admin' } },
+    });
+    await prisma.db.userRole.create({
+      data: { tenantId, userId: user.id, roleId: role!.id },
+    });
+  });
+  return (await app.get(SessionService).start(tenantId, user.id, {}))
+    .accessToken;
+}
+
+/** Everything about A that a stranger must not be able to change, as one comparable string. */
+async function snapshotA(): Promise<string> {
+  const get = async (path: string) => (await call('a', 'get', path)).body;
+  const counts = await runInTenant(ids.tenantA, async () => ({
+    persons: await prisma.db.person.count(),
+    engagements: await prisma.db.engagement.count(),
+    departments: await prisma.db.department.count(),
+    designations: await prisma.db.designation.count(),
+    locations: await prisma.db.location.count(),
+    files: await prisma.db.file.count(),
+    roles: await prisma.db.role.count(),
+    userRoles: await prisma.db.userRole.count(),
+    users: await prisma.db.user.count(),
+    settings: await prisma.db.settingValue.count(),
+    audit: await prisma.db.auditLog.count(),
+    notifications: await prisma.db.notification.count(),
+  }));
+  return JSON.stringify({
+    counts,
+    people: await get('/people?pageSize=100'),
+    departments: await get('/org/departments'),
+    locations: await get('/org/locations'),
+    designations: await get('/org/designations'),
+    roles: await get('/access/roles'),
+    policies: await get('/access/policies'),
+    userRoles: await get(`/access/users/${ids.userA}/roles`),
+    settings: await get('/settings'),
+    file: (await call('a', 'get', `/files/${ids.fileA}`)).body.id,
+  });
+}
+
+const markers = () =>
+  [
+    ...Object.values(A_SECRETS),
+    ids.tenantA,
+    ids.entityA,
+    ids.deptA,
+    ids.locA,
+    ids.desigA,
+    ids.engA,
+    ids.personA,
+    ids.userA,
+    ids.fileA,
+  ].filter(Boolean);
+const leaks = (res: { body: unknown; text: string }) => {
+  const text = `${JSON.stringify(res.body ?? '')} ${res.text ?? ''}`;
+  return markers().filter((m) => text.includes(m));
+};
+
+beforeAll(async () => {
+  app = (
+    await Test.createTestingModule({ imports: [AppModule, DiscoveryModule] })
+      .overrideProvider(MailService)
+      .useValue({ send: async () => undefined })
+      .compile()
+  ).createNestApplication();
+  configureApp(app);
+  await app.init();
+  prisma = app.get(PrismaService);
+  await app.get(RedisService).client.flushdb();
+
+  for (const key of ['a', 'b'] as const) {
+    await deleteTenantData(prisma, `xt-${key}`);
+    const made = await runAsSystem(async () => {
+      const tenant = await prisma.db.tenant.create({
+        data: { slug: `xt-${key}`, name: `XT ${key}` },
+      });
+      const entity = await prisma.db.entity.create({
+        data: { tenantId: tenant.id, name: 'HQ', legalName: `HQ ${key} Ltd` },
+      });
+      return { tenant: tenant.id, entity: entity.id };
+    });
+    await app.get(AccessService).provisionTenantRoles(made.tenant);
+    if (key === 'a') {
+      ids.tenantA = made.tenant;
+      ids.entityA = made.entity;
+    } else {
+      ids.tenantB = made.tenant;
+      ids.entityB = made.entity;
+    }
+  }
+  token.a = await makeAdmin(ids.tenantA, 'admin@xa.test');
+  token.b = await makeAdmin(ids.tenantB, 'admin@xb.test');
+
+  // Company A gets one of everything, all carrying recognisable "secret" values.
+  const made = async (res: request.Response, status = 201) => {
+    expect(res.status, JSON.stringify(res.body)).toBe(status);
+    return res.body;
+  };
+  ids.deptA = (
+    await made(
+      await call('a', 'post', '/org/departments').send({
+        name: A_SECRETS.dept,
+      }),
+    )
+  ).id;
+  ids.locA = (
+    await made(
+      await call('a', 'post', '/org/locations').send({
+        name: A_SECRETS.location,
+        city: 'Pune',
+        state: 'Maharashtra',
+      }),
+    )
+  ).id;
+  ids.desigA = (
+    await made(
+      await call('a', 'post', '/org/designations').send({
+        name: A_SECRETS.designation,
+      }),
+    )
+  ).id;
+  const person = await made(
+    await call('a', 'post', '/people').send({
+      person: {
+        firstName: A_SECRETS.first,
+        lastName: A_SECRETS.last,
+        workEmail: A_SECRETS.email,
+      },
+      engagement: {
+        entityId: ids.entityA,
+        type: 'EMPLOYEE',
+        employeeCode: A_SECRETS.code,
+        startDate: '2026-01-05',
+        departmentId: ids.deptA,
+        designationId: ids.desigA,
+        locationId: ids.locA,
+      },
+    }),
+  );
+  ids.engA = person.id;
+  ids.personA = person.person.id;
+  await made(await call('a', 'post', `/people/${ids.engA}/invite`), 200);
+  ids.userA = (
+    await call('a', 'get', `/people/${ids.engA}`)
+  ).body.person.userId;
+  ids.fileA = (
+    await made(
+      await call('a', 'post', `/files?name=${A_SECRETS.file}`)
+        .set('Content-Type', 'application/pdf')
+        .send(pdf),
+    )
+  ).id;
+  ids.roleKeyA = (
+    await made(
+      await call('a', 'post', '/access/roles').send({ name: A_SECRETS.role }),
+    )
+  ).key;
+  await made(
+    await call('a', 'put', '/settings/tenant/branding.accentColor').send({
+      value: A_SECRETS.accent,
+    }),
+    204,
+  );
+
+  // Company B has its own data, so "only B's data comes back" is something we can see.
+  await made(
+    await call('b', 'post', '/org/departments').send({ name: 'B-Dept' }),
+  );
+  ids.fileB = (
+    await made(
+      await call('b', 'post', '/files?name=b.pdf')
+        .set('Content-Type', 'application/pdf')
+        .send(pdf),
+    )
+  ).id;
+  const meta = (await call('b', 'get', `/files/${ids.fileB}`)).body;
+  bSigned = new URL(meta.downloadUrl, 'http://x').search;
+});
+
+afterAll(async () => {
+  for (const s of ['xt-a', 'xt-b']) await deleteTenantData(prisma, s);
+  await app.close();
+});
+
+/** "METHOD /pattern" for every route the app registers, found from the controllers' metadata. */
+function discoverRoutes(): string[] {
+  const names = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+  const out: string[] = [];
+  for (const w of app.get(DiscoveryService).getControllers()) {
+    const c = w.metatype as unknown as { prototype: Record<string, unknown> };
+    const base = String(Reflect.getMetadata('path', c) ?? '');
+    for (const name of Object.getOwnPropertyNames(c.prototype)) {
+      const fn = c.prototype[name];
+      if (typeof fn !== 'function') continue;
+      const method = Reflect.getMetadata('method', fn) as number | undefined;
+      if (method === undefined) continue;
+      const path = String(Reflect.getMetadata('path', fn) ?? '');
+      const full = `/${base}/${path}`.replace(/\/+/g, '/').replace(/\/$/, '');
+      out.push(`${names[method]} ${full}`);
+    }
+  }
+  return out.sort();
+}
+
+/**
+ * Routes that need no cross-tenant probe, each with the reason. Anything else must have a probe below.
+ */
+const NO_TENANT_DATA: Record<string, string> = {
+  'GET /health': 'public status, no data',
+  'GET /public/company/:slug':
+    'public: name and colour of a company, by its address',
+  'POST /public/find-company':
+    'public: emails the sign-in link to the address owner, always 202',
+  'POST /auth/login': 'pre-login',
+  'POST /auth/google': 'pre-login',
+  'POST /auth/refresh': 'own refresh token',
+  'POST /auth/forgot-password': 'pre-login',
+  'POST /auth/reset-password': 'own one-time token',
+  'POST /auth/recovery/email': 'pre-login',
+  'POST /auth/recovery/email/verify': 'pre-login',
+  'POST /auth/mfa/verify': 'own challenge token',
+  'POST /auth/mfa/setup': 'own challenge token',
+  'POST /auth/mfa/confirm': 'own challenge token',
+  'POST /auth/mfa/recovery/email': 'own challenge token',
+  'POST /auth/mfa/recovery/email/verify': 'own challenge token',
+  'GET /auth/me': 'the caller only',
+  'POST /auth/logout': "the caller's own session",
+  'POST /auth/logout-all': 'the caller only',
+  'PUT /settings/me/:key': "the caller's own preference",
+};
+const PLATFORM_PREFIX = '/platform';
+
+type Probe = {
+  /** Sends the request as company B, aimed at A's data. */
+  send: () => request.Test;
+  /** refuse: must fail with 400-404. contained: must not touch A or show A's data, any status below 500. */
+  mode: 'refuse' | 'contained';
+};
+const as = (
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+  path: string,
+) => call('b', method, path);
+
+const PROBES = (): Record<string, Probe> => ({
+  'GET /access/roles': {
+    mode: 'contained',
+    send: () => as('get', '/access/roles'),
+  },
+  'GET /access/policies': {
+    mode: 'contained',
+    send: () => as('get', '/access/policies'),
+  },
+  'GET /access/users/:userId/roles': {
+    mode: 'contained',
+    send: () => as('get', `/access/users/${ids.userA}/roles`),
+  },
+  'POST /access/roles': {
+    mode: 'contained',
+    send: () => as('post', '/access/roles').send({ name: 'Probe B Role' }),
+  },
+  'POST /access/user-roles': {
+    mode: 'refuse',
+    send: () =>
+      as('post', '/access/user-roles').send({
+        userId: ids.userA,
+        roleKey: 'tenant_admin',
+      }),
+  },
+  'DELETE /access/user-roles': {
+    mode: 'contained',
+    send: () =>
+      as('delete', '/access/user-roles').send({
+        userId: ids.userA,
+        roleKey: 'employee',
+      }),
+  },
+  'PUT /access/policies/:roleKey': {
+    mode: 'contained',
+    send: () =>
+      as('put', `/access/policies/${ids.roleKeyA}`).send({
+        mfaLevel: 'REQUIRED',
+      }),
+  },
+  'GET /audit': {
+    mode: 'contained',
+    send: () => as('get', `/audit?entityId=${ids.engA}`),
+  },
+  'GET /audit/verify': {
+    mode: 'contained',
+    send: () => as('get', '/audit/verify'),
+  },
+  'GET /notifications': {
+    mode: 'contained',
+    send: () => as('get', '/notifications'),
+  },
+  'GET /settings': { mode: 'contained', send: () => as('get', '/settings') },
+  'PUT /settings/tenant/:key': {
+    mode: 'contained',
+    send: () =>
+      as('put', '/settings/tenant/branding.accentColor').send({
+        value: '#00ff00',
+      }),
+  },
+  'DELETE /settings/tenant/:key': {
+    mode: 'contained',
+    send: () => as('delete', '/settings/tenant/branding.accentColor'),
+  },
+  'PUT /settings/entity/:entityId/:key': {
+    mode: 'refuse',
+    send: () =>
+      as('put', `/settings/entity/${ids.entityA}/branding.accentColor`).send({
+        value: '#00ff00',
+      }),
+  },
+  'GET /org/entities': {
+    mode: 'contained',
+    send: () => as('get', '/org/entities'),
+  },
+  'GET /org/:kind': {
+    mode: 'contained',
+    send: () => as('get', '/org/departments'),
+  },
+  'POST /org/:kind': {
+    mode: 'contained',
+    send: () => as('post', '/org/departments').send({ name: 'B-Dept-2' }),
+  },
+  'PATCH /org/:kind/:id': {
+    mode: 'refuse',
+    send: () =>
+      as('patch', `/org/departments/${ids.deptA}`).send({ name: 'Hijacked' }),
+  },
+  'DELETE /org/:kind/:id': {
+    mode: 'refuse',
+    send: () => as('delete', `/org/locations/${ids.locA}`),
+  },
+  'GET /people': {
+    mode: 'contained',
+    send: () => as('get', '/people?pageSize=100'),
+  },
+  'GET /people/:id': {
+    mode: 'refuse',
+    send: () => as('get', `/people/${ids.engA}`),
+  },
+  'PATCH /people/:id': {
+    mode: 'refuse',
+    send: () =>
+      as('patch', `/people/${ids.engA}`).send({
+        person: { firstName: 'Hijacked' },
+      }),
+  },
+  'POST /people/:id/invite': {
+    mode: 'refuse',
+    send: () => as('post', `/people/${ids.engA}/invite`),
+  },
+  'POST /people': {
+    mode: 'refuse',
+    send: () =>
+      as('post', '/people').send({
+        person: { firstName: 'Mallory', lastName: 'B' },
+        engagement: {
+          entityId: ids.entityA,
+          type: 'EMPLOYEE',
+          employeeCode: 'B-X-1',
+          startDate: '2026-01-05',
+        },
+      }),
+  },
+  'POST /people/import': {
+    mode: 'contained',
+    send: () =>
+      as('post', '/people/import?dryRun=false&createMissing=true')
+        .set('Content-Type', 'text/csv')
+        .send(
+          `employee_code,first_name,last_name,type,start_date,work_email,department,designation,location,manager_code,college,course,graduation_year,entity\n${A_SECRETS.code},Hijacked,Person,employee,2026-01-05,,Finance,,,,,,,HQ`,
+        ),
+  },
+  'POST /files': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/files?name=b2.pdf&ownerType=person&ownerId=${ids.personA}`)
+        .set('Content-Type', 'application/pdf')
+        .send(pdf),
+  },
+  'GET /files/:id': {
+    mode: 'refuse',
+    send: () => as('get', `/files/${ids.fileA}`),
+  },
+  'DELETE /files/:id': {
+    mode: 'refuse',
+    send: () => as('delete', `/files/${ids.fileA}`),
+  },
+  // Public by design (a signed link), so the check is that B's valid signature does not open A's file.
+  'GET /files/:id/content': {
+    mode: 'refuse',
+    send: () => call(null, 'get', `/files/${ids.fileA}/content${bSigned}`),
+  },
+});
+
+describe('every endpoint, as another company', () => {
+  it('has a cross-tenant check or a written reason for each route', () => {
+    const probes = PROBES();
+    const unclassified = discoverRoutes().filter(
+      (r) =>
+        !(r in probes) &&
+        !(r in NO_TENANT_DATA) &&
+        !r.split(' ')[1]!.startsWith(PLATFORM_PREFIX),
+    );
+    expect(
+      unclassified,
+      'Add a probe to PROBES (or a reason to NO_TENANT_DATA) for these new routes',
+    ).toEqual([]);
+    // and nothing in the tables is stale
+    const real = new Set(discoverRoutes());
+    const stale = [
+      ...Object.keys(probes),
+      ...Object.keys(NO_TENANT_DATA),
+    ].filter((r) => !real.has(r));
+    expect(stale, 'These entries no longer match a route').toEqual([]);
+  });
+
+  it('refuses or ignores every tenant route aimed at company A, and shows B none of A', async () => {
+    const before = await snapshotA();
+    const failures: string[] = [];
+    for (const [route, probe] of Object.entries(PROBES())) {
+      const res = await probe.send();
+      const leaked = leaks(res);
+      if (res.status >= 500)
+        failures.push(`${route}: server error ${res.status}`);
+      if (probe.mode === 'refuse' && !(res.status >= 400 && res.status <= 404))
+        failures.push(`${route}: expected a refusal, got ${res.status}`);
+      if (leaked.length)
+        failures.push(
+          `${route}: answer contains A's data (${leaked.join(', ')})`,
+        );
+    }
+    expect(failures).toEqual([]);
+    expect(await snapshotA()).toBe(before);
+  });
+
+  it('attaches a file only to a record of its own company', async () => {
+    const up = (q: string) =>
+      call('a', 'post', `/files?name=o.pdf${q}`)
+        .set('Content-Type', 'application/pdf')
+        .send(pdf);
+    await up(`&ownerType=person&ownerId=${ids.personA}`).expect(201);
+    await up(`&ownerType=engagement&ownerId=${ids.engA}`).expect(201);
+    await up('&ownerType=person&ownerId=does-not-exist').expect(400);
+    await up(`&ownerType=letter&ownerId=${ids.personA}`).expect(400);
+    await up(`&ownerId=${ids.personA}`).expect(400);
+    await up(`&ownerType=person`).expect(400);
+  });
+
+  it('keeps every platform (super admin) route closed to a company token', async () => {
+    const platform = discoverRoutes()
+      .map((r) => r.split(' ') as [string, string])
+      .filter(
+        ([, p]) =>
+          p.startsWith(PLATFORM_PREFIX) && !p.startsWith('/platform/auth'),
+      );
+    expect(platform.length).toBeGreaterThan(8);
+    const wrong: string[] = [];
+    for (const [method, pattern] of platform) {
+      const path = pattern
+        .replace(':id', ids.tenantA)
+        .replace(':key', 'security.sessionDays')
+        .replace(':roleKey', 'employee');
+      const res = await call('b', method.toLowerCase() as 'get', path).send({});
+      if (res.status !== 401 && res.status !== 403)
+        wrong.push(`${method} ${pattern}: ${res.status}`);
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('does not let A be read or changed with no token at all', async () => {
+    for (const [method, path] of [
+      ['get', `/people/${ids.engA}`],
+      ['patch', `/people/${ids.engA}`],
+      ['get', `/files/${ids.fileA}`],
+      ['get', '/audit'],
+      ['get', '/org/departments'],
+    ] as const)
+      expect(
+        (await call(null, method, path).send({})).status,
+        `${method} ${path}`,
+      ).toBe(401);
+  });
+});

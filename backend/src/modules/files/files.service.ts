@@ -47,6 +47,34 @@ export class FilesService {
     private readonly settings: SettingsService,
   ) {}
 
+  /**
+   * A file may be attached to one record of this company (`ownerType` + `ownerId` together). The
+   * record must exist in the caller's own company, so a file can never point at someone else's data.
+   */
+  private async assertOwner(
+    tenantId: string,
+    ownerType?: string,
+    ownerId?: string,
+  ): Promise<void> {
+    if (!ownerType && !ownerId) return;
+    if (!ownerType || !ownerId)
+      throw new BadRequestException('Send ownerType and ownerId together');
+    const found = await runInTenant(tenantId, async () => {
+      if (ownerType === 'person')
+        return await this.prisma.db.person.findUnique({
+          where: { id: ownerId },
+          select: { id: true },
+        });
+      if (ownerType === 'engagement')
+        return await this.prisma.db.engagement.findUnique({
+          where: { id: ownerId },
+          select: { id: true },
+        });
+      throw new BadRequestException('ownerType must be person or engagement');
+    });
+    if (!found) throw new BadRequestException('That owner does not exist');
+  }
+
   async upload(
     a: { tenantId: string; userId: string },
     input: {
@@ -75,6 +103,7 @@ export class FilesService {
         'The file content does not match its type',
       );
     }
+    await this.assertOwner(a.tenantId, input.ownerType, input.ownerId);
     const id = randomUUID();
     const year = new Date().getUTCFullYear();
     const storageKey = `${a.tenantId}/${year}/${id}`;

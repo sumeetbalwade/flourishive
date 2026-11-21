@@ -1,6 +1,6 @@
 # Phase 1 — Minimal, tenant-aware core
 
-**Status:** In progress (PR 10 of 10 in review: admin screens; Phase 1 build complete pending review and the exit checks with real data) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
+**Status:** Build complete and merged (PRs 1 to 10, then the Phase 1b plan changes: per-role two-step and recovery, platform settings, company addresses, app shell, configurable name and domain). Only the exit checks that need real data remain (see Exit criteria) · **Depends on:** Phase 0 · **Unlocks:** Phase 2
 
 ## Goal
 
@@ -26,7 +26,8 @@ The smallest platform core that signing needs, built on the final data model: Fl
 - [x] `people`: persons, engagements, intern details; CSV import with validation and a dry-run preview
 - [x] `files`, `audit` (hash-chained, append-only), `notifications` (email templates per event)
 - [x] `platform-admin`: super admin users kept apart from tenant users (own tables and token audience, MFA always; tenants, staff and settings API)
-- [x] Redis-backed rate limits and lockouts on login and MFA
+- [x] Redis-backed rate limits and lockouts on login and MFA (the lockout threshold is a setting)
+- [x] Nightly audit integrity check: `cli.js verify-audit` (cron, see `docs/runbooks/scheduled-jobs.md`); emails platform admins if any hash chain is broken
 
 ### Frontend
 - [x] `packages/schemas` (shared Zod, used by the API and the clients) and `packages/api-client` (typed fetch client with token refresh; hand-written on the shared schemas instead of generated, because the controllers use Zod pipes and have no DTO classes for an OpenAPI generator to read)
@@ -34,8 +35,8 @@ The smallest platform core that signing needs, built on the final data model: Fl
 - [x] **admin:** login with forced MFA, tenants (list, create, suspend, per-tenant setting overrides, audit integrity), platform users (invite, disable), platform defaults
 
 ### Quality
-- [~] Cross-tenant test harness: model-level suite done (every scoped model, schema guard); the per-endpoint version arrives with the first endpoints. Every endpoint is called as tenant B against tenant A's data and must fail
-- [~] Seed scripts (tenants and entities done; people with PR 5) with fake tenants, entities and people for local and staging
+- [x] Cross-tenant test harness: the model-level suite (every scoped model, schema guard) and the per-endpoint suite (`backend/test/cross-tenant-endpoints.e2e-spec.ts`): every route the app exposes must be classified, each tenant route is called as company B with company A's ids and must be refused or change nothing, nothing of A may appear in B's answers, A's data is compared before and after, and company tokens are refused on every platform route. A new route that nobody classified fails the suite
+- [x] Seed scripts: Flourisense, a fake Demo Co with 12 invented people (8 employees, 4 interns, reporting lines, departments, locations), dev admins; safe to re-run
 
 ## Data introduced
 
@@ -46,6 +47,8 @@ The smallest platform core that signing needs, built on the final data model: Fl
 D-03, D-05, D-15, D-16, D-17, D-19, D-30, D-32, plus plan §5 and §8
 
 ## Exit criteria
+
+Status: 3 and 4 are met in code and tests. 1 and 2 are built and tested and wait for real inputs (Google client id, real users, the employee spreadsheet).
 
 1. The HR lead and HR staff log in with MFA, and Google sign-in works.
 2. Current interns and employees are imported from CSV.
