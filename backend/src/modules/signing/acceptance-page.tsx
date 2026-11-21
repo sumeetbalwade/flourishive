@@ -34,7 +34,7 @@ export async function renderAcceptancePage(e: Evidence): Promise<Buffer> {
   const font = registerFonts();
   const s = StyleSheet.create({
     page: { fontFamily: font, fontSize: 10.5, padding: 56, lineHeight: 1.5 },
-    h1: { fontSize: 18, marginBottom: 4 },
+    h1: { fontSize: 18, marginBottom: 8 },
     sub: { color: '#555', marginBottom: 20 },
     row: {
       flexDirection: 'row',
@@ -52,7 +52,10 @@ export async function renderAcceptancePage(e: Evidence): Promise<Buffer> {
     ['Time', `${ist(e.acceptedAt)} (${e.acceptedAt.toISOString()})`],
     ['IP address', e.ip],
     ['Device', e.userAgent],
-    ['Document fingerprint (SHA-256)', e.documentSha256],
+    [
+      'Document fingerprint (SHA-256)',
+      `${e.documentSha256.slice(0, 32)}\n${e.documentSha256.slice(32)}`,
+    ],
     ['Record id', e.requestId],
   ];
   return renderToBuffer(
