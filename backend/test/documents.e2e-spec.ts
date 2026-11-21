@@ -124,6 +124,26 @@ describe('documents foundations', () => {
       .expect(201);
   });
 
+  it('converts a PNG letterhead to PDF and records the stamp position', async () => {
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    const res = await call(
+      'post',
+      `/documents/letterheads?entityId=${entityId}&name=Image&stampLeft=105&stampBottom=30`,
+    )
+      .set('Content-Type', 'image/png')
+      .send(png)
+      .expect(201);
+    expect(res.body.stampLeft).toBe(105);
+    expect(res.body.stampBottom).toBe(30);
+    await call('post', `/documents/letterheads?entityId=${entityId}&name=Bad`)
+      .set('Content-Type', 'image/png')
+      .send(Buffer.from('not a png'))
+      .expect(400);
+  });
+
   it('validates numbering formats and the template wording', async () => {
     await call('put', '/documents/numbering')
       .send({ entityId, letterType: 'OFFER', format: 'NOSEQ' })

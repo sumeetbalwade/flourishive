@@ -34,6 +34,9 @@ model Letterhead {
   marginBottom Int             @default(90)
   marginLeft   Int             @default(60)
   marginRight  Int             @default(60)
+  /// Where the reference and QR stamp sits: points from the left edge (null = right-aligned) and from the bottom.
+  stampLeft    Int?
+  stampBottom  Int             @default(22)
   createdBy    String?         @db.Char(36)
   createdAt    DateTime        @default(now()) @db.DateTime(3)
 

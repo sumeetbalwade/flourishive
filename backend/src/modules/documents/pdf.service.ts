@@ -28,6 +28,8 @@ export class PdfService {
     reference: string;
     verifyUrl: string;
     margins: Margins;
+    /** Points from the left edge (omit to right-align) and from the bottom. */
+    stamp?: { left?: number | null; bottom?: number };
   }): Promise<{ bytes: Buffer; pageCount: number }> {
     const out = await PDFDocument.create();
     // A blank stationery page has no content stream, which pdf-lib cannot embed; give it an empty one.
@@ -55,17 +57,49 @@ export class PdfService {
       page.drawPage(lh!, { x: 0, y: 0, width: bp.width, height: bp.height });
       page.drawPage(bp, { x: 0, y: 0 });
       const size = 36;
-      const x = bp.width - input.margins.right - size;
-      page.drawImage(qr, { x, y: 22, width: size, height: size });
-      const label = `${input.reference}  |  Page ${i + 1} of ${total}  |  Verify: scan the code`;
-      const w = font.widthOfTextAtSize(label, 7);
-      page.drawText(label, {
-        x: x - 8 - w,
-        y: 36,
-        size: 7,
-        font,
-        color: rgb(0.35, 0.35, 0.35),
-      });
+      const bottom = input.stamp?.bottom ?? 22;
+      const left = input.stamp?.left;
+      const grey = rgb(0.35, 0.35, 0.35);
+      const l1 = input.reference;
+      const l2 = `Page ${i + 1} of ${total}  |  Scan to verify`;
+      if (left == null) {
+        const x = bp.width - input.margins.right - size;
+        page.drawImage(qr, { x, y: bottom, width: size, height: size });
+        const w = Math.max(
+          font.widthOfTextAtSize(l1, 7),
+          font.widthOfTextAtSize(l2, 7),
+        );
+        page.drawText(l1, {
+          x: x - 8 - w,
+          y: bottom + 22,
+          size: 7,
+          font,
+          color: grey,
+        });
+        page.drawText(l2, {
+          x: x - 8 - w,
+          y: bottom + 10,
+          size: 7,
+          font,
+          color: grey,
+        });
+      } else {
+        page.drawImage(qr, { x: left, y: bottom, width: size, height: size });
+        page.drawText(l1, {
+          x: left + size + 8,
+          y: bottom + 22,
+          size: 7,
+          font,
+          color: grey,
+        });
+        page.drawText(l2, {
+          x: left + size + 8,
+          y: bottom + 10,
+          size: 7,
+          font,
+          color: grey,
+        });
+      }
     });
     out.setTitle(input.reference);
     out.setProducer('Flourishive');

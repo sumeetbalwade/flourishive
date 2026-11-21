@@ -1,5 +1,28 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PDFDocument } from 'pdf-lib';
+
+const A4 = { w: 595.28, h: 841.89 };
+
+/** Turns a PNG or JPG letterhead into a one-page A4 PDF, scaled to cover the page. */
+export async function imageToPdf(
+  body: Buffer,
+  mime: string,
+  orientation: 'PORTRAIT' | 'LANDSCAPE',
+): Promise<Buffer> {
+  const [w, h] = orientation === 'LANDSCAPE' ? [A4.h, A4.w] : [A4.w, A4.h];
+  const pdf = await PDFDocument.create();
+  const img =
+    mime === 'image/png' ? await pdf.embedPng(body) : await pdf.embedJpg(body);
+  const scale = Math.max(w / img.width, h / img.height);
+  const page = pdf.addPage([w, h]);
+  page.drawImage(img, {
+    x: (w - img.width * scale) / 2,
+    y: h - img.height * scale,
+    width: img.width * scale,
+    height: img.height * scale,
+  });
+  return Buffer.from(await pdf.save());
+}
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
 import { FilesService } from '../files/files.service.js';
@@ -42,6 +65,7 @@ export class LetterheadsService {
     a: { tenantId: string; userId: string },
     input: {
       body: Buffer;
+      mimeType?: string;
       entityId: string;
       name: string;
       orientation: 'PORTRAIT' | 'LANDSCAPE';
@@ -49,8 +73,21 @@ export class LetterheadsService {
       marginBottom?: number;
       marginLeft?: number;
       marginRight?: number;
+      stampLeft?: number;
+      stampBottom?: number;
     },
   ) {
+    if (input.mimeType === 'image/png' || input.mimeType === 'image/jpeg') {
+      try {
+        input.body = await imageToPdf(
+          input.body,
+          input.mimeType,
+          input.orientation,
+        );
+      } catch {
+        throw new BadRequestException('That image could not be read');
+      }
+    }
     if (input.body.subarray(0, 5).toString('latin1') !== '%PDF-')
       throw new BadRequestException('The letterhead must be a PDF');
     let size: { width: number; height: number };
@@ -85,6 +122,8 @@ export class LetterheadsService {
       'marginBottom',
       'marginLeft',
       'marginRight',
+      'stampLeft',
+      'stampBottom',
     ] as const)
       if (input[k] !== undefined) margins[k] = input[k];
     return runInTenant(a.tenantId, async () => {

@@ -51,7 +51,7 @@ export class DocumentsController {
     return this.letterheads.list(a.tenantId);
   }
 
-  /** Body is the letterhead PDF itself. */
+  /** Body is the letterhead itself: a PDF, or a PNG/JPG that is converted to an A4 PDF. */
   @Post('letterheads')
   @RequirePermission('documents.manage')
   addLetterhead(
@@ -60,11 +60,12 @@ export class DocumentsController {
     @Headers('content-type') contentType: string | undefined,
     @Body() body: unknown,
   ) {
-    if ((contentType ?? '').split(';')[0]!.trim() !== 'application/pdf')
-      throw new UnsupportedMediaTypeException('Send a PDF');
+    const mimeType = (contentType ?? '').split(';')[0]!.trim();
+    if (!['application/pdf', 'image/png', 'image/jpeg'].includes(mimeType))
+      throw new UnsupportedMediaTypeException('Send a PDF, PNG or JPG');
     if (!Buffer.isBuffer(body) || body.length === 0)
       throw new BadRequestException('Send the PDF as the request body');
-    return this.letterheads.add(a, { body, ...q });
+    return this.letterheads.add(a, { body, mimeType, ...q });
   }
 
   @Get('numbering')

@@ -22,6 +22,8 @@ export const letterheadQuery = z.object({
   marginBottom: z.coerce.number().int().min(0).max(400).optional(),
   marginLeft: z.coerce.number().int().min(0).max(300).optional(),
   marginRight: z.coerce.number().int().min(0).max(300).optional(),
+  stampLeft: z.coerce.number().int().min(0).max(800).optional(),
+  stampBottom: z.coerce.number().int().min(0).max(400).optional(),
 });
 
 /** Reference format tokens: {YYYY}, {YY} and {SEQ:n} (n digits, zero padded). */

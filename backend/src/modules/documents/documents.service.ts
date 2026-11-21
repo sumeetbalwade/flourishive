@@ -121,6 +121,7 @@ export class DocumentsService {
       reference,
       verifyUrl: `${this.config.VERIFY_URL.replace(/\/$/, '')}/d/${verifyToken}`,
       margins,
+      stamp: { left: lh.stampLeft, bottom: lh.stampBottom },
     });
     const file = await this.files.storeTrusted(a, {
       body: bytes,
