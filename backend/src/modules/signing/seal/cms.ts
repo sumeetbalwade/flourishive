@@ -17,7 +17,9 @@ export interface SealKey {
 export class SealSigner extends Signer {
   constructor(
     private readonly key: SealKey,
-    private readonly tsaUrl?: string,
+    /** A time-stamp server address, or a function that returns the time-stamp token for a signature. */
+    private readonly timestamper?:
+      string | ((signature: Buffer) => Promise<forge.asn1.Asn1>),
   ) {
     super();
   }
@@ -41,7 +43,7 @@ export class SealSigner extends Signer {
       ],
     });
     p7.sign({ detached: true });
-    if (!this.tsaUrl)
+    if (!this.timestamper)
       return Buffer.from(asn1.toDer(p7.toAsn1()).getBytes(), 'binary');
 
     const signature = Buffer.from(
@@ -49,7 +51,10 @@ export class SealSigner extends Signer {
         .signature,
       'binary',
     );
-    const token = await requestTimestamp(this.tsaUrl, signature);
+    const token =
+      typeof this.timestamper === 'string'
+        ? await requestTimestamp(this.timestamper, signature)
+        : await this.timestamper(signature);
     const root = p7.toAsn1();
     // ContentInfo > [0] > SignedData > signerInfos (last child) > SignerInfo
     const signedData = (

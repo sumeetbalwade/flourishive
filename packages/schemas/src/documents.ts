@@ -100,13 +100,24 @@ export const verifyResult = z.object({
   issuedOn: z.string(),
   stage: z.string(),
   acceptance: z.object({ method: z.string(), at: z.string(), sealed: z.boolean() }).nullable(),
+  /** The authorised signatory's digital signature, once the certificate signature is in. */
+  signature: z
+    .object({
+      signer: z.string(),
+      organisation: z.string().nullable(),
+      issuer: z.string(),
+      at: z.string(),
+    })
+    .nullable(),
+  /** Signed during development with the relaxed certificate check; never genuine. */
+  test: z.boolean(),
   /** Only on a look-up by reference: lets the page offer the file comparison. */
   token: z.string().optional(),
 });
 export type VerifyResult = z.infer<typeof verifyResult>;
 
 export const compareResult = z.object({
-  matches: z.enum(['original', 'accepted-copy', 'different']),
+  matches: z.enum(['original', 'accepted-copy', 'signed-copy', 'different']),
   fingerprint: z.string(),
   reference: z.string(),
   seal: z
@@ -114,6 +125,7 @@ export const compareResult = z.object({
       intact: z.boolean(),
       coversWholeFile: z.boolean(),
       sealedByUs: z.boolean(),
+      laterSignatures: z.number(),
       timestamp: z.object({ time: z.string(), matchesSignature: z.boolean() }).nullable(),
       reason: z.string().optional(),
     })

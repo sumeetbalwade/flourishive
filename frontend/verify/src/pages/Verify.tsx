@@ -98,7 +98,10 @@ export function Verify({ token }: { token: string }) {
     <div className="grid gap-5">
       <Card className="grid justify-items-center gap-4 p-8 text-center">
         <SigningAnimation state={head.state} size={104} />
-        <h1 className="font-display text-3xl">{head.title}</h1>
+        <h1 className="font-display text-3xl">{r.test ? 'Test document' : head.title}</h1>
+        {r.test ? (
+          <Badge tone="warning">Signed during testing. Not a genuine issued document.</Badge>
+        ) : null}
         <p className="text-sm text-muted">{head.line}</p>
         <dl className="grid w-full grid-cols-[auto_1fr] gap-x-6 gap-y-3 rounded-md border border-line p-5 text-left text-sm">
           <dt className="text-muted">Reference</dt>
@@ -111,6 +114,20 @@ export function Verify({ token }: { token: string }) {
           <dd>{date(r.issuedOn)}</dd>
           <dt className="text-muted">Status</dt>
           <dd>{STAGE[r.stage] ?? r.stage}</dd>
+          <dt className="text-muted">Signed by</dt>
+          <dd>
+            {r.signature ? (
+              <span>
+                {r.signature.signer}
+                {r.signature.organisation ? `, ${r.signature.organisation}` : ''}
+                <span className="block text-xs text-muted">
+                  {date(r.signature.at)} · certificate from {r.signature.issuer}
+                </span>
+              </span>
+            ) : (
+              <span className="text-muted">Not yet signed</span>
+            )}
+          </dd>
           <dt className="text-muted">Acceptance</dt>
           <dd className="flex flex-wrap items-center gap-2">
             {r.acceptance ? (
@@ -193,11 +210,13 @@ function CompareOutcome({ r }: { r: CompareResult }) {
       className={`grid gap-2 rounded-md border p-4 text-sm ${same ? 'border-success bg-success-lo' : 'border-danger bg-danger-lo'}`}
     >
       <p className="font-medium">
-        {r.matches === 'accepted-copy'
-          ? 'Identical to the accepted copy. Nothing has been changed.'
-          : r.matches === 'original'
-            ? 'Identical to the issued document, before acceptance.'
-            : 'This file does not match the issued document.'}
+        {r.matches === 'signed-copy'
+          ? 'Identical to the signed document. Nothing has been changed.'
+          : r.matches === 'accepted-copy'
+            ? 'Identical to the accepted copy. Nothing has been changed.'
+            : r.matches === 'original'
+              ? 'Identical to the issued document, before acceptance.'
+              : 'This file does not match the issued document.'}
       </p>
       {notes.map((n) => (
         <p key={n}>{n}</p>

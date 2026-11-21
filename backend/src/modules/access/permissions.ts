@@ -21,6 +21,8 @@ export const PERMISSIONS = {
   'documents.manage': 'Manage letterheads, numbering and templates',
   'documents.generate': 'Generate documents from templates',
   'documents.approve': 'Approve documents or ask for changes',
+  'documents.sign':
+    'Sign documents with a digital signature certificate (the authorised signatory)',
 } as const;
 
 export type PermissionCode = keyof typeof PERMISSIONS;
@@ -68,6 +70,7 @@ export const SYSTEM_ROLES: SystemRole[] = [
       'documents.manage',
       'documents.generate',
       'documents.approve',
+      'documents.sign',
     ],
   },
   {

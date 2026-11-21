@@ -71,6 +71,17 @@ export class SigningService {
     return this.settings.get('branding.emailSenderName', { tenantId });
   }
 
+  async record(
+    tenantId: string,
+    requestId: string,
+    type: string,
+    c: ClientInfo = {},
+    partyId?: string,
+    meta?: object,
+  ) {
+    return this.event(tenantId, requestId, type, c, partyId, meta);
+  }
+
   private async event(
     tenantId: string,
     requestId: string,
@@ -122,6 +133,46 @@ export class SigningService {
     return doc;
   }
 
+  /**
+   * Starts any new request: one open request at a time, and only an approved document (moves it
+   * to "signing" and freezes it) or one already in "signing" between steps. Returns the document
+   * and the newest file, which is the one the next person must see or sign: the sealed accepted
+   * copy once someone has accepted, otherwise the generated file.
+   */
+  async beginRequest(a: Actor, documentId: string) {
+    const doc = await this.docFor(a, documentId, 'documents.generate');
+    const open = await runInTenant(a.tenantId, async () =>
+      this.prisma.db.signatureRequest.count({
+        where: { documentId, status: 'PENDING' },
+      }),
+    );
+    if (open)
+      throw new ConflictException(
+        'There is already an open request for this document',
+      );
+    const { state } = await this.workflow.history(a.tenantId, {
+      type: 'document',
+      id: documentId,
+    });
+    if (state === 'approved')
+      await this.workflow.act(
+        a,
+        { type: 'document', id: documentId },
+        'start_signing',
+        { asSystem: true },
+      );
+    else if (state !== 'signing')
+      throw new ConflictException('The document must be approved first');
+    const last = await runInTenant(a.tenantId, async () =>
+      this.prisma.db.signatureRequest.findFirst({
+        where: { documentId, status: 'COMPLETED' },
+        orderBy: { completedAt: 'desc' },
+      }),
+    );
+    const fileId = last?.signedFileId ?? last?.sealedFileId ?? doc.fileId;
+    return { doc, file: await this.files.get(a.tenantId, fileId) };
+  }
+
   /** Asks a person to accept an approved document by email code. Moves the document to "signing". */
   async requestOtp(
     a: Actor,
@@ -133,24 +184,14 @@ export class SigningService {
       finalStep: boolean;
     },
   ) {
-    const doc = await this.docFor(a, documentId, 'documents.generate');
-    const open = await runInTenant(a.tenantId, async () =>
+    const { doc, file } = await this.beginRequest(a, documentId);
+    const accepted = await runInTenant(a.tenantId, async () =>
       this.prisma.db.signatureRequest.count({
-        where: { documentId, status: 'PENDING' },
+        where: { documentId, method: 'OTP', status: 'COMPLETED' },
       }),
     );
-    if (open)
-      throw new ConflictException(
-        'There is already an open request for this document',
-      );
-    // Only an approved document can go out; this also freezes it (no more revisions).
-    await this.workflow.act(
-      a,
-      { type: 'document', id: documentId },
-      'start_signing',
-      { asSystem: true },
-    );
-    const file = await this.files.get(a.tenantId, doc.fileId);
+    if (accepted)
+      throw new ConflictException('This document was already accepted');
     const token = randomBytes(32).toString('base64url');
     const req = await runInTenant(a.tenantId, async () =>
       this.prisma.db.signatureRequest.create({
@@ -161,6 +202,7 @@ export class SigningService {
           finalStep: b.finalStep,
           expiresAt: new Date(Date.now() + b.expiresInDays * 86_400_000),
           documentSha256: file.sha256,
+          inputFileId: file.id,
           createdBy: a.userId,
           parties: {
             create: {
@@ -366,7 +408,7 @@ export class SigningService {
     );
     const file = await this.files.get(
       tenantId,
-      request.sealedFileId ?? doc.fileId,
+      request.sealedFileId ?? request.inputFileId ?? doc.fileId,
     );
     return { file, stream: this.storage.read(file.storageKey) };
   }
@@ -436,7 +478,10 @@ export class SigningService {
         where: { id: request.documentId },
       }),
     );
-    const orig = await this.files.get(tenantId, doc.fileId);
+    const orig = await this.files.get(
+      tenantId,
+      request.inputFileId ?? doc.fileId,
+    );
     const original = await readAll(this.storage.read(orig.storageKey));
     if (sha256(original) !== request.documentSha256)
       throw new ConflictException(

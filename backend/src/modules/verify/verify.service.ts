@@ -69,18 +69,32 @@ export class VerifyService {
         select: { legalName: true },
       }),
     );
-    const accepted = await runInTenant(doc.tenantId, async () =>
-      this.prisma.db.signatureRequest.findFirst({
+    const done = await runInTenant(doc.tenantId, async () =>
+      this.prisma.db.signatureRequest.findMany({
         where: { documentId: doc.id, status: 'COMPLETED' },
         orderBy: { completedAt: 'desc' },
       }),
     );
+    const accepted = done.find((r) => r.method === 'OTP');
+    const signedReq = done.find((r) => r.method === 'DSC');
+    const signedEvent = signedReq
+      ? await runInTenant(doc.tenantId, async () =>
+          this.prisma.db.signatureEvent.findFirst({
+            where: { requestId: signedReq.id, type: 'signed' },
+          }),
+        )
+      : null;
+    const m = (signedEvent?.meta ?? {}) as {
+      signer?: string;
+      organisation?: string | null;
+      issuer?: string;
+    };
     const result =
       doc.status === 'REVOKED'
         ? 'revoked'
         : doc.status === 'SUPERSEDED'
           ? 'superseded'
-          : state === 'issued'
+          : state === 'issued' && !signedReq?.testSignature
             ? 'valid'
             : 'pending';
     return {
@@ -97,6 +111,17 @@ export class VerifyService {
             sealed: !!accepted.sealedFileId,
           }
         : null,
+      signature:
+        signedReq?.completedAt && signedEvent
+          ? {
+              signer: m.signer ?? 'Unknown',
+              organisation: m.organisation ?? null,
+              issuer: m.issuer ?? '',
+              at: signedReq.completedAt,
+            }
+          : null,
+      // A document signed with the relaxed development check is never presented as genuine.
+      test: !!signedReq?.testSignature,
     };
   }
 
@@ -154,15 +179,30 @@ export class VerifyService {
         orderBy: { completedAt: 'desc' },
       }),
     );
+    const signedReq = await runInTenant(doc.tenantId, async () =>
+      this.prisma.db.signatureRequest.findFirst({
+        where: {
+          documentId: doc.id,
+          status: 'COMPLETED',
+          signedFileId: { not: null },
+        },
+        orderBy: { completedAt: 'desc' },
+      }),
+    );
+    const signedFile = signedReq?.signedFileId
+      ? await this.files.get(doc.tenantId, signedReq.signedFileId)
+      : null;
     const sealed = sealedReq?.sealedFileId
       ? await this.files.get(doc.tenantId, sealedReq.sealedFileId)
       : null;
     const matches =
-      sha === sealed?.sha256
-        ? 'accepted-copy'
-        : sha === original.sha256
-          ? 'original'
-          : 'different';
+      sha === signedFile?.sha256
+        ? 'signed-copy'
+        : sha === sealed?.sha256
+          ? 'accepted-copy'
+          : sha === original.sha256
+            ? 'original'
+            : 'different';
     const hasSignature = pdf.includes(Buffer.from('/ByteRange'));
     return {
       matches,

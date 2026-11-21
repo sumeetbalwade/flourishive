@@ -61,6 +61,7 @@ const ids = {
   fileA: '',
   roleKeyA: '',
   fileB: '',
+  deviceA: '',
   templateA: '',
   docA: '',
 };
@@ -122,6 +123,7 @@ async function snapshotA(): Promise<string> {
     schemes: await prisma.db.numberingScheme.count(),
     flows: await prisma.db.workflowInstance.count(),
     sigRequests: await prisma.db.signatureRequest.count(),
+    devices: await prisma.db.desktopDevice.count(),
     flowActions: await prisma.db.workflowAction.count(),
     counters: await prisma.db.numberingCounter.count(),
   }));
@@ -136,6 +138,7 @@ async function snapshotA(): Promise<string> {
     userRoles: await get(`/access/users/${ids.userA}/roles`),
     settings: await get('/settings'),
     file: (await call('a', 'get', `/files/${ids.fileA}`)).body.id,
+    devices: await get('/desktop/devices'),
     documents: await get('/documents?pageSize=100'),
     templates: await get('/documents/templates'),
     numbering: await get('/documents/numbering'),
@@ -155,6 +158,7 @@ const markers = () =>
     ids.personA,
     ids.userA,
     ids.fileA,
+    ids.deviceA,
     ids.templateA,
     ids.docA,
   ].filter(Boolean);
@@ -295,6 +299,18 @@ beforeAll(async () => {
       }),
     )
   ).id;
+  const pairing = await made(await call('a', 'post', '/desktop/pairing-code'));
+  const paired = await request(app.getHttpServer())
+    .post('/v1/desktop/pair')
+    .set('X-Forwarded-For', '10.6.9.9')
+    .send({
+      code: pairing.code,
+      name: 'A-Secret-PC',
+      platform: 'windows',
+      appVersion: '1.0',
+    })
+    .expect(201);
+  ids.deviceA = paired.body.deviceId;
   ids.roleKeyA = (
     await made(
       await call('a', 'post', '/access/roles').send({ name: A_SECRETS.role }),
@@ -367,6 +383,22 @@ const NO_TENANT_DATA: Record<string, string> = {
     'public by design: the QR token identifies one issued document, no personal data',
   'POST /public/verify/:token/compare':
     'public by design: compares an uploaded file with one issued document',
+  'POST /desktop/pair':
+    'public by design: the one-time pairing code is the credential and names the tenant',
+  'GET /desktop/me':
+    'the paired device credential is the credential; it only reaches its own tenant',
+  'GET /desktop/jobs':
+    "the paired device credential is the credential; lists only that person's jobs",
+  'POST /desktop/jobs/:id/claim':
+    "device credential; the job must belong to the device's own user",
+  'GET /desktop/jobs/:id/input':
+    'device credential; only a job held by this device',
+  'POST /desktop/jobs/:id/release':
+    'device credential; only a job held by this device',
+  'POST /desktop/jobs/:id/fail':
+    'device credential; only a job held by this device',
+  'PUT /desktop/jobs/:id/signed':
+    'device credential; only a job held by this device',
   'GET /public/seal-certificate':
     'public certificate of the organisation seal, no tenant data',
   'GET /public/company/:slug':
@@ -624,6 +656,18 @@ const PROBES = (): Record<string, Probe> => ({
       ).send({
         reason: 'x',
       }),
+  },
+  'POST /desktop/pairing-code': {
+    mode: 'contained',
+    send: () => as('post', '/desktop/pairing-code'),
+  },
+  'GET /desktop/devices': {
+    mode: 'contained',
+    send: () => as('get', '/desktop/devices'),
+  },
+  'POST /desktop/devices/:id/revoke': {
+    mode: 'refuse',
+    send: () => as('post', `/desktop/devices/${ids.deviceA}/revoke`),
   },
   'POST /documents/:id/actions': {
     mode: 'refuse',

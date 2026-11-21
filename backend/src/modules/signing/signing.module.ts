@@ -9,6 +9,12 @@ import {
   AcceptanceController,
   SigningStaffController,
 } from './signing.controller.js';
+import { DscJobsService } from './dsc-jobs.service.js';
+import {
+  DscValidator,
+  OcspRevocationChecker,
+  RevocationChecker,
+} from './dsc/dsc-validator.js';
 import { SigningService } from './signing.service.js';
 
 @Module({
@@ -20,7 +26,13 @@ import { SigningService } from './signing.service.js';
     WorkflowModule,
   ],
   controllers: [SigningStaffController, AcceptanceController],
-  providers: [SigningService, SealService],
-  exports: [SigningService, SealService],
+  providers: [
+    SigningService,
+    SealService,
+    DscJobsService,
+    DscValidator,
+    { provide: RevocationChecker, useClass: OcspRevocationChecker },
+  ],
+  exports: [SigningService, SealService, DscJobsService],
 })
 export class SigningModule {}

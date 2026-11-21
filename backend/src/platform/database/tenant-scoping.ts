@@ -38,6 +38,7 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'SignatureRequest',
   'SignatureParty',
   'SignatureEvent',
+  'DesktopDevice',
 ]);
 
 /** The tenants table itself is scoped by its own id. */

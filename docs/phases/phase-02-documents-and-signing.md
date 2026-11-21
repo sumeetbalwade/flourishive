@@ -25,9 +25,9 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 - [ ] Signature requests with ordered parties; enforce the ordering rule (content changes before the first cryptographic signature) _(OTP request, one party, and the freeze on content at "signing" are done in PR 3; multiple ordered parties arrive with the DSC step)_
 - [x] **OTP e-acceptance:** email OTP, evidence (name, email, time, IP, user agent, document hash), acceptance certificate page, then the Flourishive organisation seal (D-25)
 - [ ] **Aadhaar eSign:** provider adapter; request → redirect → callback → signed PDF stored (provider chosen per D-28)
-- [ ] **DSC:** desktop pairing (D-24), signing-job API, upload of the signed PDF, validation in Node before acceptance (D-31)
+- [x] **DSC (server side, PR 5):** desktop pairing (D-24, D-45), signing-job API (D-46), upload of the signed PDF, validation in Node before acceptance (D-31, D-48). The desktop app itself is PR 6. See docs/runbooks/dsc-validation.md
 - [ ] Revocation and supersede, with the reason recorded
-- [ ] Dev-only setting `ALLOW_EXPIRED_SIGNER_CERT` (D-38): accepts signatures from the expired DSC; off by default; documents signed this way are labelled TEST
+- [x] Dev-only setting `ALLOW_EXPIRED_SIGNER_CERT` (D-38): accepts signatures from the expired DSC; off by default; documents signed this way are labelled TEST
 
 ### Flourishive Desktop v1 (`desktop/`, D-11, D-12)
 - [ ] PySide6 UI: sign in by pairing, signing queue, PIN entry, progress, history
@@ -66,6 +66,7 @@ D-10, D-11, D-12, D-13, D-14, D-24, D-25, D-28, D-31, D-33, D-35
 - [ ] A test with an expired certificate is rejected by the server
 - [ ] All documents signed during development deleted or marked TEST; none sent to real candidates
 - [ ] Adobe Reader shows a valid signature with a timestamp on a real letter
+- [ ] CCA root and issuing CA certificates installed in `TRUSTED_ROOTS_DIR` (fingerprints checked against the CCA website), time-stamp authority in `TRUSTED_TSA_DIR` (docs/runbooks/dsc-validation.md)
 - [ ] Seal key stored as a server secret (never in the repo); seal certificate published for Flourisense machines to trust
 
 ## Exit criteria
@@ -100,5 +101,12 @@ D-10, D-11, D-12, D-13, D-14, D-24, D-25, D-28, D-31, D-33, D-35
 - **D-44 Aadhaar eSign:** adapter with a mock provider only; real provider chosen later.
 - **Letters:** all four types (offer, experience, reference, internship certificate) with bulk issue.
 
+## Decisions approved 2026-11-21 for PR 5-6 (D-45..D-48)
+
+- **D-45 Pairing:** the HR lead clicks "Pair a device" in the web app and gets a one-time code (10 minutes) plus a `flourishive://` link. The desktop app swaps the code for a **signing-only credential** that can be revoked per device. No password typed into the desktop app.
+- **D-46 Job delivery:** the desktop app polls every 30 seconds while open; the web "Sign now" button also opens the app by link so it checks at once. No WebSocket or server push (poor fit for shared cPanel).
+- **D-47 Seal and DSC together:** the candidate's acceptance is sealed straight away; the HR lead's DSC is added afterwards as an incremental update on top. Both signatures stay valid; the verifier treats a later signature as legitimate.
+- **D-48 DSC validation:** strict and fail closed. The upload must extend the exact file we sent, the certificate must be valid at signing time (CA timestamp required), chain to a trusted Indian licensed CA (CCA root certificates shipped), and pass an OCSP revocation check; if revocation cannot be reached the upload is held, never accepted blindly. `ALLOW_EXPIRED_SIGNER_CERT` (D-38) relaxes only the dates, is development only, labels the document TEST, and is removed before go-live.
+
 ## Open items
-- How the signing animation is built on each surface (options to be presented before the desktop UI work starts)
+- How the signing animation is built on each surface (options to be presented before the desktop UI work starts, PR 6)

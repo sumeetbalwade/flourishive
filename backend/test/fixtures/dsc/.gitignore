@@ -1,0 +1,5 @@
+# Only the keys the tests read stay in git (seal.key, inter.key). The others exist just to regenerate
+# the signed PDFs with generate.py and are not needed to run the tests.
+*.key
+!seal.key
+!inter.key

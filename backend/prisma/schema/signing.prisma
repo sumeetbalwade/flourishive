@@ -20,21 +20,30 @@ enum SignaturePartyStatus {
 
 /// One ask for a signature or acceptance on a document.
 model SignatureRequest {
-  id             String                 @id @default(uuid(7)) @db.Char(36)
-  tenantId       String                 @db.Char(36)
-  documentId     String                 @db.Char(36)
-  method         SignatureMethod
-  status         SignatureRequestStatus @default(PENDING)
+  id                String                 @id @default(uuid(7)) @db.Char(36)
+  tenantId          String                 @db.Char(36)
+  documentId        String                 @db.Char(36)
+  method            SignatureMethod
+  status            SignatureRequestStatus @default(PENDING)
   /// When true, completing this request issues the document (no later signature follows).
-  finalStep      Boolean                @default(false)
-  expiresAt      DateTime               @db.DateTime(3)
+  finalStep         Boolean                @default(false)
+  expiresAt         DateTime               @db.DateTime(3)
   /// The PDF after acceptance: original pages, an acceptance record page, and the organisation seal.
-  sealedFileId   String?                @db.Char(36)
+  sealedFileId      String?                @db.Char(36)
+  /// DSC jobs: the file the desktop app must sign (the newest file at the time of the request).
+  inputFileId       String?                @db.Char(36)
+  /// DSC jobs: the signed file once validated and accepted.
+  signedFileId      String?                @db.Char(36)
+  /// DSC jobs: the desktop device working on it, and until when it holds the job.
+  claimedByDeviceId String?                @db.Char(36)
+  claimExpiresAt    DateTime?              @db.DateTime(3)
+  /// Signed during development with the relaxed certificate check; shown as TEST everywhere.
+  testSignature     Boolean                @default(false)
   /// Hash of the document the party was shown, fixed when the request is made.
-  documentSha256 String                 @db.Char(64)
-  createdBy      String?                @db.Char(36)
-  createdAt      DateTime               @default(now()) @db.DateTime(3)
-  completedAt    DateTime?              @db.DateTime(3)
+  documentSha256    String                 @db.Char(64)
+  createdBy         String?                @db.Char(36)
+  createdAt         DateTime               @default(now()) @db.DateTime(3)
+  completedAt       DateTime?              @db.DateTime(3)
 
   tenant  Tenant           @relation(fields: [tenantId], references: [id])
   parties SignatureParty[]
@@ -50,6 +59,8 @@ model SignatureParty {
   requestId   String               @db.Char(36)
   /// Order in which parties sign (1 = first).
   position    Int                  @default(1)
+  /// DSC: the user who must sign (the authorised signatory).
+  userId      String?              @db.Char(36)
   name        String               @db.VarChar(191)
   email       String               @db.VarChar(191)
   /// SHA-256 of the private link token. The token itself is only ever in the email.

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CacheModule } from './platform/cache/cache.module.js';
 import { ConfigModule } from './platform/config/config.module.js';
+import { DesktopModule } from './modules/desktop/desktop.module.js';
 import { VerifyModule } from './modules/verify/verify.module.js';
 import { SigningModule } from './modules/signing/signing.module.js';
 import { DocumentsModule } from './modules/documents/documents.module.js';
@@ -43,6 +44,7 @@ import { StorageModule } from './platform/storage/storage.module.js';
     DocumentsModule,
     SigningModule,
     VerifyModule,
+    DesktopModule,
   ],
   controllers: [HealthController],
 })
