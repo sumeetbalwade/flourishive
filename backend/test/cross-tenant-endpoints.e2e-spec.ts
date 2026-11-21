@@ -361,6 +361,12 @@ const NO_TENANT_DATA: Record<string, string> = {
     'the private link token plus a one-time code',
   'POST /public/accept/:token/decline':
     'the private link token is the credential',
+  'GET /public/verify/lookup':
+    'public by design: confirms a document exists for a company and reference, no personal data',
+  'GET /public/verify/:token':
+    'public by design: the QR token identifies one issued document, no personal data',
+  'POST /public/verify/:token/compare':
+    'public by design: compares an uploaded file with one issued document',
   'GET /public/seal-certificate':
     'public certificate of the organisation seal, no tenant data',
   'GET /public/company/:slug':
