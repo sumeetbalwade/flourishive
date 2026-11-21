@@ -169,7 +169,7 @@ export class PlatformAuthService {
     const code = await this.otp.issue('platform-mfa', user.id, 600);
     await this.mail.send({
       to: user.email,
-      subject: `Your Flourishive admin code: ${code}`,
+      subject: `Your ${this.config.APP_NAME} admin code: ${code}`,
       text: `Your one-time code is ${code}. It works once and expires in 10 minutes.\n\nIf you did not ask for it, change your password now.`,
     });
   }
@@ -439,12 +439,12 @@ export class PlatformAuthService {
       { userId: user.id },
       7 * 24 * 3600,
     );
-    const link = `${this.config.WEB_URL.replace(/:5173$/, ':5174')}/#/set-password?token=${token}`;
+    const link = `${this.config.ADMIN_URL}/#/set-password?token=${token}`;
     let emailed = true;
     try {
       await this.mail.send({
         to: address,
-        subject: 'You have been invited to the Flourishive admin console',
+        subject: `You have been invited to the ${this.config.APP_NAME} admin console`,
         text: `Choose a password (link valid for 7 days):\n\n${link}`,
       });
     } catch {

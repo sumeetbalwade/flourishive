@@ -1,4 +1,5 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { JobHandlerRegistry } from '../../platform/queue/job-handlers.js';
 import { JobRecordsService } from '../../platform/queue/job-records.service.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
@@ -33,6 +34,7 @@ export class NotificationsService implements OnModuleInit {
     private readonly settings: SettingsService,
     private readonly jobs: JobRecordsService,
     private readonly registry: JobHandlerRegistry,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   onModuleInit(): void {
@@ -48,11 +50,11 @@ export class NotificationsService implements OnModuleInit {
     vars: TemplateVars<E>,
   ) {
     const email = (
-      TEMPLATES[event] as (v: TemplateVars<E>) => {
+      TEMPLATES[event] as (v: TemplateVars<E> & { app: string }) => {
         subject: string;
         text: string;
       }
-    )(vars);
+    )({ ...vars, app: this.config.APP_NAME });
     const row = await runInTenant(tenantId, async () =>
       this.prisma.db.notification.create({
         data: {

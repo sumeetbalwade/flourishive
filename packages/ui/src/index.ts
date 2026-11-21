@@ -31,3 +31,4 @@ export {
   type SettingItem,
   type SettingChange,
 } from './components/settings-editor.tsx';
+export { brand, brandSlug, loadBrand, type Brand } from './brand.ts';

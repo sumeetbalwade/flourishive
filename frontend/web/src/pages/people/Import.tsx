@@ -4,12 +4,13 @@ import {
   Button,
   Card,
   CardTitle,
-  Table,
   TBody,
   TD,
   TH,
   THead,
   TR,
+  Table,
+  brandSlug,
   useToast,
 } from '@flourishive/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -122,7 +123,7 @@ export function ImportPeople() {
             </Button>
             <Button
               variant="secondary"
-              onClick={() => download('flourishive-people-sample.csv', SAMPLE)}
+              onClick={() => download(`${brandSlug()}-people-sample.csv`, SAMPLE)}
             >
               Download a sample
             </Button>

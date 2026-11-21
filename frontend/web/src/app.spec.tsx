@@ -1,4 +1,5 @@
 import { ApiError } from '@flourishive/api-client';
+import { brand } from '@flourishive/ui';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -219,6 +220,21 @@ describe('administration', () => {
     await screen.findByText('Access');
     await user.click(await screen.findByRole('button', { name: 'Remove Employee' }));
     expect(client.access.remove).toHaveBeenCalledWith('u9', 'employee', undefined);
+  });
+});
+
+describe('product name', () => {
+  it('shows the configured name and tagline on sign-in and in the app', async () => {
+    const saved = { ...brand };
+    Object.assign(brand, { appName: 'Acme HR', tagline: 'People, simply.' });
+    try {
+      open('#/login');
+      expect(await screen.findByText('Acme HR')).toBeInTheDocument();
+      expect(screen.getByText('People, simply.')).toBeInTheDocument();
+      expect(screen.queryByText('Flourishive')).not.toBeInTheDocument();
+    } finally {
+      Object.assign(brand, saved);
+    }
   });
 });
 

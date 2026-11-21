@@ -1,5 +1,5 @@
 import type { LoginResponse } from '@flourishive/schemas';
-import { Button, Card, Field, Input } from '@flourishive/ui';
+import { Button, Card, Field, Input, brand } from '@flourishive/ui';
 import { useMemo, useState } from 'react';
 import { Frame } from '../../components/Frame.tsx';
 import { GoogleButton } from '../../components/GoogleButton.tsx';
@@ -23,7 +23,7 @@ export function Login() {
   const [step, setStep] = useState<Step>({ kind: 'credentials' });
   const detected = useMemo(detectHere, []);
   const [tenant, setTenant] = useState(detected.slug);
-  // On <company>.flourishive.in the company is known, so nobody types a code.
+  // On a company's own address (<company>.<your domain>) the company is known, so nobody types a code.
   const fixed = detected.source === 'address';
   const company = useCompany(detected.slug);
   const [error, setError] = useState('');
@@ -87,7 +87,7 @@ export function Login() {
             <RecoveryCodes
               codes={step.codes}
               onDone={() => void finish()}
-              doneLabel="Continue to Flourishive"
+              doneLabel={`Continue to ${brand.appName}`}
             />
           </div>
         </Card>

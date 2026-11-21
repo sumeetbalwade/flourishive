@@ -23,9 +23,9 @@ const EXACT: Record<string, string> = {
   'PUT /v1/settings/me/:key': 'Changed a personal preference',
   'POST /v1/files': 'Uploaded a file',
   'DELETE /v1/files/:id': 'Deleted a file',
-  'platform.tenant_created': 'Company set up by Flourishive',
-  'platform.tenant_updated': 'Company updated by Flourishive',
-  'platform.tenant_setting_changed': 'Setting changed by Flourishive',
+  'platform.tenant_created': 'Company set up by the platform team',
+  'platform.tenant_updated': 'Company updated by the platform team',
+  'platform.tenant_setting_changed': 'Setting changed by the platform team',
 };
 
 export function describeAction(action: string): string {

@@ -56,7 +56,7 @@ export class CompanyService {
     );
     await this.mail.send({
       to: email,
-      subject: 'Your Flourishive sign-in address',
+      subject: `Your ${this.config.APP_NAME} sign-in address`,
       text: `Sign in at your company's address:\n\n${lines.join('\n')}\n\nIf you did not ask for this, you can ignore this email.`,
     });
   }

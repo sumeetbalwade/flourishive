@@ -1,7 +1,7 @@
-import { Badge, Button, SigningAnimation, type SigningState } from '@flourishive/ui';
+import { Badge, Button, SigningAnimation, brand, type SigningState } from '@flourishive/ui';
 import { useState } from 'react';
 
-/** Mock of the Flourishive Desktop window (Windows/macOS), used to approve its look. */
+/** Mock of the desktop app window (Windows/macOS), used to approve its look. */
 export default function Desktop() {
   const [state, setState] = useState<SigningState>('waiting');
   const [page, setPage] = useState(2);
@@ -19,7 +19,7 @@ export default function Desktop() {
           <span className="h-3 w-3 rounded-pill bg-danger/70" />
           <span className="h-3 w-3 rounded-pill bg-warning/70" />
           <span className="h-3 w-3 rounded-pill bg-success/70" />
-          <span className="ml-3">Flourishive Desktop</span>
+          <span className="ml-3">{brand.appName} Desktop</span>
           <Badge tone="success" className="ml-auto">
             Connected
           </Badge>

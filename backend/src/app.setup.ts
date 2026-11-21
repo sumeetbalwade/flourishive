@@ -6,6 +6,7 @@ import {
   cloudflareMatcher,
   visitorIp,
 } from './platform/http/cloudflare.js';
+import { corsOrigins } from './platform/config/config.js';
 import { originMatcher } from './modules/company/tenant-host.js';
 
 /**
@@ -18,7 +19,7 @@ export function configureApp(app: INestApplication): void {
 
   // Only the known Flourishive frontends may call the API from a browser.
   // Mobile, desktop and external systems authenticate with tokens instead.
-  const origins = (process.env.CORS_ORIGINS ?? '')
+  const origins = corsOrigins(process.env.CORS_ORIGINS, process.env.APP_DOMAIN)
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);

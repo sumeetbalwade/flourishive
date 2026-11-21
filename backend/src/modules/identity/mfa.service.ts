@@ -1,3 +1,4 @@
+import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { generate, generateSecret, generateURI, verify } from 'otplib';
 import { randomBytes } from 'node:crypto';
@@ -6,7 +7,10 @@ import { sha256 } from './token.service.js';
 
 @Injectable()
 export class MfaService {
-  constructor(@Inject(CryptoService) private readonly crypto: CryptoService) {}
+  constructor(
+    @Inject(CryptoService) private readonly crypto: CryptoService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+  ) {}
 
   newSecret(): string {
     return generateSecret();
@@ -17,7 +21,7 @@ export class MfaService {
   }
 
   otpauthUri(secret: string, email: string): string {
-    return generateURI({ issuer: 'Flourishive', label: email, secret });
+    return generateURI({ issuer: this.config.APP_NAME, label: email, secret });
   }
 
   /** One step either side of now tolerates small clock drift. */

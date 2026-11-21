@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { RedisService } from '../../platform/cache/redis.service.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import {
@@ -12,6 +14,7 @@ import {
 import {
   SETTINGS,
   isSettingKey,
+  type SettingDefinition,
   type SettingKey,
   type SettingLevel,
   type SettingValueOf,
@@ -48,6 +51,7 @@ export class SettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   private async tenantRows(tenantId: string): Promise<Row[]> {
@@ -79,6 +83,13 @@ export class SettingsService {
     );
     await this.redis.setJson(PLATFORM_CACHE, map, TTL);
     return map;
+  }
+
+  /** The built-in value, which for a few settings follows the product name. */
+  defaultOf<K extends SettingKey>(key: K): SettingValueOf<K> {
+    const def = SETTINGS[key] as SettingDefinition;
+    return (def.defaultFrom?.({ appName: this.config.APP_NAME }) ??
+      def.default) as SettingValueOf<K>;
   }
 
   async get<K extends SettingKey>(
@@ -115,7 +126,7 @@ export class SettingsService {
       const parsed = def.schema.safeParse(c);
       if (parsed.success) return parsed.data as SettingValueOf<K>;
     }
-    return def.default as SettingValueOf<K>;
+    return this.defaultOf(key) as SettingValueOf<K>;
   }
 
   /** Every setting resolved for the caller, with where each value came from. */
@@ -222,7 +233,7 @@ export class SettingsService {
       const parsed = def.schema.safeParse(entry.value);
       if (parsed.success) return parsed.data as SettingValueOf<K>;
     }
-    return def.default as SettingValueOf<K>;
+    return this.defaultOf(key) as SettingValueOf<K>;
   }
 
   /** Platform defaults. `locked` stops tenants overriding; leaving it out keeps the current lock. */
@@ -236,7 +247,8 @@ export class SettingsService {
     if (locked && def.levels.length === 0)
       throw new BadRequestException('Platform-only settings cannot be locked');
     const current = (await this.platformValues())[key];
-    const raw = value === undefined ? (current?.value ?? def.default) : value;
+    const raw =
+      value === undefined ? (current?.value ?? this.defaultOf(key)) : value;
     const parsed = def.schema.safeParse(raw);
     if (!parsed.success)
       throw new BadRequestException(parsed.error.issues.map((i) => i.message));
