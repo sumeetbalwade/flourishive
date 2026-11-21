@@ -1,0 +1,85 @@
+enum SignatureMethod {
+  OTP
+  DSC
+  AADHAAR
+}
+
+enum SignatureRequestStatus {
+  PENDING
+  COMPLETED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+enum SignaturePartyStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+/// One ask for a signature or acceptance on a document.
+model SignatureRequest {
+  id             String                 @id @default(uuid(7)) @db.Char(36)
+  tenantId       String                 @db.Char(36)
+  documentId     String                 @db.Char(36)
+  method         SignatureMethod
+  status         SignatureRequestStatus @default(PENDING)
+  /// When true, completing this request issues the document (no later signature follows).
+  finalStep      Boolean                @default(false)
+  expiresAt      DateTime               @db.DateTime(3)
+  /// The PDF after acceptance: original pages, an acceptance record page, and the organisation seal.
+  sealedFileId   String?                @db.Char(36)
+  /// Hash of the document the party was shown, fixed when the request is made.
+  documentSha256 String                 @db.Char(64)
+  createdBy      String?                @db.Char(36)
+  createdAt      DateTime               @default(now()) @db.DateTime(3)
+  completedAt    DateTime?              @db.DateTime(3)
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id])
+  parties SignatureParty[]
+  events  SignatureEvent[]
+
+  @@index([tenantId, documentId])
+  @@map("signature_requests")
+}
+
+model SignatureParty {
+  id          String               @id @default(uuid(7)) @db.Char(36)
+  tenantId    String               @db.Char(36)
+  requestId   String               @db.Char(36)
+  /// Order in which parties sign (1 = first).
+  position    Int                  @default(1)
+  name        String               @db.VarChar(191)
+  email       String               @db.VarChar(191)
+  /// SHA-256 of the private link token. The token itself is only ever in the email.
+  tokenHash   String               @unique @db.Char(64)
+  status      SignaturePartyStatus @default(PENDING)
+  respondedAt DateTime?            @db.DateTime(3)
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id])
+  request SignatureRequest @relation(fields: [requestId], references: [id])
+
+  @@index([tenantId, requestId])
+  @@map("signature_parties")
+}
+
+/// Append-only evidence: what happened, when, from where. Rows are never changed.
+model SignatureEvent {
+  id        String   @id @default(uuid(7)) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  requestId String   @db.Char(36)
+  partyId   String?  @db.Char(36)
+  type      String   @db.VarChar(60)
+  ip        String?  @db.VarChar(64)
+  userAgent String?  @db.VarChar(255)
+  meta      Json?
+  createdAt DateTime @default(now()) @db.DateTime(3)
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id])
+  request SignatureRequest @relation(fields: [requestId], references: [id])
+
+  @@index([requestId, createdAt])
+  @@index([tenantId])
+  @@map("signature_events")
+}

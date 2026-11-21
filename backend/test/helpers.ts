@@ -10,6 +10,9 @@ export async function deleteTenantData(
     const tenant = await prisma.db.tenant.findUnique({ where: { slug } });
     if (!tenant) return;
     const where = { tenantId: tenant.id };
+    await prisma.db.signatureEvent.deleteMany({ where });
+    await prisma.db.signatureParty.deleteMany({ where });
+    await prisma.db.signatureRequest.deleteMany({ where });
     await prisma.db.workflowAction.deleteMany({ where });
     await prisma.db.workflowInstance.deleteMany({ where });
     await prisma.db.workflowDefinition.deleteMany({ where });

@@ -499,6 +499,65 @@ const fixtures: Record<string, Fixture> = {
     },
     change: { comment: 'hacked' },
   },
+  SignatureRequest: {
+    delegate: 'signatureRequest',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        documentId: crypto.randomUUID(),
+        method: 'OTP',
+        expiresAt: new Date(Date.now() + 86400000),
+        documentSha256: 'a'.repeat(64),
+      },
+    }),
+    change: { finalStep: true },
+  },
+  SignatureParty: {
+    delegate: 'signatureParty',
+    create: async (tenantId) => {
+      const r = await runAsSystem(
+        async () =>
+          await db.signatureRequest.create({
+            data: {
+              tenantId,
+              documentId: crypto.randomUUID(),
+              method: 'OTP',
+              expiresAt: new Date(Date.now() + 86400000),
+              documentSha256: 'a'.repeat(64),
+            },
+          }),
+      );
+      return {
+        data: {
+          tenantId,
+          requestId: r.id,
+          name: 'P',
+          email: 'p@x.test',
+          tokenHash: crypto.randomUUID().replaceAll('-', '').padEnd(64, '0'),
+        },
+      };
+    },
+    change: { name: 'hacked' },
+  },
+  SignatureEvent: {
+    delegate: 'signatureEvent',
+    create: async (tenantId) => {
+      const r = await runAsSystem(
+        async () =>
+          await db.signatureRequest.create({
+            data: {
+              tenantId,
+              documentId: crypto.randomUUID(),
+              method: 'OTP',
+              expiresAt: new Date(Date.now() + 86400000),
+              documentSha256: 'a'.repeat(64),
+            },
+          }),
+      );
+      return { data: { tenantId, requestId: r.id, type: 'created' } };
+    },
+    change: { type: 'hacked' },
+  },
   Notification: {
     delegate: 'notification',
     create: async (tenantId) => ({
