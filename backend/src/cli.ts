@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
+import { AuditWatchService } from './modules/platform-admin/audit-watch.service.js';
 import { PlatformAuthService } from './modules/platform-admin/platform-auth.service.js';
 import { JobHandlerRegistry } from './platform/queue/job-handlers.js';
 import { JobRecordsService } from './platform/queue/job-records.service.js';
@@ -9,6 +10,7 @@ import { QueueService } from './platform/queue/queue.service.js';
  * Command line entry point (run by cron or by an operator over SSH):
  *   node dist/cli.js worker [--max-seconds=55]
  *   node dist/cli.js create-platform-user --email=you@example.com
+ *   node dist/cli.js verify-audit            (nightly cron: re-checks every audit hash chain)
  */
 const arg = (args: string[], name: string) =>
   args
@@ -19,15 +21,34 @@ const arg = (args: string[], name: string) =>
 
 async function main() {
   const [command, ...args] = process.argv.slice(2);
-  if (command !== 'worker' && command !== 'create-platform-user') {
+  if (
+    command !== 'worker' &&
+    command !== 'create-platform-user' &&
+    command !== 'verify-audit'
+  ) {
     console.error(
-      'Usage: cli.js worker [--max-seconds=55] | create-platform-user --email=<address>',
+      'Usage: cli.js worker [--max-seconds=55] | create-platform-user --email=<address> | verify-audit',
     );
     process.exit(1);
   }
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn'],
   });
+
+  if (command === 'verify-audit') {
+    const r = await app.get(AuditWatchService).run();
+    console.log(
+      `Checked ${r.rowsChecked} audit rows across ${r.tenants} compan${r.tenants === 1 ? 'y' : 'ies'}: ${
+        r.broken.length === 0
+          ? 'all chains intact'
+          : `${r.broken.length} BROKEN`
+      }`,
+    );
+    for (const b of r.broken) console.error(`  ${b.slug}: ${b.reason}`);
+    await app.close();
+    // A non-zero exit lets cron report the failure as well as the email.
+    process.exit(r.broken.length === 0 ? 0 : 2);
+  }
 
   if (command === 'create-platform-user') {
     const email = arg(args, 'email');
