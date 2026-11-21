@@ -3,3 +3,7 @@
 *.key
 !seal.key
 !inter.key
+
+# The repository ignores *.pem everywhere else. These are throwaway PUBLIC test certificates the tests read.
+!*.pem
+!trust/*.pem
