@@ -35,6 +35,9 @@ model Tenant {
   workflowDefinitions WorkflowDefinition[]
   workflowInstances   WorkflowInstance[]
   workflowActions     WorkflowAction[]
+  signatureRequests   SignatureRequest[]
+  signatureParties    SignatureParty[]
+  signatureEvents     SignatureEvent[]
 
   @@map("tenants")
 }

@@ -53,6 +53,11 @@ const base = z.object({
   ADMIN_URL: z.string().optional(),
   // Where a document's QR code points (the public verify site).
   VERIFY_URL: z.string().optional(),
+  // The organisation seal (D-41): PEM key and certificate, base64 encoded. Development makes a temporary one.
+  SEAL_KEY_BASE64: z.string().optional(),
+  SEAL_CERT_BASE64: z.string().optional(),
+  // RFC 3161 time-stamp server for seals; leave out to seal without a time-stamp.
+  SEAL_TSA_URL: z.string().url().optional(),
 });
 
 /**

@@ -22,8 +22,8 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 - [x] Letters flow: draft → submitted → approved / changes requested → signing → issued _(signing and issued steps are system-only; wired up in PR 3-6)_
 
 ### Signing (`modules/signing`, plan §6)
-- [ ] Signature requests with ordered parties; enforce the ordering rule (content changes before the first cryptographic signature)
-- [ ] **OTP e-acceptance:** email OTP, evidence (name, email, time, IP, user agent, document hash), acceptance certificate page, then the Flourishive organisation seal (D-25)
+- [ ] Signature requests with ordered parties; enforce the ordering rule (content changes before the first cryptographic signature) _(OTP request, one party, and the freeze on content at "signing" are done in PR 3; multiple ordered parties arrive with the DSC step)_
+- [x] **OTP e-acceptance:** email OTP, evidence (name, email, time, IP, user agent, document hash), acceptance certificate page, then the Flourishive organisation seal (D-25)
 - [ ] **Aadhaar eSign:** provider adapter; request → redirect → callback → signed PDF stored (provider chosen per D-28)
 - [ ] **DSC:** desktop pairing (D-24), signing-job API, upload of the signed PDF, validation in Node before acceptance (D-31)
 - [ ] Revocation and supersede, with the reason recorded

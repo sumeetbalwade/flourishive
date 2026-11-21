@@ -35,6 +35,9 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'WorkflowDefinition',
   'WorkflowInstance',
   'WorkflowAction',
+  'SignatureRequest',
+  'SignatureParty',
+  'SignatureEvent',
 ]);
 
 /** The tenants table itself is scoped by its own id. */

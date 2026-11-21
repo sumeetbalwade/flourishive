@@ -121,6 +121,7 @@ async function snapshotA(): Promise<string> {
     letterheads: await prisma.db.letterhead.count(),
     schemes: await prisma.db.numberingScheme.count(),
     flows: await prisma.db.workflowInstance.count(),
+    sigRequests: await prisma.db.signatureRequest.count(),
     flowActions: await prisma.db.workflowAction.count(),
     counters: await prisma.db.numberingCounter.count(),
   }));
@@ -351,6 +352,17 @@ function discoverRoutes(): string[] {
  */
 const NO_TENANT_DATA: Record<string, string> = {
   'GET /health': 'public status, no data',
+  'GET /public/accept/:token':
+    'the private link token is the credential; it identifies one request',
+  'GET /public/accept/:token/document':
+    'the private link token is the credential',
+  'POST /public/accept/:token/code': 'the private link token is the credential',
+  'POST /public/accept/:token/confirm':
+    'the private link token plus a one-time code',
+  'POST /public/accept/:token/decline':
+    'the private link token is the credential',
+  'GET /public/seal-certificate':
+    'public certificate of the organisation seal, no tenant data',
   'GET /public/company/:slug':
     'public: name and colour of a company, by its address',
   'POST /public/find-company':
@@ -584,6 +596,28 @@ const PROBES = (): Record<string, Probe> => ({
   'GET /documents': {
     mode: 'contained',
     send: () => as('get', '/documents?pageSize=100'),
+  },
+  'POST /documents/:id/signature-requests': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/documents/${ids.docA}/signature-requests`).send({
+        name: 'X',
+        email: 'x@x.test',
+      }),
+  },
+  'GET /documents/:id/signature-requests': {
+    mode: 'refuse',
+    send: () => as('get', `/documents/${ids.docA}/signature-requests`),
+  },
+  'POST /documents/:id/signature-requests/:requestId/cancel': {
+    mode: 'refuse',
+    send: () =>
+      as(
+        'post',
+        `/documents/${ids.docA}/signature-requests/${ids.docA}/cancel`,
+      ).send({
+        reason: 'x',
+      }),
   },
   'POST /documents/:id/actions': {
     mode: 'refuse',
