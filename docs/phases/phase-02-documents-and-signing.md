@@ -9,13 +9,13 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 ## Work breakdown
 
 ### Document engine (`modules/documents`)
-- [ ] Letterheads per entity (portrait A4, landscape for certificates), versioned
-- [ ] Reference numbering per entity and letter type (for example `FS/INT/2026/0012`), configurable format, never reused
-- [ ] Templates, versioned; every document records the template version it used
+- [x] Letterheads per entity (portrait A4, landscape for certificates), versioned
+- [x] Reference numbering per entity and letter type (for example `FS/INT/2026/0012`), configurable format, never reused
+- [x] Templates, versioned; every document records the template version it used
 - [ ] **Path A, visual editor:** rich-text editor with `{{placeholders}}`, tables and a signature box, saved as JSON, rendered with pdfmake on the letterhead with pdf-lib (D-13)
-- [ ] **Path B, coded layouts:** React-PDF layouts registered in code, editable text fields only
+- [x] **Path B, coded layouts:** React-PDF layouts registered in code, editable text fields only
 - [ ] **Path C, uploads:** plain PDF straight to signing; fillable PDF with field-to-placeholder mapping, then flattened; DOCX with placeholder filling, then converted (D-14)
-- [ ] Generation and bulk generation as queue jobs; QR code and reference stamped on every page
+- [ ] Generation and bulk generation as queue jobs; QR code and reference stamped on every page _(single generation and the stamp are done in PR 1; bulk and queue jobs come in PR 7)_
 
 ### Workflow engine v1 (`modules/workflow`)
 - [ ] Definitions stored as data: states, transitions, who can act, reminders

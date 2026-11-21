@@ -17,6 +17,9 @@ export const PERMISSIONS = {
   'audit.read': 'View the audit log',
   'files.read': 'Download files',
   'files.write': 'Upload and delete files',
+  'documents.read': 'View issued documents and templates',
+  'documents.manage': 'Manage letterheads, numbering and templates',
+  'documents.generate': 'Generate documents from templates',
 } as const;
 
 export type PermissionCode = keyof typeof PERMISSIONS;
@@ -60,6 +63,9 @@ export const SYSTEM_ROLES: SystemRole[] = [
       'audit.read',
       'files.read',
       'files.write',
+      'documents.read',
+      'documents.manage',
+      'documents.generate',
     ],
   },
   {
@@ -75,6 +81,8 @@ export const SYSTEM_ROLES: SystemRole[] = [
       'org.read',
       'files.read',
       'files.write',
+      'documents.read',
+      'documents.generate',
     ],
   },
   {

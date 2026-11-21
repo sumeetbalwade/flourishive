@@ -131,6 +131,46 @@ export class FilesService {
     }
   }
 
+  /**
+   * Stores bytes the server itself produced or already validated (generated documents,
+   * letterheads). Skips the upload size setting and owner check, but still records the hash.
+   */
+  async storeTrusted(
+    a: { tenantId: string; userId?: string | null },
+    input: {
+      body: Buffer;
+      mimeType: string;
+      name: string;
+      ownerType: string;
+      ownerId?: string;
+    },
+  ) {
+    const id = randomUUID();
+    const storageKey = `${a.tenantId}/${new Date().getUTCFullYear()}/${id}`;
+    await this.storage.save(storageKey, Readable.from(input.body));
+    try {
+      return await runInTenant(a.tenantId, async () =>
+        this.prisma.db.file.create({
+          data: {
+            id,
+            tenantId: a.tenantId,
+            storageKey,
+            originalName: safeFileName(input.name),
+            mimeType: input.mimeType,
+            sizeBytes: input.body.length,
+            sha256: createHash('sha256').update(input.body).digest('hex'),
+            uploadedBy: a.userId ?? null,
+            ownerType: input.ownerType,
+            ownerId: input.ownerId ?? null,
+          },
+        }),
+      );
+    } catch (e) {
+      await this.storage.remove(storageKey);
+      throw e;
+    }
+  }
+
   async get(tenantId: string, id: string) {
     const file = await runInTenant(
       tenantId,

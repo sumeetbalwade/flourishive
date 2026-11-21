@@ -51,6 +51,8 @@ const base = z.object({
   // Used to build password-reset links.
   WEB_URL: z.string().optional(),
   ADMIN_URL: z.string().optional(),
+  // Where a document's QR code points (the public verify site).
+  VERIFY_URL: z.string().optional(),
 });
 
 /**
@@ -67,6 +69,8 @@ export function withDerivedDefaults<T extends z.infer<typeof base>>(c: T) {
     WEB_URL: c.WEB_URL ?? (d ? `https://app.${d}` : 'http://localhost:5173'),
     ADMIN_URL:
       c.ADMIN_URL ?? (d ? `https://admin.${d}` : 'http://localhost:5174'),
+    VERIFY_URL:
+      c.VERIFY_URL ?? (d ? `https://verify.${d}` : 'http://localhost:5175'),
     MAIL_FROM: c.MAIL_FROM ?? `${c.APP_NAME} <no-reply@${d ?? 'localhost'}>`,
     CORS_ORIGINS: corsOrigins(c.CORS_ORIGINS, d),
   };
