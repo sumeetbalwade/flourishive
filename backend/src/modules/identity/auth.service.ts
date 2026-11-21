@@ -472,7 +472,7 @@ export class AuthService {
     const code = await this.otp.issue(purpose, user.id, minutes * 60);
     await this.mail.send({
       to: user.email,
-      subject: `Your Flourishive code: ${code}`,
+      subject: `Your ${this.config.APP_NAME} code: ${code}`,
       text: `Your one-time code is ${code}. It works once and expires in ${minutes} minutes.\n\nIf you did not ask for it, ignore this email and consider changing your password.`,
       fromName: await this.settings.get('branding.emailSenderName', {
         tenantId: user.tenantId,

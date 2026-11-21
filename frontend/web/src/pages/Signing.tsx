@@ -4,8 +4,9 @@ import {
   Card,
   CardTitle,
   SigningAnimation,
-  useToast,
+  brand,
   type SigningState,
+  useToast,
 } from '@flourishive/ui';
 import { MonitorSmartphone } from 'lucide-react';
 import { useState } from 'react';
@@ -51,7 +52,7 @@ export function Signing() {
       <Card className="mb-5 flex items-center gap-4 p-5">
         <MonitorSmartphone className="text-accent" />
         <div className="text-sm">
-          <div className="font-medium">Flourishive Desktop connected</div>
+          <div className="font-medium">{brand.appName} Desktop connected</div>
           <div className="text-muted">
             mToken CryptoID detected. You will be asked for the token PIN once per batch.
           </div>

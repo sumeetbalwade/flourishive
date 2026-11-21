@@ -1,7 +1,7 @@
 # Runbook: Cloudflare DNS, wildcard HTTPS and company addresses
 
-Decision (19 Nov 2026): DNS and HTTPS for `flourishive.in` go through Cloudflare's free plan, with the
-Cloudflare proxy in front of the cPanel host. Each company signs in at `<slug>.flourishive.in`.
+Decision (19 Nov 2026): DNS and HTTPS for the product's domain (`flourishive.in` today) go through Cloudflare's free plan, with the
+Cloudflare proxy in front of the cPanel host. Each company signs in at `<slug>.<your domain>`.
 
 You do the steps in Cloudflare and cPanel; the app side is already in the code (`TRUST_CLOUDFLARE`,
 `TENANT_URL_TEMPLATE`, wildcard CORS). Menu names below are from memory: if one differs, look for the
@@ -62,17 +62,26 @@ Cloudflare does not cache API JSON by default. Add one **Cache Rule**: hostname 
 pages after a deploy.
 
 ## 6. App settings on the server
-Set these environment variables for the API (cPanel → Setup Node.js App):
+The product name and website are settings, not code (see `docs/runbooks/rename-or-move-the-product.md`).
+Set these environment variables for the API (cPanel → Setup Node.js App). `<your domain>` is
+`flourishive.in` today:
 
 ```
-TENANT_URL_TEMPLATE=https://{slug}.flourishive.in
-CORS_ORIGINS=https://app.flourishive.in,https://admin.flourishive.in,https://*.flourishive.in
+APP_NAME=Flourishive
+APP_DOMAIN=<your domain>
 TRUST_CLOUDFLARE=true
 COOKIE_SECURE=true
-WEB_URL=https://app.flourishive.in
 ```
 
-Build the web app with `VITE_TENANT_DOMAIN=flourishive.in` and `VITE_API_URL=https://api.flourishive.in`.
+From `APP_DOMAIN` the API builds the company address (`https://{slug}.<your domain>`), the app, admin
+and verify addresses, the allowed browser origins and the mail sender. Set `TENANT_URL_TEMPLATE`,
+`WEB_URL`, `ADMIN_URL`, `CORS_ORIGINS` or `MAIL_FROM` only if you need something different.
+
+Each frontend reads `brand.json` (a file next to its `index.html`) at start-up:
+
+```json
+{ "appName": "Flourishive", "tenantDomain": "<your domain>", "apiUrl": "https://api.<your domain>" }
+```
 
 `TRUST_CLOUDFLARE=true` makes sign-in lockouts and rate limits count each real visitor. Without it every
 visitor looks like one Cloudflare address. The app only believes the visitor header when the connection

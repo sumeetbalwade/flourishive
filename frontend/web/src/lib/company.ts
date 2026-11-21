@@ -1,10 +1,8 @@
 import { RESERVED_SLUGS } from '@flourishive/schemas';
+import { brand } from '@flourishive/ui';
 import { useEffect, useState } from 'react';
 import type { CompanyPublic } from '@flourishive/schemas';
 import { useApi, remember } from './api.tsx';
-
-/** The domain companies live under, e.g. flourishive.in (companies are <slug>.flourishive.in). */
-export const TENANT_DOMAIN: string = import.meta.env.VITE_TENANT_DOMAIN ?? 'localhost';
 
 export type CompanySource = 'address' | 'link' | 'remembered' | 'none';
 export interface DetectedCompany {
@@ -15,7 +13,7 @@ export interface DetectedCompany {
 const SLUG = /^[a-z0-9][a-z0-9-]*$/;
 
 /**
- * Which company is this? In order: the address (acme.flourishive.in), a ?tenant= link,
+ * Which company is this? In order: the address (<slug>.<your domain>), a ?tenant= link,
  * then the last company used on this device. Pure, so it can be tested without a browser.
  */
 export function detectCompany(input: {
@@ -47,7 +45,7 @@ export const detectHere = (): DetectedCompany =>
     search: location.search,
     hash: location.hash,
     saved: remember.get('fh.tenant'),
-    domain: TENANT_DOMAIN,
+    domain: brand.tenantDomain,
   });
 
 export type CompanyState =

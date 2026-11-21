@@ -1,4 +1,4 @@
-import { AppShell, type NavItem } from '@flourishive/ui';
+import { AppShell, brand, type NavItem } from '@flourishive/ui';
 import { Building2, Settings, ShieldCheck, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAuth } from '../lib/auth.tsx';
@@ -25,7 +25,11 @@ export function Layout({
   const auth = useAuth();
   return (
     <AppShell
-      brand={<span className="font-display text-2xl text-accent-hi">F</span>}
+      brand={
+        <span className="font-display text-2xl text-accent-hi" title={brand.appName}>
+          {brand.appName.charAt(0).toUpperCase()}
+        </span>
+      }
       nav={NAV}
       active={active}
       onNavigate={(id) => go(`/${id}`)}

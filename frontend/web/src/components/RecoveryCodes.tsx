@@ -1,4 +1,4 @@
-import { Button } from '@flourishive/ui';
+import { Button, brand, brandSlug } from '@flourishive/ui';
 
 /** Shown once after MFA is switched on. The codes are never retrievable again. */
 export function RecoveryCodes({
@@ -38,9 +38,9 @@ export function RecoveryCodes({
           onClick={() => {
             const a = document.createElement('a');
             a.href = URL.createObjectURL(
-              new Blob([`Flourishive recovery codes\n\n${text}\n`], { type: 'text/plain' }),
+              new Blob([`${brand.appName} recovery codes\n\n${text}\n`], { type: 'text/plain' }),
             );
-            a.download = 'flourishive-recovery-codes.txt';
+            a.download = `${brandSlug()}-recovery-codes.txt`;
             a.click();
             URL.revokeObjectURL(a.href);
           }}

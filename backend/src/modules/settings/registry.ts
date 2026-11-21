@@ -5,6 +5,8 @@ export type SettingLevel = 'user' | 'entity' | 'tenant';
 export interface SettingDefinition<T = unknown> {
   schema: z.ZodType<T>;
   default: T;
+  /** When the built-in value depends on the product name (set by APP_NAME). */
+  defaultFrom?: (brand: { appName: string }) => T;
   /** Levels at which the value may be overridden (platform default is always possible; empty means platform-only). */
   levels: SettingLevel[];
   description: string;
@@ -38,6 +40,7 @@ export const SETTINGS = {
   'branding.emailSenderName': def({
     schema: z.string().min(1).max(80),
     default: 'Flourishive',
+    defaultFrom: (b) => b.appName,
     levels: ['tenant', 'entity'],
     label: 'Email sender name',
     group: 'Branding',

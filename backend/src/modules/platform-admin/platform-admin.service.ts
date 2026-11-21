@@ -2,6 +2,7 @@ import { createTenantBody } from '@flourishive/schemas';
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import {
 import { AccessService } from '../access/access.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AuthService } from '../identity/auth.service.js';
+import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { SETTINGS, shapeOf, type SettingKey } from '../settings/registry.js';
 import {
   RolePolicyService,
@@ -42,6 +44,7 @@ export class PlatformAdminService {
     private readonly audit: PlatformAuditService,
     private readonly tenantAudit: AuditService,
     private readonly platformAuth: PlatformAuthService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   private get db() {
@@ -116,6 +119,16 @@ export class PlatformAdminService {
     body: z.infer<typeof createTenantBody>,
     ip?: string,
   ) {
+    // The product's own name is kept for the platform, whatever it is called today.
+    const brandSlug = this.config.APP_NAME.toLowerCase().replace(
+      /[^a-z0-9]+/g,
+      '-',
+    );
+    if (
+      body.slug === brandSlug ||
+      body.slug === this.config.APP_DOMAIN?.split('.')[0]
+    )
+      throw new BadRequestException('That name is reserved');
     const { tenant, userId } = await runAsSystem(async () => {
       try {
         return await this.db.$transaction(async (tx) => {
@@ -265,7 +278,7 @@ export class PlatformAdminService {
       group: d.group,
       ...shapeOf(key as SettingKey),
       levels: d.levels,
-      default: d.default,
+      default: this.settings.defaultOf(key as SettingKey),
       platformValue: stored[key]?.value ?? null,
       locked: stored[key]?.locked ?? false,
     }));

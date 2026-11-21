@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -17,6 +18,7 @@ export class PlatformAuditService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   async platformTenantId(): Promise<string> {
@@ -28,7 +30,7 @@ export class PlatformAuditService {
           update: {},
           create: {
             slug: PLATFORM_TENANT_SLUG,
-            name: 'Flourishive platform',
+            name: `${this.config.APP_NAME} platform`,
             status: 'SUSPENDED',
           },
         }),

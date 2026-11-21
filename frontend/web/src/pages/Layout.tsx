@@ -1,4 +1,4 @@
-import { AppShell, type Command, type NavItem } from '@flourishive/ui';
+import { AppShell, brand, type Command, type NavItem } from '@flourishive/ui';
 import {
   Building2,
   ClipboardList,
@@ -112,7 +112,11 @@ export function Layout({
   const section = group ?? undefined;
   return (
     <AppShell
-      brand={<span className="font-display text-2xl text-accent-hi">F</span>}
+      brand={
+        <span className="font-display text-2xl text-accent-hi" title={brand.appName}>
+          {brand.appName.charAt(0).toUpperCase()}
+        </span>
+      }
       nav={nav}
       active={active}
       onNavigate={(id) => go(`/app/${id}`)}

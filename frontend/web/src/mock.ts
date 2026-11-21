@@ -90,7 +90,7 @@ export const TIMELINE = [
   {
     t: '19 Nov, 09:15',
     what: 'Signed with DSC (Class 3), RFC 3161 timestamp added',
-    who: 'Flourishive Desktop',
+    who: 'Desktop app',
     done: true,
   },
   {

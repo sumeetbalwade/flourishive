@@ -1,8 +1,6 @@
+import { brand } from '@flourishive/ui';
 import { createApiClient, type ApiClient } from '@flourishive/api-client';
 import { createContext, use, type ReactNode } from 'react';
-
-/** The API lives on its own subdomain in production (api.flourishive.in). */
-export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 const Ctx = createContext<ApiClient | null>(null);
 
@@ -17,7 +15,7 @@ export function useApi(): ApiClient {
 }
 
 export function makeClient(onSessionExpired: () => void): ApiClient {
-  return createApiClient({ baseUrl: API_URL, onSessionExpired });
+  return createApiClient({ baseUrl: brand.apiUrl, onSessionExpired });
 }
 
 /** Remembers non-secret preferences (company code). Storage can be blocked, so never rely on it. */
