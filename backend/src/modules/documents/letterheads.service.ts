@@ -26,17 +26,21 @@ export async function imageToPdf(
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
 import { FilesService } from '../files/files.service.js';
+import { DocAccess, type Actor } from './doc-access.service.js';
 
 @Injectable()
 export class LetterheadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly files: FilesService,
+    private readonly docAccess: DocAccess,
   ) {}
 
-  list(tenantId: string) {
-    return runInTenant(tenantId, async () =>
+  async list(a: Actor) {
+    const where = await this.docAccess.entityFilter(a, 'documents.read');
+    return runInTenant(a.tenantId, async () =>
       this.prisma.db.letterhead.findMany({
+        where,
         orderBy: [
           { entityId: 'asc' },
           { orientation: 'asc' },
@@ -77,6 +81,7 @@ export class LetterheadsService {
       stampBottom?: number;
     },
   ) {
+    await this.docAccess.assert(a, 'documents.manage', input.entityId);
     if (input.mimeType === 'image/png' || input.mimeType === 'image/jpeg') {
       try {
         input.body = await imageToPdf(

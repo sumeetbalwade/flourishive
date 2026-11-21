@@ -11,6 +11,8 @@ import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { StorageService } from '../../platform/storage/storage.service.js';
+import { AccessService } from '../access/access.service.js';
+import { DocAccess, type Actor } from './doc-access.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { FilesService } from '../files/files.service.js';
 import { fill, longDate, resolveValues } from './fill.js';
@@ -29,6 +31,8 @@ export class DocumentsService {
     private readonly numbering: NumberingService,
     private readonly pdf: PdfService,
     private readonly audit: AuditService,
+    private readonly docAccess: DocAccess,
+    private readonly access: AccessService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -37,6 +41,7 @@ export class DocumentsService {
     b: GenerateBody,
     now = new Date(),
   ) {
+    await this.docAccess.assert(a, 'documents.generate', b.entityId);
     const { template, entity, person, engagement } = await runInTenant(
       a.tenantId,
       async () => ({
@@ -162,11 +167,15 @@ export class DocumentsService {
   }
 
   async list(
-    tenantId: string,
+    a: Actor,
     q: { page: number; pageSize: number; personId?: string },
   ) {
-    return runInTenant(tenantId, async () => {
-      const where = q.personId ? { personId: q.personId } : {};
+    const scope = await this.docAccess.entityFilter(a, 'documents.read');
+    return runInTenant(a.tenantId, async () => {
+      const where = {
+        ...scope,
+        ...(q.personId ? { personId: q.personId } : {}),
+      };
       const [items, total] = await Promise.all([
         this.prisma.db.generatedDocument.findMany({
           where,
@@ -181,12 +190,22 @@ export class DocumentsService {
     });
   }
 
-  async get(tenantId: string, id: string) {
-    const doc = await runInTenant(tenantId, async () =>
+  async get(a: Actor, id: string) {
+    const doc = await runInTenant(a.tenantId, async () =>
       this.prisma.db.generatedDocument.findUnique({ where: { id } }),
     );
     if (!doc) throw new NotFoundException();
-    const link = await this.files.linkFor(tenantId, doc.fileId);
+    // A company the caller cannot see is reported as not found, not as forbidden.
+    if (
+      !(await this.access.can(
+        a.tenantId,
+        a.userId,
+        'documents.read',
+        doc.entityId,
+      ))
+    )
+      throw new NotFoundException();
+    const link = await this.files.linkFor(a.tenantId, doc.fileId);
     return {
       ...doc,
       downloadUrl: link.url,

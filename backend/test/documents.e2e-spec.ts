@@ -24,6 +24,8 @@ let tenantId = '';
 let entityId = '';
 let hrToken = '';
 let managerToken = '';
+let branchToken = '';
+let firstDocId = '';
 let templateId = '';
 
 const call = (method: 'get' | 'post' | 'put', path: string, token = hrToken) =>
@@ -32,7 +34,7 @@ const call = (method: 'get' | 'post' | 'put', path: string, token = hrToken) =>
     .set('X-Forwarded-For', `10.7.0.${++ip}`)
     .set('Authorization', `Bearer ${token}`);
 
-async function user(name: string, roleKey: string) {
+async function user(name: string, roleKey: string, scopeEntityId?: string) {
   const passwordHash = await app
     .get(PasswordService)
     .hash('correct horse battery');
@@ -47,7 +49,12 @@ async function user(name: string, roleKey: string) {
       where: { tenantId_key: { tenantId, key: roleKey } },
     });
     await prisma.db.userRole.create({
-      data: { tenantId, userId: u.id, roleId: role!.id },
+      data: {
+        tenantId,
+        userId: u.id,
+        roleId: role!.id,
+        entityId: scopeEntityId ?? null,
+      },
     });
   });
   return (await app.get(SessionService).start(tenantId, u.id, {})).accessToken;
@@ -87,6 +94,13 @@ beforeAll(async () => {
   ).id;
   hrToken = await user('hr', 'hr_lead');
   managerToken = await user('mgr', 'manager');
+  const branch = await runAsSystem(
+    async () =>
+      await prisma.db.entity.create({
+        data: { tenantId, name: 'Branch', legalName: 'Branch Ltd' },
+      }),
+  );
+  branchToken = await user('branch', 'hr_lead', branch.id);
 });
 
 afterAll(async () => {
@@ -214,6 +228,7 @@ describe('documents foundations', () => {
       recipientName: 'Asha Patil',
       start: '2026-12-01',
     }).expect(201);
+    firstDocId = first.body.id;
     expect(first.body.reference).toMatch(/^FS\/INT\/\d{4}\/0012$/);
     const rest = await Promise.all(
       [1, 2, 3].map(() => gen({ recipientName: 'Ravi', start: '2026-12-01' })),
@@ -276,5 +291,35 @@ describe('documents foundations', () => {
       .send({})
       .expect(403);
     await call('get', '/documents').expect(200);
+  });
+
+  it('keeps a role limited to one company away from the others', async () => {
+    const q = `?entityId=${entityId}&name=X`;
+    await call('post', `/documents/letterheads${q}`, branchToken)
+      .set('Content-Type', 'application/pdf')
+      .send(await pdfBytes(595.28, 841.89))
+      .expect(403);
+    await call('put', '/documents/numbering', branchToken)
+      .send({ entityId, letterType: 'OFFER', format: 'HACK/{SEQ:4}' })
+      .expect(403);
+    await call('post', '/documents/generate', branchToken)
+      .send({
+        templateId,
+        entityId,
+        fields: { recipientName: 'X', start: '2026-12-01' },
+      })
+      .expect(403);
+    await call('get', `/documents/${firstDocId}`, branchToken).expect(404);
+    const list = await call('get', '/documents', branchToken).expect(200);
+    expect(list.body.items).toHaveLength(0);
+    expect(
+      (await call('get', '/documents/letterheads', branchToken)).body,
+    ).toHaveLength(0);
+    expect(
+      (await call('get', '/documents/numbering', branchToken)).body,
+    ).toHaveLength(0);
+    expect(
+      (await call('get', '/documents', hrToken)).body.items.length,
+    ).toBeGreaterThan(0);
   });
 });

@@ -48,7 +48,7 @@ export class DocumentsController {
   @Get('letterheads')
   @RequirePermission('documents.read')
   listLetterheads(@CurrentAuth() a: AccessClaims) {
-    return this.letterheads.list(a.tenantId);
+    return this.letterheads.list(a);
   }
 
   /** Body is the letterhead itself: a PDF, or a PNG/JPG that is converted to an A4 PDF. */
@@ -71,16 +71,13 @@ export class DocumentsController {
   @Get('numbering')
   @RequirePermission('documents.read')
   listNumbering(@CurrentAuth() a: AccessClaims) {
-    return this.numbering.list(a.tenantId);
+    return this.numbering.list(a);
   }
 
   @Put('numbering')
   @RequirePermission('documents.manage')
   saveNumbering(@CurrentAuth() a: AccessClaims, @Body() body: unknown) {
-    return this.numbering.save(
-      a.tenantId,
-      new ZodPipe(numberingBody).transform(body),
-    );
+    return this.numbering.save(a, new ZodPipe(numberingBody).transform(body));
   }
 
   @Get('templates')
@@ -133,12 +130,12 @@ export class DocumentsController {
     @CurrentAuth() a: AccessClaims,
     @Query(new ZodPipe(listQuery)) q: z.infer<typeof listQuery>,
   ) {
-    return this.docs.list(a.tenantId, q);
+    return this.docs.list(a, q);
   }
 
   @Get(':id')
   @RequirePermission('documents.read')
   get(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
-    return this.docs.get(a.tenantId, id);
+    return this.docs.get(a, id);
   }
 }

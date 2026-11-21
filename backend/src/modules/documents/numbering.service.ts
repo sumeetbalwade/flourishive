@@ -1,23 +1,29 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
+import { DocAccess, type Actor } from './doc-access.service.js';
 import { formatReference } from './numbering.js';
 
 @Injectable()
 export class NumberingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly docAccess: DocAccess,
+  ) {}
 
-  list(tenantId: string) {
-    return runInTenant(tenantId, async () =>
+  async list(a: Actor) {
+    const where = await this.docAccess.entityFilter(a, 'documents.read');
+    return runInTenant(a.tenantId, async () =>
       this.prisma.db.numberingScheme.findMany({
+        where,
         orderBy: [{ entityId: 'asc' }, { letterType: 'asc' }],
       }),
     );
   }
 
   /** Creates or changes the format for one entity and letter type. */
-  save(
-    tenantId: string,
+  async save(
+    a: Actor,
     b: {
       entityId: string;
       letterType: string;
@@ -25,6 +31,8 @@ export class NumberingService {
       startAt: number;
     },
   ) {
+    await this.docAccess.assert(a, 'documents.manage', b.entityId);
+    const tenantId = a.tenantId;
     return runInTenant(tenantId, async () => {
       const entity = await this.prisma.db.entity.findUnique({
         where: { id: b.entityId },
