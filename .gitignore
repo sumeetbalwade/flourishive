@@ -34,3 +34,6 @@ desktop/spikes/out/
 .vscode/*
 !.vscode/extensions.json
 /backend/src/generated/
+
+# Evidence from the signing spike contains personal certificate details: never commit it.
+docs/evidence/

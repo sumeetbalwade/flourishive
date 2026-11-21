@@ -2,6 +2,7 @@
   "name": "@flourishive/api-client",
   "version": "0.0.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "description": "Typed fetch client for the Flourishive API, built on the shared schemas",
   "exports": {

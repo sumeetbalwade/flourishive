@@ -46,7 +46,7 @@ Everything needed before feature work: hosting and accounts ready, the repo and 
 - [x] Spike CLI `desktop/spikes/sign_with_token.py` (find-lib, list, sign, verify)
 - [x] SoftHSM self-test passes: PAdES signature intact, valid and trusted; DigiCert timestamp trusted; entire file covered
 - [ ] mToken on macOS ([runbook](../runbooks/dsc-signing-spike.md))
-- [x] mToken on Windows (18 Nov 2026): token `mToken CryptoID` found through `C:\Windows\System32\CryptoIDA_pkcs11.dll` (64-bit), certificate listed as signing-capable, signed PDF created. Evidence in [docs/evidence/phase-0/](../evidence/phase-0/)
+- [x] mToken on Windows (18 Nov 2026): token `mToken CryptoID` found through `C:\Windows\System32\CryptoIDA_pkcs11.dll` (64-bit), certificate listed as signing-capable, signed PDF created. The evidence (report and signed-PDF screenshot) contains personal certificate details and is kept privately, not in this repository.
 - [ ] **Renew the HR lead's DSC** (development continues on the expired one, D-38; renewal gates go-live, see Phase 2). The certificate on the token (ProDigiSign Sub CA DSC 2022) was valid 29 May 2024 to 29 May 2026, so it is **expired**. A signature made with it will not validate as trusted. A renewed Class 3 DSC is needed before any real letter is issued
 - [ ] Verify the Windows signed PDF: send `signed.pdf` for checking with pyHanko, and an Adobe Reader screenshot of the signature panel (validity, timestamp). The stamp alone does not prove validity
 - [ ] Re-run on Windows with the renewed DSC; Adobe Reader must show a valid signature with a timestamp

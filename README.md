@@ -27,3 +27,8 @@ pnpm --filter @flourishive/backend test:e2e  # API e2e tests
 pnpm --filter @flourishive/web dev           # http://localhost:5173 (admin 5174, verify 5175)
 cd desktop && ./spikes/softhsm-selftest.sh   # signing self-test with a test token
 ```
+
+## Licence
+
+Copyright (c) 2026 Sumeet Balwade. All rights reserved. The code is public so it can be read, but it is
+not open source: see [LICENSE](LICENSE). Using, hosting, copying or selling it needs written permission.

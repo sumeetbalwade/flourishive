@@ -1,6 +1,7 @@
 {
   "name": "flourishive",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "description": "Flourishive: multi-tenant HR management platform",
   "packageManager": "pnpm@12.16.1",
   "engines": {

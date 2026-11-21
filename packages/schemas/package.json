@@ -2,6 +2,7 @@
   "name": "@flourishive/schemas",
   "version": "0.0.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "description": "Shared Zod schemas and types used by the API and every frontend",
   "exports": {

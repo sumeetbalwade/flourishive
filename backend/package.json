@@ -4,7 +4,7 @@
   "description": "Flourishive REST API (NestJS). The only place business logic lives.",
   "author": "",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
     "build": "nest build",
