@@ -38,3 +38,6 @@ desktop/spikes/out/
 # Evidence from the signing spike contains personal certificate details: never commit it.
 docs/evidence/
 docs/private/
+
+# PyInstaller writes these next to the build
+desktop/*.spec

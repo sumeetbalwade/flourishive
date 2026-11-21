@@ -288,6 +288,8 @@ describe('certificate signing jobs', () => {
     expect(claim.signature).toMatchObject({
       digest: 'sha256',
       timestampRequired: true,
+      timestampUrl: 'http://timestamp.digicert.com',
+      appearance: { visible: true, page: 0, box: [321.28, 70, 535.28, 118] },
     });
     await dev('post', `/jobs/${job.id}/claim`, b).expect(409); // held by A
     await dev('post', `/jobs/${job.id}/claim`, adminDev).expect(404);

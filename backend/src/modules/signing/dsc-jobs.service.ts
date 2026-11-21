@@ -1,4 +1,5 @@
 import {
+  Inject,
   BadRequestException,
   ConflictException,
   Injectable,
@@ -21,6 +22,8 @@ import {
   RevocationUnavailable,
 } from './dsc/dsc-validator.js';
 import { SigningService, type Actor } from './signing.service.js';
+import { signatureBox } from './appearance.js';
+import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 
 export interface DeviceCtx {
   tenantId: string;
@@ -51,6 +54,7 @@ export class DscJobsService {
     private readonly workflow: WorkflowService,
     private readonly audit: AuditService,
     private readonly validator: DscValidator,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   /** HR asks a named signatory to sign with their certificate. Moves the document to "signing". */
@@ -231,6 +235,11 @@ export class DscJobsService {
         where: { id: r.documentId },
       }),
     );
+    const letterhead = await runInTenant(d.tenantId, async () =>
+      this.prisma.db.letterhead.findUniqueOrThrow({
+        where: { id: doc.letterheadId },
+      }),
+    );
     return {
       id,
       reference: doc.reference,
@@ -242,6 +251,9 @@ export class DscJobsService {
         reason: `Issued by ${doc.reference}`,
         digest: 'sha256',
         timestampRequired: true,
+        timestampUrl: this.config.DSC_TSA_URL,
+        // where the visible stamp goes, taken from the letterhead so it stays clear of the artwork
+        appearance: signatureBox(letterhead),
       },
     };
   }

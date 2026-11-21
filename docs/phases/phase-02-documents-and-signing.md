@@ -108,5 +108,12 @@ D-10, D-11, D-12, D-13, D-14, D-24, D-25, D-28, D-31, D-33, D-35
 - **D-47 Seal and DSC together:** the candidate's acceptance is sealed straight away; the HR lead's DSC is added afterwards as an incremental update on top. Both signatures stay valid; the verifier treats a later signature as legitimate.
 - **D-48 DSC validation:** strict and fail closed. The upload must extend the exact file we sent, the certificate must be valid at signing time (CA timestamp required), chain to a trusted Indian licensed CA (CCA root certificates shipped), and pass an OCSP revocation check; if revocation cannot be reached the upload is held, never accepted blindly. `ALLOW_EXPIRED_SIGNER_CERT` (D-38) relaxes only the dates, is development only, labels the document TEST, and is removed before go-live.
 
+## Decisions approved 2026-11-21 for PR 6 (D-49..D-52)
+
+- **D-49 Animation:** drawn natively in Qt in the desktop app, driven by real signing state (never a timer), honouring reduce-motion; the web keeps its React component; both read one shared set of path definitions.
+- **D-50 Signature look:** a visible, designed signature stamp with a green-tick emblem (the same tick as the signing animation), placed beside the QR stamp from the letterhead's settings. A PDF is static, so a tick inside the file cannot turn red; the red cross appears in the desktop app, on the verify page, and as Adobe's own overlay on a broken signature.
+- **D-51 First build without purchases:** an unsigned Windows pilot build made by CI (no signing certificate); macOS runs from the unsigned app or source. Code signing, notarisation and auto-update wait until those certificates are bought.
+- **D-52 Token testing:** everything is tested with SoftHSM end to end against the real server validator; the HR lead's mToken is detected and the PIN prompt tried on the pilot build. Real signing waits for the renewed DSC (or the TEST switch).
+
 ## Open items
 - How the signing animation is built on each surface (options to be presented before the desktop UI work starts, PR 6)
