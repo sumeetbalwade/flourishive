@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { DiscoveryModule, DiscoveryService } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
+import { PDFDocument } from 'pdf-lib';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -38,6 +39,9 @@ const A_SECRETS = {
   file: 'a-secret.pdf',
   role: 'A Only Role',
   accent: '#aa0000',
+  letterhead: 'A-Letterhead-Secret',
+  template: 'A-Template-Secret',
+  reference: 'ASECRET/',
 };
 
 let app: INestApplication;
@@ -57,6 +61,8 @@ const ids = {
   fileA: '',
   roleKeyA: '',
   fileB: '',
+  templateA: '',
+  docA: '',
 };
 const token: Record<'a' | 'b', string> = { a: '', b: '' };
 let bSigned = '';
@@ -110,6 +116,11 @@ async function snapshotA(): Promise<string> {
     settings: await prisma.db.settingValue.count(),
     audit: await prisma.db.auditLog.count(),
     notifications: await prisma.db.notification.count(),
+    documents: await prisma.db.generatedDocument.count(),
+    templates: await prisma.db.template.count(),
+    letterheads: await prisma.db.letterhead.count(),
+    schemes: await prisma.db.numberingScheme.count(),
+    counters: await prisma.db.numberingCounter.count(),
   }));
   return JSON.stringify({
     counts,
@@ -122,6 +133,10 @@ async function snapshotA(): Promise<string> {
     userRoles: await get(`/access/users/${ids.userA}/roles`),
     settings: await get('/settings'),
     file: (await call('a', 'get', `/files/${ids.fileA}`)).body.id,
+    documents: await get('/documents?pageSize=100'),
+    templates: await get('/documents/templates'),
+    numbering: await get('/documents/numbering'),
+    letterheads: await get('/documents/letterheads'),
   });
 }
 
@@ -137,6 +152,8 @@ const markers = () =>
     ids.personA,
     ids.userA,
     ids.fileA,
+    ids.templateA,
+    ids.docA,
   ].filter(Boolean);
 const leaks = (res: { body: unknown; text: string }) => {
   const text = `${JSON.stringify(res.body ?? '')} ${res.text ?? ''}`;
@@ -235,6 +252,44 @@ beforeAll(async () => {
       await call('a', 'post', `/files?name=${A_SECRETS.file}`)
         .set('Content-Type', 'application/pdf')
         .send(pdf),
+    )
+  ).id;
+  const lhPdf = await PDFDocument.create();
+  lhPdf.addPage([595.28, 841.89]);
+  await made(
+    await call(
+      'a',
+      'post',
+      `/documents/letterheads?entityId=${ids.entityA}&name=${A_SECRETS.letterhead}`,
+    )
+      .set('Content-Type', 'application/pdf')
+      .send(Buffer.from(await lhPdf.save())),
+  );
+  await made(
+    await call('a', 'put', '/documents/numbering').send({
+      entityId: ids.entityA,
+      letterType: 'OFFER',
+      format: `${A_SECRETS.reference}{SEQ:4}`,
+    }),
+    200,
+  );
+  ids.templateA = (
+    await made(
+      await call('a', 'post', '/documents/templates').send({
+        name: A_SECRETS.template,
+        letterType: 'OFFER',
+        layoutKey: 'letter',
+        content: { body: 'Hello' },
+      }),
+    )
+  ).id;
+  ids.docA = (
+    await made(
+      await call('a', 'post', '/documents/generate').send({
+        templateId: ids.templateA,
+        entityId: ids.entityA,
+        fields: { recipientName: 'Asha' },
+      }),
     )
   ).id;
   ids.roleKeyA = (
@@ -460,6 +515,77 @@ const PROBES = (): Record<string, Probe> => ({
         .send(
           `employee_code,first_name,last_name,type,start_date,work_email,department,designation,location,manager_code,college,course,graduation_year,entity\n${A_SECRETS.code},Hijacked,Person,employee,2026-01-05,,Finance,,,,,,,HQ`,
         ),
+  },
+  'GET /documents/layouts': {
+    mode: 'contained',
+    send: () => as('get', '/documents/layouts'),
+  },
+  'GET /documents/letterheads': {
+    mode: 'contained',
+    send: () => as('get', '/documents/letterheads'),
+  },
+  'POST /documents/letterheads': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/documents/letterheads?entityId=${ids.entityA}&name=x`)
+        .set('Content-Type', 'application/pdf')
+        .send(pdf),
+  },
+  'GET /documents/numbering': {
+    mode: 'contained',
+    send: () => as('get', '/documents/numbering'),
+  },
+  'PUT /documents/numbering': {
+    mode: 'refuse',
+    send: () =>
+      as('put', '/documents/numbering').send({
+        entityId: ids.entityA,
+        letterType: 'OFFER',
+        format: 'HACK/{SEQ:4}',
+      }),
+  },
+  'GET /documents/templates': {
+    mode: 'contained',
+    send: () => as('get', '/documents/templates'),
+  },
+  'POST /documents/templates': {
+    mode: 'contained',
+    send: () =>
+      as('post', '/documents/templates').send({
+        name: 'B-Template',
+        letterType: 'OFFER',
+        layoutKey: 'letter',
+      }),
+  },
+  'GET /documents/templates/:id': {
+    mode: 'refuse',
+    send: () => as('get', `/documents/templates/${ids.templateA}`),
+  },
+  'POST /documents/templates/:id/versions': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/documents/templates/${ids.templateA}/versions`).send({}),
+  },
+  'POST /documents/templates/:id/archive': {
+    mode: 'refuse',
+    send: () => as('post', `/documents/templates/${ids.templateA}/archive`),
+  },
+  'POST /documents/generate': {
+    mode: 'refuse',
+    send: () =>
+      as('post', '/documents/generate').send({
+        templateId: ids.templateA,
+        entityId: ids.entityA,
+        fields: { recipientName: 'Hijack' },
+      }),
+  },
+  'GET /documents': {
+    mode: 'contained',
+    send: () => as('get', '/documents?pageSize=100'),
+  },
+  'GET /documents/:id': {
+    mode: 'refuse',
+    send: () => as('get', `/documents/${ids.docA}`),
   },
   'POST /files': {
     mode: 'refuse',

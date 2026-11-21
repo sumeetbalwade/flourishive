@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CacheModule } from './platform/cache/cache.module.js';
 import { ConfigModule } from './platform/config/config.module.js';
+import { DocumentsModule } from './modules/documents/documents.module.js';
 import { OrgModule } from './modules/org/org.module.js';
 import { PeopleModule } from './modules/people/people.module.js';
 import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module.js';
@@ -37,6 +38,7 @@ import { StorageModule } from './platform/storage/storage.module.js';
     PlatformAdminModule,
     OrgModule,
     PeopleModule,
+    DocumentsModule,
   ],
   controllers: [HealthController],
 })

@@ -27,12 +27,12 @@ model Permission {
 }
 
 model Role {
-  id          String   @id @default(uuid(7)) @db.Char(36)
-  tenantId    String   @db.Char(36)
-  key         String   @db.VarChar(64)
-  name        String   @db.VarChar(100)
+  id            String   @id @default(uuid(7)) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  key           String   @db.VarChar(64)
+  name          String   @db.VarChar(100)
   /// Seeded roles cannot be deleted; tenants may add their own later.
-  isSystem    Boolean  @default(false)
+  isSystem      Boolean  @default(false)
   /// Two-step policy for holders of this role. REQUIRED is enforced at sign-in; OFF stops enforcement.
   /// The tenant may only go up from the platform floor (PlatformRolePolicy.mfaFloor).
   mfaLevel      MfaLevel @default(OPTIONAL)
@@ -40,8 +40,8 @@ model Role {
   recoveryEmail Boolean  @default(true)
   /// Are recovery codes handed out when two-step is set up?
   recoveryCodes Boolean  @default(true)
-  createdAt   DateTime @default(now()) @db.DateTime(3)
-  updatedAt   DateTime @updatedAt @db.DateTime(3)
+  createdAt     DateTime @default(now()) @db.DateTime(3)
+  updatedAt     DateTime @updatedAt @db.DateTime(3)
 
   tenant      Tenant           @relation(fields: [tenantId], references: [id])
   permissions RolePermission[]

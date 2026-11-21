@@ -1,6 +1,6 @@
 # Phase 2 — Documents and digital signing
 
-**Status:** Not started · **Depends on:** Phase 1 (and the Phase 0 signing spike) · **Unlocks:** first production go-live for Flourisense; Phase 3
+**Status:** Decisions approved 2026-11-21; build starting · **Depends on:** Phase 1 (and the Phase 0 signing spike) · **Unlocks:** first production go-live for Flourisense; Phase 3
 
 ## Goal
 
@@ -9,13 +9,13 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 ## Work breakdown
 
 ### Document engine (`modules/documents`)
-- [ ] Letterheads per entity (portrait A4, landscape for certificates), versioned
-- [ ] Reference numbering per entity and letter type (for example `FS/INT/2026/0012`), configurable format, never reused
-- [ ] Templates, versioned; every document records the template version it used
+- [x] Letterheads per entity (portrait A4, landscape for certificates), versioned
+- [x] Reference numbering per entity and letter type (for example `FS/INT/2026/0012`), configurable format, never reused
+- [x] Templates, versioned; every document records the template version it used
 - [ ] **Path A, visual editor:** rich-text editor with `{{placeholders}}`, tables and a signature box, saved as JSON, rendered with pdfmake on the letterhead with pdf-lib (D-13)
-- [ ] **Path B, coded layouts:** React-PDF layouts registered in code, editable text fields only
+- [x] **Path B, coded layouts:** React-PDF layouts registered in code, editable text fields only
 - [ ] **Path C, uploads:** plain PDF straight to signing; fillable PDF with field-to-placeholder mapping, then flattened; DOCX with placeholder filling, then converted (D-14)
-- [ ] Generation and bulk generation as queue jobs; QR code and reference stamped on every page
+- [ ] Generation and bulk generation as queue jobs; QR code and reference stamped on every page _(single generation and the stamp are done in PR 1; bulk and queue jobs come in PR 7)_
 
 ### Workflow engine v1 (`modules/workflow`)
 - [ ] Definitions stored as data: states, transitions, who can act, reminders
@@ -66,11 +66,12 @@ D-10, D-11, D-12, D-13, D-14, D-24, D-25, D-28, D-31, D-33, D-35
 - [ ] A test with an expired certificate is rejected by the server
 - [ ] All documents signed during development deleted or marked TEST; none sent to real candidates
 - [ ] Adobe Reader shows a valid signature with a timestamp on a real letter
+- [ ] Seal key stored as a server secret (never in the repo); seal certificate published for Flourisense machines to trust
 
 ## Exit criteria
 
 1. HR issues a real DSC-signed intern letter end to end, and Adobe Reader shows it as valid with a timestamp.
-2. A candidate accepts an offer letter by OTP, and the sealed PDF shows tampering if edited.
+2. A candidate accepts an offer letter by OTP; the sealed PDF shows modification if edited (D-41), and the verify page also reports a hash mismatch for an edited copy.
 3. The verify page confirms an issued letter from its QR code.
 4. A batch of 20 certificates is generated and signed with one PIN entry.
 
@@ -89,9 +90,15 @@ D-10, D-11, D-12, D-13, D-14, D-24, D-25, D-28, D-31, D-33, D-35
 - Aadhaar eSign provider agreement (D-28)
 - External DOCX conversion API account (only if a tenant opts in)
 
-## Open items (need approval before the phase starts)
+## Decisions approved 2026-11-21 (D-39..D-44)
 
-- How the signing animation is built on each surface (one shared SVG animation for the web; an equivalent in the desktop's PySide6 UI). Options to be presented before the desktop UI work starts
-- Rich-text editor library for Path A
-- DOCX placeholder library for Path C
-- External DOCX conversion provider
+- **D-39 Build order:** foundations, workflow, OTP e-acceptance, verify, then desktop pairing and DSC signing (PR 5-6), letters and bulk (PR 7), visual editor (PR 8), Aadhaar eSign adapter (PR 9).
+- **D-40 Editor:** Tiptap for template Path A.
+- **D-41 Self-signed organisation seal (supersedes the earlier "no seal" choice, same day):** OTP-accepted documents are sealed by the server with a Flourishive self-signed certificate plus an RFC 3161 timestamp, behind a seal adapter. Tampering is detected, but Adobe shows "valid, signer unknown" (yellow) to readers who have not trusted our certificate. Flourisense machines can install it as trusted. Green ticks come from the HR lead's DSC and Aadhaar eSign. A purchased Adobe-trusted certificate can replace the seal by configuration if a CA offers a software-key option (the usual token/HSM requirement does not suit shared hosting). Verified in a sample: seal intact, byte-flip detected.
+- **D-42 Path C DOCX deferred:** plain and fillable PDF uploads only for now; no DOCX placeholder library, no DOCX conversion, no external conversion provider in this phase.
+- **D-43 PDF engine:** React-PDF for coded layouts, pdf-lib for letterhead, QR and stamping; embedded fonts for Devanagari.
+- **D-44 Aadhaar eSign:** adapter with a mock provider only; real provider chosen later.
+- **Letters:** all four types (offer, experience, reference, internship certificate) with bulk issue.
+
+## Open items
+- How the signing animation is built on each surface (options to be presented before the desktop UI work starts)

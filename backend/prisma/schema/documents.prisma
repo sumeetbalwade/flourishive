@@ -1,0 +1,163 @@
+enum PageOrientation {
+  PORTRAIT
+  LANDSCAPE
+}
+
+enum TemplateKind {
+  /// A React-PDF layout registered in code; HR edits only the text fields (Path B).
+  CODED
+  /// Rich-text content saved as JSON (Path A, built in a later PR).
+  EDITOR
+  /// An uploaded PDF, plain or fillable (Path C, built in a later PR).
+  PDF_UPLOAD
+}
+
+enum DocumentStatus {
+  GENERATED
+  SUPERSEDED
+  REVOKED
+}
+
+/// Company stationery for one legal entity. Never edited: a change uploads a new version, and
+/// every document keeps pointing at the version it was printed on.
+model Letterhead {
+  id           String          @id @default(uuid(7)) @db.Char(36)
+  tenantId     String          @db.Char(36)
+  entityId     String          @db.Char(36)
+  orientation  PageOrientation @default(PORTRAIT)
+  version      Int
+  name         String          @db.VarChar(100)
+  /// The letterhead PDF (first page is used as the background of every page).
+  fileId       String          @db.Char(36)
+  /// Points kept clear of artwork, so body text never runs over the header or footer.
+  marginTop    Int             @default(110)
+  marginBottom Int             @default(90)
+  marginLeft   Int             @default(60)
+  marginRight  Int             @default(60)
+  /// Where the reference and QR stamp sits: points from the left edge (null = right-aligned) and from the bottom.
+  stampLeft    Int?
+  stampBottom  Int             @default(22)
+  createdBy    String?         @db.Char(36)
+  createdAt    DateTime        @default(now()) @db.DateTime(3)
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  entity             Entity              @relation(fields: [entityId], references: [id])
+  generatedDocuments GeneratedDocument[]
+
+  @@unique([tenantId, entityId, orientation, version])
+  @@index([tenantId])
+  @@map("letterheads")
+}
+
+/// How reference numbers look for one entity and letter type, e.g. FS/INT/{YYYY}/{SEQ:4}.
+model NumberingScheme {
+  id         String   @id @default(uuid(7)) @db.Char(36)
+  tenantId   String   @db.Char(36)
+  entityId   String   @db.Char(36)
+  letterType String   @db.VarChar(40)
+  format     String   @db.VarChar(120)
+  /// First number to hand out in a new year, so new numbers continue after existing letters.
+  startAt    Int      @default(1)
+  createdAt  DateTime @default(now()) @db.DateTime(3)
+  updatedAt  DateTime @updatedAt @db.DateTime(3)
+
+  tenant   Tenant             @relation(fields: [tenantId], references: [id])
+  entity   Entity             @relation(fields: [entityId], references: [id])
+  counters NumberingCounter[]
+
+  @@unique([tenantId, entityId, letterType])
+  @@index([tenantId])
+  @@map("numbering_schemes")
+}
+
+/// The last number used in one period (a year). It only ever goes up, so a number is never reused.
+model NumberingCounter {
+  id       String @id @default(uuid(7)) @db.Char(36)
+  tenantId String @db.Char(36)
+  schemeId String @db.Char(36)
+  period   String @db.VarChar(10)
+  lastSeq  Int
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id])
+  scheme NumberingScheme @relation(fields: [schemeId], references: [id])
+
+  @@unique([schemeId, period])
+  @@index([tenantId])
+  @@map("numbering_counters")
+}
+
+model Template {
+  id         String       @id @default(uuid(7)) @db.Char(36)
+  tenantId   String       @db.Char(36)
+  name       String       @db.VarChar(120)
+  letterType String       @db.VarChar(40)
+  kind       TemplateKind @default(CODED)
+  archivedAt DateTime?    @db.DateTime(3)
+  createdBy  String?      @db.Char(36)
+  createdAt  DateTime     @default(now()) @db.DateTime(3)
+  updatedAt  DateTime     @updatedAt @db.DateTime(3)
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id])
+  versions TemplateVersion[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, letterType])
+  @@map("templates")
+}
+
+/// One saved state of a template. Immutable: editing a template adds a new version.
+model TemplateVersion {
+  id          String          @id @default(uuid(7)) @db.Char(36)
+  tenantId    String          @db.Char(36)
+  templateId  String          @db.Char(36)
+  version     Int
+  orientation PageOrientation @default(PORTRAIT)
+  /// For CODED templates: which registered layout draws it.
+  layoutKey   String?         @db.VarChar(60)
+  /// The wording (CODED: text fields by name; EDITOR: the editor JSON).
+  content     Json
+  /// Fields HR fills in when issuing: key, label, type, required.
+  fields      Json
+  createdBy   String?         @db.Char(36)
+  createdAt   DateTime        @default(now()) @db.DateTime(3)
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  template           Template            @relation(fields: [templateId], references: [id])
+  generatedDocuments GeneratedDocument[]
+
+  @@unique([templateId, version])
+  @@index([tenantId])
+  @@map("template_versions")
+}
+
+model GeneratedDocument {
+  id                String         @id @default(uuid(7)) @db.Char(36)
+  tenantId          String         @db.Char(36)
+  entityId          String         @db.Char(36)
+  templateVersionId String         @db.Char(36)
+  letterheadId      String         @db.Char(36)
+  letterType        String         @db.VarChar(40)
+  reference         String         @db.VarChar(80)
+  /// Public id inside the QR code; reveals nothing about the document by itself.
+  verifyToken       String         @unique @db.VarChar(40)
+  status            DocumentStatus @default(GENERATED)
+  personId          String?        @db.Char(36)
+  engagementId      String?        @db.Char(36)
+  /// The values filled into the template, kept so the document can be explained later.
+  data              Json
+  fileId            String         @db.Char(36)
+  sha256            String         @db.Char(64)
+  pageCount         Int
+  createdBy         String?        @db.Char(36)
+  createdAt         DateTime       @default(now()) @db.DateTime(3)
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  entity          Entity          @relation(fields: [entityId], references: [id])
+  templateVersion TemplateVersion @relation(fields: [templateVersionId], references: [id])
+  letterhead      Letterhead      @relation(fields: [letterheadId], references: [id])
+
+  @@unique([tenantId, reference])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, personId])
+  @@map("generated_documents")
+}

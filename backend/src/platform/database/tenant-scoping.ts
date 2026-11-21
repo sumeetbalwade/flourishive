@@ -26,6 +26,12 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'AuditChainHead',
   'File',
   'Notification',
+  'Letterhead',
+  'NumberingScheme',
+  'NumberingCounter',
+  'Template',
+  'TemplateVersion',
+  'GeneratedDocument',
 ]);
 
 /** The tenants table itself is scoped by its own id. */

@@ -292,6 +292,131 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { originalName: 'hacked.pdf' },
   },
+  Letterhead: {
+    delegate: 'letterhead',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        entityId: (await newEntity(tenantId)).id,
+        version: 1,
+        name: 'Letterhead',
+        fileId: crypto.randomUUID(),
+      },
+    }),
+    change: { name: 'hacked' },
+  },
+  NumberingScheme: {
+    delegate: 'numberingScheme',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        entityId: (await newEntity(tenantId)).id,
+        letterType: 'OFFER',
+        format: 'X/{SEQ:4}',
+      },
+    }),
+    change: { format: 'hacked' },
+  },
+  NumberingCounter: {
+    delegate: 'numberingCounter',
+    create: async (tenantId) => {
+      const scheme = await runAsSystem(
+        async () =>
+          await db.numberingScheme.create({
+            data: {
+              tenantId,
+              entityId: (await newEntity(tenantId)).id,
+              letterType: 'OFFER',
+              format: 'X/{SEQ:4}',
+            },
+          }),
+      );
+      return {
+        data: { tenantId, schemeId: scheme.id, period: '2026', lastSeq: 1 },
+      };
+    },
+    change: { lastSeq: 99 },
+  },
+  Template: {
+    delegate: 'template',
+    create: async (tenantId) => ({
+      data: { tenantId, name: crypto.randomUUID(), letterType: 'OFFER' },
+    }),
+    change: { name: 'hacked' },
+  },
+  TemplateVersion: {
+    delegate: 'templateVersion',
+    create: async (tenantId) => {
+      const template = await runAsSystem(
+        async () =>
+          await db.template.create({
+            data: { tenantId, name: crypto.randomUUID(), letterType: 'OFFER' },
+          }),
+      );
+      return {
+        data: {
+          tenantId,
+          templateId: template.id,
+          version: 1,
+          content: {},
+          fields: [],
+        },
+      };
+    },
+    change: { layoutKey: 'hacked' },
+  },
+  GeneratedDocument: {
+    delegate: 'generatedDocument',
+    create: async (tenantId) => {
+      const entity = await newEntity(tenantId);
+      const template = await runAsSystem(
+        async () =>
+          await db.template.create({
+            data: { tenantId, name: crypto.randomUUID(), letterType: 'OFFER' },
+          }),
+      );
+      const tv = await runAsSystem(
+        async () =>
+          await db.templateVersion.create({
+            data: {
+              tenantId,
+              templateId: template.id,
+              version: 1,
+              content: {},
+              fields: [],
+            },
+          }),
+      );
+      const lh = await runAsSystem(
+        async () =>
+          await db.letterhead.create({
+            data: {
+              tenantId,
+              entityId: entity.id,
+              version: 1,
+              name: 'L',
+              fileId: crypto.randomUUID(),
+            },
+          }),
+      );
+      return {
+        data: {
+          tenantId,
+          entityId: entity.id,
+          templateVersionId: tv.id,
+          letterheadId: lh.id,
+          letterType: 'OFFER',
+          reference: crypto.randomUUID(),
+          verifyToken: crypto.randomUUID(),
+          data: {},
+          fileId: crypto.randomUUID(),
+          sha256: 'a'.repeat(64),
+          pageCount: 1,
+        },
+      };
+    },
+    change: { letterType: 'hacked' },
+  },
   Notification: {
     delegate: 'notification',
     create: async (tenantId) => ({
