@@ -213,7 +213,7 @@ function UploadTemplate({ onDone }: { onDone: (id: string) => void }) {
           id="u-type"
           value={letterType}
           allowNone={false}
-          onChange={setLetterType}
+          onChange={(v) => setLetterType(v ?? 'OFFER')}
           options={LETTER_TYPES.map((v) => ({ value: v, label: typeLabel(v) }))}
         />
       </Field>

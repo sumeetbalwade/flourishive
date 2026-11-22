@@ -116,13 +116,11 @@ export function Accept({ token }: { token: string }) {
         </a>
       </Card>
       {info.method === 'AADHAAR' ? (
-        step !== 'done' && step !== 'declined' ? (
-          <Esign
-            token={token}
-            onDone={() => setStep('done')}
-            onDeclined={() => setStep('declined')}
-          />
-        ) : null
+        <Esign
+          token={token}
+          onDone={() => setStep('done')}
+          onDeclined={() => setStep('declined')}
+        />
       ) : (
         <>
           {step === 'review' ? <Ask token={token} onSent={() => setStep('code')} /> : null}
