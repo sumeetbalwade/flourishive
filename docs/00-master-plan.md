@@ -52,6 +52,26 @@ Approved decisions. Changing any of them needs a new entry, not an edit.
 | D-38 | Expired DSC during development | Development continues with the HR lead's expired DSC. Signatures made with it are test output only. A development-only setting (`ALLOW_EXPIRED_SIGNER_CERT`) lets the server accept them; it is off by default and **must not exist in production**. Before go-live the DSC is renewed, the setting and its code path are removed, and full certificate validation (validity dates, chain, revocation, timestamp) is verified on a real renewed token. |
 | D-37 | Signing animation | A pen-stroke-and-checkmark animation shows signing progress in Flourishive Desktop, on the web document page (signature timeline) and on the candidate OTP acceptance screen. It follows the real signing state, never a fake timer, and respects reduced-motion settings. |
 | D-36 | Signing spike | The Phase 0 spike runs on this Mac and on a Windows laptop with the mToken, after first passing against a SoftHSM test token. |
+| D-39 – D-52 | Phase 2 build | See [phase-02](phases/phase-02-documents-and-signing.md#decisions-approved-2026-11-21-d-39d-44). |
+| D-53 | Visual direction v2 | Supersedes D-08's colours: light-first mint and deep teal, Outfit headings, large radii; dark is green-black. Tenants still set their own accent. |
+| D-54 | Phase 2B | New phase "Platform control centre" between Phase 2 and Phase 3; settings editor, tenant branding, support sessions and module on/off move there from Phase 3. |
+| D-55 | Platform staff roles | Permission-based custom roles with presets Owner, Super admin, Support, Read-only auditor; at least one active Owner always. |
+| D-56 | Support access | Tenant data only through time-limited, reasoned support sessions visible to the tenant; read-only by default, write is a separate permission. |
+| D-57 | Runtime config and secrets | Integration settings and keys stored in the database (secrets encrypted, write-only, Test button, step-up to change); `api.env` keeps only bootstrap keys and acts as fallback. |
+| D-58 | Email senders | Platform sender by default; a tenant may use its own SMTP or a verified From address, activated only after code, test mail and SPF/DKIM/DMARC check. |
+| D-59 | Email templates | Subject and body per event with escaped `{{variables}}`, preview, test, reset; tenant overrides where unlocked. |
+| D-60 | Mail delivery log | Every email recorded with status and reason, resendable; OTP, reset and invite bodies never stored. |
+| D-61 | Tenant branding | Logos, favicon, sign-in panel, email header and footer, support contact; preset themes plus custom accent with WCAG AA check; curated font pairs; draft, preview, publish, revert. |
+| D-62 | Product brand | Edited by the super admin in the console and served from `GET /v1/brand`; `brand.json` is only a fallback. |
+| D-63 | Account actions | Super admin and tenant admin can reset password (link) and two-step, unlock, sign out everywhere, suspend, resend invite, change email; reason, step-up, user notified, audited; tenant admins only on users with a subset of their permissions. |
+| D-64 | Two-step ease | Remember device (default 30 days), email code fallback by policy, passkeys, separate admin session length. |
+| D-65 | Two-step opt-out | Amends D-16: policy decides, platform floors removed (admin defaults stay REQUIRED); under an OPTIONAL policy a person may turn their own two-step off after password re-entry, with warning and audit. |
+| D-66 | Break-glass | Another Owner resets a locked-out Owner; otherwise the server command `platform-reset-mfa`, audited. |
+| D-67 | Logs | Errors (plain-English story), request activity, jobs and email, sign-ins; request IDs; MySQL with masking and 7–180 day retention (default 30); errors also to a Sentry-compatible service when configured. |
+| D-68 | Alerts | Each super admin or tenant admin picks their own alert emails per event: instant, daily digest or off; off by default. |
+| D-69 | Company configuration | Region and formats, sign-in rules (password policy, idle timeout, allowed domains, admin IP allowlist), notification rules, custom domains via Caddy on-demand TLS for verified domains. |
+| D-70 | Platform controls | Announcement banner, maintenance mode, feature switches per tenant, usage overview, settings import/export without secrets. |
+| D-71 | Console UX | Grouped settings hub with search, per-setting control, hint and lock; setup wizard for new tenants. |
 
 ---
 
@@ -337,6 +357,7 @@ Each phase has its own file in [`phases/`](phases/), with its goal, task checkli
 | 0 — Setup, design system and signing spike | [phase-00-setup-design-signing-spike.md](phases/phase-00-setup-design-signing-spike.md) | – | In progress |
 | 1 — Minimal, tenant-aware core | [phase-01-core-platform.md](phases/phase-01-core-platform.md) | 0 | Not started |
 | 2 — Documents and digital signing (first go-live for Flourisense) | [phase-02-documents-and-signing.md](phases/phase-02-documents-and-signing.md) | 1 | Not started |
+| 2B — Platform control centre (config, branding, email, staff roles, accounts, logs) | [phase-02b-platform-control-centre.md](phases/phase-02b-platform-control-centre.md) | 2 | Not started |
 | 3 — SaaS layer (ready for the second customer) | [phase-03-saas-layer.md](phases/phase-03-saas-layer.md) | 2 | Not started |
 | 4 — People core and self-service | [phase-04-people-core.md](phases/phase-04-people-core.md) | 3 | Not started |
 | 5 — Onboarding and offboarding | [phase-05-onboarding-offboarding.md](phases/phase-05-onboarding-offboarding.md) | 4 | Not started |
@@ -346,7 +367,7 @@ Each phase has its own file in [`phases/`](phases/), with its goal, task checkli
 | 9 — Talent | [phase-09-talent.md](phases/phase-09-talent.md) | 5 | Not started |
 | 10 — Reports and integrations | [phase-10-reports-integrations.md](phases/phase-10-reports-integrations.md) | 4–8 | Not started |
 
-Phases 0–3 are fixed in order. Phases 4–10 can be reordered for business priority, and each is detailed and approved before it starts.
+Phases 0–3 (with 2B between 2 and 3) are fixed in order. Phases 4–10 can be reordered for business priority, and each is detailed and approved before it starts.
 
 ---
 
