@@ -10,6 +10,14 @@ WWW=$ROOT/www
 DOMAIN=flourishive.in
 export PATH=$PATH:/usr/local/go/bin
 
+# Reads KEY=value lines literally. The file is not shell syntax (MAIL_FROM has < > in it), so it is never sourced.
+load_env() {
+  local line
+  while IFS= read -r line; do
+    case "$line" in [A-Z_]*=*) export "${line%%=*}=${line#*=}" ;; esac
+  done < <(sudo cat /etc/flourishive/api.env)
+}
+
 cd "$REPO"
 git fetch -q origin
 git checkout -q "$BRANCH"
@@ -49,7 +57,7 @@ if ! sudo grep -q '^CLOUDFLARE_API_TOKEN=' $ENVF; then
 fi
 mkdir -p "$ROOT/storage" "$ROOT/trust/roots" "$ROOT/trust/tsa" "$ROOT/backups"
 chmod 700 "$ROOT/storage"
-set -a; . $ENVF; set +a
+load_env
 
 echo "==> Install and build"
 corepack enable >/dev/null 2>&1 || sudo corepack enable
@@ -61,7 +69,7 @@ if ! grep -q '^SEAL_KEY_BASE64=' $ENVF; then
   (cd backend && pnpm -s seal:generate | grep '^SEAL_' ) | sudo tee -a $ENVF >/dev/null
   echo "Seal key created. Back up /etc/flourishive/api.env somewhere safe, off this server."
 fi
-set -a; . $ENVF; set +a
+load_env
 
 echo "==> Database migrations"
 (cd backend && pnpm -s db:deploy)
