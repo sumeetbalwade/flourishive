@@ -94,8 +94,11 @@ export function Accept({ token }: { token: string }) {
           <p className="text-xs uppercase tracking-wide text-faint">From {info.issuedBy}</p>
           <h1 className="font-display text-3xl">Please review {info.reference}</h1>
           <p className="text-sm text-muted">
-            Hello {info.name}. Read the document, then confirm with a code we send to{' '}
-            {info.emailHint}. This link works until {date(info.expiresAt)}.
+            Hello {info.name}. Read the document, then{' '}
+            {info.method === 'AADHAAR'
+              ? 'sign it with your Aadhaar'
+              : `confirm with a code we send to ${info.emailHint}`}
+            . This link works until {date(info.expiresAt)}.
           </p>
         </div>
         <iframe
@@ -112,10 +115,91 @@ export function Accept({ token }: { token: string }) {
           Open the document in a new tab
         </a>
       </Card>
-      {step === 'review' ? <Ask token={token} onSent={() => setStep('code')} /> : null}
-      {step === 'code' ? <Confirm token={token} onDone={() => setStep('done')} /> : null}
+      {info.method === 'AADHAAR' ? (
+        step !== 'done' && step !== 'declined' ? (
+          <Esign
+            token={token}
+            onDone={() => setStep('done')}
+            onDeclined={() => setStep('declined')}
+          />
+        ) : null
+      ) : (
+        <>
+          {step === 'review' ? <Ask token={token} onSent={() => setStep('code')} /> : null}
+          {step === 'code' ? <Confirm token={token} onDone={() => setStep('done')} /> : null}
+        </>
+      )}
       <Decline token={token} onDone={() => setStep('declined')} />
     </div>
+  );
+}
+
+/** Aadhaar eSign: go to the provider, and finish when they send the browser back with ?esign=<trip>. */
+function Esign({
+  token,
+  onDone,
+  onDeclined,
+}: {
+  token: string;
+  onDone: () => void;
+  onDeclined: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const txn = new URLSearchParams(location.search).get('esign');
+
+  useEffect(() => {
+    if (!txn) return;
+    let live = true;
+    setBusy(true);
+    acceptApi.completeEsign(token, txn).then(
+      (r) => {
+        if (!live) return;
+        history.replaceState(null, '', location.pathname);
+        if (r.accepted) onDone();
+        else {
+          setBusy(false);
+          setError(r.message ?? 'Signing was not completed.');
+          if (r.message?.includes('declined')) onDeclined();
+        }
+      },
+      (e: unknown) => {
+        if (!live) return;
+        setBusy(false);
+        setError(e instanceof Error ? e.message : 'Something went wrong.');
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [token, txn, onDone, onDeclined]);
+
+  async function start() {
+    setBusy(true);
+    setError('');
+    try {
+      const r = await acceptApi.startEsign(token);
+      location.href = r.redirectUrl;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      setBusy(false);
+    }
+  }
+  return (
+    <Card className="grid gap-3 p-6">
+      <p className="text-sm text-muted">
+        When you have read the document, sign it with your Aadhaar. You will go to the signing
+        service and come back here.
+      </p>
+      {error ? (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      ) : null}
+      <Button onClick={() => void start()} disabled={busy}>
+        {busy ? 'Please wait…' : 'Sign with Aadhaar'}
+      </Button>
+    </Card>
   );
 }
 

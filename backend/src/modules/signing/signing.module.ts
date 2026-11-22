@@ -4,6 +4,8 @@ import { FilesModule } from '../files/files.module.js';
 import { IdentityModule } from '../identity/identity.module.js';
 import { SettingsModule } from '../settings/settings.module.js';
 import { WorkflowModule } from '../workflow/workflow.module.js';
+import { EsignGateway } from './esign/gateway.js';
+import { MockEsignController } from './esign/mock.controller.js';
 import { SealService } from './seal/seal.service.js';
 import {
   AcceptanceController,
@@ -25,9 +27,14 @@ import { SigningService } from './signing.service.js';
     SettingsModule,
     WorkflowModule,
   ],
-  controllers: [SigningStaffController, AcceptanceController],
+  controllers: [
+    SigningStaffController,
+    AcceptanceController,
+    MockEsignController,
+  ],
   providers: [
     SigningService,
+    EsignGateway,
     SealService,
     DscJobsService,
     DscValidator,

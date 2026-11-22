@@ -365,6 +365,18 @@ const fixtures: Record<string, Fixture> = {
     },
     change: { layoutKey: 'hacked' },
   },
+  EsignTransaction: {
+    delegate: 'esignTransaction',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        requestId: crypto.randomUUID(),
+        provider: 'mock',
+        providerTxnId: crypto.randomUUID(),
+      },
+    }),
+    change: { provider: 'hacked' },
+  },
   DeliveryLink: {
     delegate: 'deliveryLink',
     create: async (tenantId) => ({

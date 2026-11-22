@@ -159,6 +159,7 @@ export const acceptInfo = z.object({
   issuedBy: z.string(),
   name: z.string(),
   emailHint: z.string(),
+  method: z.enum(['OTP', 'AADHAAR']).default('OTP'),
   status: z.enum(['PENDING', 'COMPLETED', 'DECLINED', 'EXPIRED', 'CANCELLED']),
   expiresAt: z.string(),
   canAccept: z.boolean(),

@@ -66,6 +66,16 @@ export const acceptApi = {
       null,
       { method: 'POST' },
     ),
+  startEsign: (token: string) =>
+    request<{ redirectUrl: string }>(`/accept/${encodeURIComponent(token)}/esign/start`, null, {
+      method: 'POST',
+    }),
+  completeEsign: (token: string, txn: string) =>
+    request<{ accepted: boolean; message?: string }>(
+      `/accept/${encodeURIComponent(token)}/esign/complete`,
+      null,
+      json({ txn }),
+    ),
   confirm: (token: string, code: string) =>
     request<{ accepted: boolean }>(
       `/accept/${encodeURIComponent(token)}/confirm`,

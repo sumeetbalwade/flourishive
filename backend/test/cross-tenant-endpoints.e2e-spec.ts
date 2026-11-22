@@ -383,6 +383,16 @@ const NO_TENANT_DATA: Record<string, string> = {
     'the private emailed link token is the credential; it identifies one letter',
   'GET /public/delivery/:token/download':
     'the private emailed link token is the credential, and offers stay held until released',
+  'POST /public/accept/:token/esign/start':
+    'the private link token is the credential',
+  'POST /public/accept/:token/esign/complete':
+    'the private link token plus the provider trip it started',
+  'GET /public/esign/mock/:id':
+    'test provider page, only with ESIGN_PROVIDER=mock',
+  'GET /public/esign/mock/:id/approve':
+    'test provider page, only with ESIGN_PROVIDER=mock',
+  'GET /public/esign/mock/:id/decline':
+    'test provider page, only with ESIGN_PROVIDER=mock',
   'GET /public/accept/:token':
     'the private link token is the credential; it identifies one request',
   'GET /public/accept/:token/document':

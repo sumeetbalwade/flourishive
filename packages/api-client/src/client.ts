@@ -430,7 +430,13 @@ export function createApiClient(opts: Opts) {
         }),
       requestAcceptance: (
         id: string,
-        body: { name: string; email: string; expiresInDays?: number; finalStep?: boolean },
+        body: {
+          name: string;
+          email: string;
+          expiresInDays?: number;
+          finalStep?: boolean;
+          method?: 'OTP' | 'AADHAAR';
+        },
       ) => http.request('POST', `/documents/${id}/signature-requests`, { json: body }),
       cancelRequest: (id: string, requestId: string, reason: string) =>
         http.request('POST', `/documents/${id}/signature-requests/${requestId}/cancel`, {

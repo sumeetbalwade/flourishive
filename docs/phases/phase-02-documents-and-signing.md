@@ -24,7 +24,7 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 ### Signing (`modules/signing`, plan §6)
 - [ ] Signature requests with ordered parties; enforce the ordering rule (content changes before the first cryptographic signature) _(OTP request, one party, and the freeze on content at "signing" are done in PR 3; multiple ordered parties arrive with the DSC step)_
 - [x] **OTP e-acceptance:** email OTP, evidence (name, email, time, IP, user agent, document hash), acceptance certificate page, then the Flourishive organisation seal (D-25)
-- [ ] **Aadhaar eSign:** provider adapter; request → redirect → callback → signed PDF stored (provider chosen per D-28)
+- [x] **Aadhaar eSign:** provider adapter with a mock provider (D-44): request, redirect to the provider, return, finish; anything signed with the mock is labelled TEST. Switch with `ESIGN_PROVIDER` (`none` default, `mock`). A real provider is one more class implementing `EsignProvider` (provider chosen per D-28)
 - [x] **DSC (server side, PR 5):** desktop pairing (D-24, D-45), signing-job API (D-46), upload of the signed PDF, validation in Node before acceptance (D-31, D-48). The desktop app itself is PR 6. See docs/runbooks/dsc-validation.md
 - [ ] Revocation and supersede, with the reason recorded
 - [x] Dev-only setting `ALLOW_EXPIRED_SIGNER_CERT` (D-38): accepts signatures from the expired DSC; off by default; documents signed this way are labelled TEST

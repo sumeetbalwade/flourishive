@@ -94,3 +94,27 @@ model SignatureEvent {
   @@index([tenantId])
   @@map("signature_events")
 }
+
+enum EsignStatus {
+  PENDING
+  SIGNED
+  DECLINED
+  FAILED
+}
+
+/// One trip to an Aadhaar eSign provider for a signature request.
+model EsignTransaction {
+  id            String      @id @default(uuid(7)) @db.Char(36)
+  tenantId      String      @db.Char(36)
+  requestId     String      @db.Char(36)
+  provider      String      @db.VarChar(40)
+  providerTxnId String      @db.VarChar(100)
+  status        EsignStatus @default(PENDING)
+  createdAt     DateTime    @default(now()) @db.DateTime(3)
+  completedAt   DateTime?   @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, requestId])
+  @@map("esign_transactions")
+}
