@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { StorageMigrateService } from './modules/files/storage-migrate.service.js';
+import { AccessService } from './modules/access/access.service.js';
 import { AuditWatchService } from './modules/platform-admin/audit-watch.service.js';
 import { PlatformAuthService } from './modules/platform-admin/platform-auth.service.js';
 import { JobHandlerRegistry } from './platform/queue/job-handlers.js';
@@ -11,6 +12,7 @@ import { QueueService } from './platform/queue/queue.service.js';
  * Command line entry point (run by cron or by an operator over SSH):
  *   node dist/cli.js worker [--max-seconds=55]
  *   node dist/cli.js create-platform-user --email=you@example.com
+ *   node dist/cli.js sync-roles              (after a deploy: gives every company's system roles any new permissions)
  *   node dist/cli.js storage-migrate-r2 [--dry-run] [--delete-local]
  *   node dist/cli.js verify-audit            (nightly cron: re-checks every audit hash chain)
  */
@@ -27,16 +29,24 @@ async function main() {
     command !== 'worker' &&
     command !== 'create-platform-user' &&
     command !== 'verify-audit' &&
-    command !== 'storage-migrate-r2'
+    command !== 'storage-migrate-r2' &&
+    command !== 'sync-roles'
   ) {
     console.error(
-      'Usage: cli.js worker [--max-seconds=55] | create-platform-user --email=<address> | verify-audit | storage-migrate-r2 [--dry-run] [--delete-local]',
+      'Usage: cli.js worker [--max-seconds=55] | create-platform-user --email=<address> | verify-audit | storage-migrate-r2 [--dry-run] [--delete-local] | sync-roles',
     );
     process.exit(1);
   }
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn'],
   });
+
+  if (command === 'sync-roles') {
+    const n = await app.get(AccessService).provisionAllTenants();
+    console.log(`Synced system roles for ${n} compan${n === 1 ? 'y' : 'ies'}`);
+    await app.close();
+    return;
+  }
 
   if (command === 'storage-migrate-r2') {
     const r = await app.get(StorageMigrateService).run({

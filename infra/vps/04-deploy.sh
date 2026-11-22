@@ -80,6 +80,10 @@ load_env
 echo "==> Database migrations"
 (cd backend && pnpm -s db:deploy)
 
+echo "==> System roles"
+# New permissions reach every company's built-in roles (never changes their own policy choices).
+(cd backend && node dist/cli.js sync-roles)
+
 echo "==> Web apps"
 for app in web:app admin:admin verify:verify; do
   src=${app%%:*}; host=${app##*:}
