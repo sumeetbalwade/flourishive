@@ -153,6 +153,11 @@ model GeneratedDocument {
   /// An admin lets the recipient download. Held offer letters stay locked until this is set.
   downloadReleasedAt DateTime?     @db.DateTime(3)
   downloadReleasedBy String?       @db.Char(36)
+  /// Why the document was revoked or superseded, who did it and when; the newer document that replaced it.
+  statusReason       String?       @db.VarChar(500)
+  statusChangedAt    DateTime?     @db.DateTime(3)
+  statusChangedBy    String?       @db.Char(36)
+  supersededById     String?       @db.Char(36)
 
   tenant          Tenant          @relation(fields: [tenantId], references: [id])
   entity          Entity          @relation(fields: [entityId], references: [id])

@@ -18,6 +18,7 @@ import { useAuth } from '../../lib/auth.tsx';
 import { messageOf } from '../../lib/errors.ts';
 import { go } from '../../router.ts';
 import { Layout } from '../Layout.tsx';
+import { EndLifePanel } from './EndLifePanel.tsx';
 import { DeliveryPanel } from './DeliveryPanel.tsx';
 import { PdfPreview } from './PdfPreview.tsx';
 import { REQUEST_STATUS, eventLabel, stateOf, typeLabel } from './labels.ts';
@@ -314,7 +315,19 @@ export function LetterDetail({ id }: { id: string }) {
               </Card>
             ) : null}
 
-            {d.workflow.state === 'issued' && auth.can('documents.generate') ? (
+            {(d.workflow.state === 'issued' && auth.can('documents.approve')) ||
+            d.status !== 'GENERATED' ? (
+              <EndLifePanel
+                id={id}
+                personId={d.personId}
+                status={d.status}
+                statusReason={d.statusReason}
+              />
+            ) : null}
+
+            {d.workflow.state === 'issued' &&
+            d.status === 'GENERATED' &&
+            auth.can('documents.generate') ? (
               <DeliveryPanel id={id} letterType={d.letterType} />
             ) : null}
 

@@ -389,6 +389,93 @@ export class DocumentsService {
     });
   }
 
+  /**
+   * Withdraws an issued document. The verify page then says it was withdrawn, and any emailed
+   * download links stop working. The reason is recorded.
+   */
+  async revoke(a: Actor, id: string, reason: string) {
+    const doc = await this.visible(a, id);
+    await this.docAccess.assert(a, 'documents.approve', doc.entityId);
+    await this.assertLive(a, doc);
+    return this.endLife(a, doc, 'REVOKED', reason, null);
+  }
+
+  /** Replaces an issued document with a newer issued one for the same company. */
+  async supersede(
+    a: Actor,
+    id: string,
+    input: { newDocumentId: string; reason: string },
+  ) {
+    const doc = await this.visible(a, id);
+    await this.docAccess.assert(a, 'documents.approve', doc.entityId);
+    await this.assertLive(a, doc);
+    if (input.newDocumentId === id)
+      throw new BadRequestException('A document cannot replace itself');
+    const next = await this.visible(a, input.newDocumentId);
+    if (next.entityId !== doc.entityId)
+      throw new BadRequestException(
+        'The replacement must be from the same company',
+      );
+    await this.assertLive(
+      a,
+      next,
+      'The replacement must be an issued document',
+    );
+    return this.endLife(a, doc, 'SUPERSEDED', input.reason, next.id);
+  }
+
+  private async assertLive(
+    a: Actor,
+    doc: { id: string; status: string },
+    message = 'Only an issued document can be withdrawn or replaced',
+  ) {
+    const { state } = await this.workflow.history(a.tenantId, {
+      type: 'document',
+      id: doc.id,
+    });
+    if (doc.status !== 'GENERATED' || state !== 'issued')
+      throw new ConflictException(message);
+  }
+
+  private async endLife(
+    a: Actor,
+    doc: { id: string; reference: string },
+    status: 'REVOKED' | 'SUPERSEDED',
+    reason: string,
+    supersededById: string | null,
+  ) {
+    const now = new Date();
+    const updated = await runInTenant(a.tenantId, async () =>
+      this.prisma.db.$transaction(async (tx) => {
+        const row = await tx.generatedDocument.update({
+          where: { id: doc.id },
+          data: {
+            status,
+            statusReason: reason,
+            statusChangedAt: now,
+            statusChangedBy: a.userId,
+            supersededById,
+          },
+        });
+        await tx.deliveryLink.updateMany({
+          where: { documentId: doc.id, revokedAt: null },
+          data: { revokedAt: now },
+        });
+        return row;
+      }),
+    );
+    await this.audit.recordSafely({
+      tenantId: a.tenantId,
+      actorType: 'USER',
+      actorId: a.userId,
+      action: status === 'REVOKED' ? 'document.revoke' : 'document.supersede',
+      entityType: 'document',
+      entityId: doc.id,
+      meta: { reference: doc.reference, reason, supersededById },
+    });
+    return updated;
+  }
+
   async get(a: Actor, id: string) {
     const doc = await runInTenant(a.tenantId, async () =>
       this.prisma.db.generatedDocument.findUnique({ where: { id } }),

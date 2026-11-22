@@ -360,3 +360,85 @@ describe('uploaded PDF templates (Path C)', () => {
       .expect(201);
   });
 });
+
+describe('withdrawing and replacing issued letters', () => {
+  async function issued(name: string) {
+    const list = await call('get', '/documents/templates').expect(200);
+    const offer = list.body.find(
+      (t: { letterType: string; kind?: string }) =>
+        t.letterType === 'OFFER' && t.kind !== 'PDF_UPLOAD',
+    );
+    const gen = await call('post', '/documents/generate')
+      .send({
+        templateId: offer.id,
+        entityId,
+        fields: {
+          recipientName: name,
+          role: 'Intern',
+          startDate: '2026-06-01',
+          endDate: '2026-08-31',
+          location: 'Pune',
+          reportingTo: 'Mr Shah',
+          stipend: '10000',
+        },
+      })
+      .expect(201);
+    await runInTenant(tenantId, async () =>
+      prisma.db.workflowInstance.updateMany({
+        where: { subjectType: 'document', subjectId: gen.body.id },
+        data: { state: 'issued' },
+      }),
+    );
+    return gen.body as { id: string; verifyToken: string };
+  }
+  const verify = (token: string) =>
+    request(app.getHttpServer())
+      .get(`/v1/public/verify/${token}`)
+      .set('X-Forwarded-For', `10.9.5.${++ip}`);
+
+  it('revokes an issued letter with a reason; verify says withdrawn', async () => {
+    const d = await issued('Revoke Me');
+    await call('post', `/documents/${d.id}/revoke`)
+      .send({ reason: 'x' })
+      .expect(400);
+    await call('post', `/documents/${d.id}/revoke`)
+      .send({ reason: 'Issued to the wrong person' })
+      .expect(201);
+    const after = await call('get', `/documents/${d.id}`).expect(200);
+    expect(after.body).toMatchObject({
+      status: 'REVOKED',
+      statusReason: 'Issued to the wrong person',
+    });
+    expect((await verify(d.verifyToken).expect(200)).body.result).toBe(
+      'revoked',
+    );
+    await call('post', `/documents/${d.id}/revoke`)
+      .send({ reason: 'again please' })
+      .expect(409);
+    await call('post', `/documents/${d.id}/deliver`)
+      .send({ email: 'a@b.test' })
+      .expect(409);
+  });
+
+  it('supersedes with a newer issued letter and links them', async () => {
+    const old = await issued('Old Version');
+    const fresh = await issued('New Version');
+    await call('post', `/documents/${old.id}/supersede`)
+      .send({ newDocumentId: old.id, reason: 'Corrected stipend' })
+      .expect(400);
+    await call('post', `/documents/${old.id}/supersede`)
+      .send({ newDocumentId: fresh.id, reason: 'Corrected stipend' })
+      .expect(201);
+    const after = await call('get', `/documents/${old.id}`).expect(200);
+    expect(after.body).toMatchObject({
+      status: 'SUPERSEDED',
+      supersededById: fresh.id,
+    });
+    expect((await verify(old.verifyToken).expect(200)).body.result).toBe(
+      'superseded',
+    );
+    expect((await verify(fresh.verifyToken).expect(200)).body.result).not.toBe(
+      'superseded',
+    );
+  });
+});

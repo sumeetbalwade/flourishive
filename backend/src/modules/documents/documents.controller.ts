@@ -38,6 +38,8 @@ const uploadTemplateQuery = z.object({
   name: z.string().trim().min(1).max(120),
   letterType,
 });
+const reasonBody = z.object({ reason: z.string().trim().min(3).max(500) });
+const supersedeBody = reasonBody.extend({ newDocumentId: z.string().uuid() });
 const deliverBody = z.object({
   email: z.string().trim().email().max(191).optional(),
 });
@@ -211,6 +213,34 @@ export class DocumentsController {
       a,
       id,
       new ZodPipe(reviseBody).transform(body).fields,
+    );
+  }
+
+  @Post(':id/revoke')
+  @RequirePermission('documents.approve')
+  revoke(
+    @CurrentAuth() a: AccessClaims,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.docs.revoke(
+      a,
+      id,
+      new ZodPipe(reasonBody).transform(body).reason,
+    );
+  }
+
+  @Post(':id/supersede')
+  @RequirePermission('documents.approve')
+  supersede(
+    @CurrentAuth() a: AccessClaims,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.docs.supersede(
+      a,
+      id,
+      new ZodPipe(supersedeBody).transform(body),
     );
   }
 

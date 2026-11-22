@@ -662,6 +662,21 @@ const PROBES = (): Record<string, Probe> => ({
     mode: 'refuse',
     send: () => as('post', `/documents/bulk/${ids.bulkA}/deliver`),
   },
+  'POST /documents/:id/revoke': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/documents/${ids.docA}/revoke`).send({
+        reason: 'Hijack attempt',
+      }),
+  },
+  'POST /documents/:id/supersede': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/documents/${ids.docA}/supersede`).send({
+        newDocumentId: ids.docA,
+        reason: 'Hijack attempt',
+      }),
+  },
   'POST /documents/:id/deliver': {
     mode: 'refuse',
     send: () =>

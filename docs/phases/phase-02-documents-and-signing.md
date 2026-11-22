@@ -14,28 +14,28 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 - [x] Templates, versioned; every document records the template version it used
 - [x] **Path A, visual editor:** Tiptap editor with `{{placeholders}}`, headings, lists, tables and a signature box, saved as JSON and drawn by React-PDF on the letterhead (D-78 replaces the pdfmake note in D-13)
 - [x] **Path B, coded layouts:** React-PDF layouts registered in code, editable text fields only
-- [ ] **Path C, uploads:** plain PDF straight to signing; fillable PDF with field-to-placeholder mapping, then flattened; DOCX with placeholder filling, then converted (D-14)
-- [ ] Generation and bulk generation as queue jobs; QR code and reference stamped on every page _(single generation and the stamp are done in PR 1; bulk and queue jobs come in PR 7)_
+- [x] **Path C, uploads:** plain PDF straight to signing; fillable PDF with field-to-placeholder mapping, then flattened; DOCX with placeholder filling, then converted (D-14) _(PDF and fillable PDF done: HR maps form fields to details, the form is flattened and stamped; DOCX deferred by D-42)_
+- [x] Generation and bulk generation as queue jobs; QR code and reference stamped on every page _(single generation and the stamp are done in PR 1; bulk and queue jobs come in PR 7)_ _(done: single generation with stamp, bulk as a resumable queue job)_
 
 ### Workflow engine v1 (`modules/workflow`)
 - [x] Definitions stored as data: states, transitions, who can act, reminders _(reminder times are stored; sending them is a later PR)_
 - [x] Letters flow: draft → submitted → approved / changes requested → signing → issued _(signing and issued steps are system-only; wired up in PR 3-6)_
 
 ### Signing (`modules/signing`, plan §6)
-- [ ] Signature requests with ordered parties; enforce the ordering rule (content changes before the first cryptographic signature) _(OTP request, one party, and the freeze on content at "signing" are done in PR 3; multiple ordered parties arrive with the DSC step)_
+- [x] Signature requests with ordered parties; enforce the ordering rule (content changes before the first cryptographic signature) _(OTP request, one party, and the freeze on content at "signing" are done in PR 3; multiple ordered parties arrive with the DSC step)_ _(done as ordered requests: each request starts from the newest signed file, content can only change in draft, one open request at a time. One request with several parties is not built; say if you need it)_
 - [x] **OTP e-acceptance:** email OTP, evidence (name, email, time, IP, user agent, document hash), acceptance certificate page, then the Flourishive organisation seal (D-25)
 - [x] **Aadhaar eSign:** provider adapter with a mock provider (D-44): request, redirect to the provider, return, finish; anything signed with the mock is labelled TEST. Switch with `ESIGN_PROVIDER` (`none` default, `mock`). A real provider is one more class implementing `EsignProvider` (provider chosen per D-28)
 - [x] **DSC (server side, PR 5):** desktop pairing (D-24, D-45), signing-job API (D-46), upload of the signed PDF, validation in Node before acceptance (D-31, D-48). The desktop app itself is PR 6. See docs/runbooks/dsc-validation.md
-- [ ] Revocation and supersede, with the reason recorded
+- [x] Revocation and supersede, with the reason recorded
 - [x] Dev-only setting `ALLOW_EXPIRED_SIGNER_CERT` (D-38): accepts signatures from the expired DSC; off by default; documents signed this way are labelled TEST
 
 ### Flourishive Desktop v1 (`desktop/`, D-11, D-12)
-- [ ] PySide6 UI: sign in by pairing, signing queue, PIN entry, progress, history
-- [ ] Batch signing: PIN entered once for a selected batch, with the signing animation (D-37) showing real per-document progress, success and failure
-- [ ] Signing animation in the web signature timeline and on the candidate OTP acceptance screen (D-37)
-- [ ] Token driver detection (from the spike), with a manual library-path override
+- [x] PySide6 UI: sign in by pairing, signing queue, PIN entry, progress, history
+- [x] Batch signing: PIN entered once for a selected batch, with the signing animation (D-37) showing real per-document progress, success and failure
+- [x] Signing animation in the web signature timeline and on the candidate OTP acceptance screen (D-37)
+- [x] Token driver detection (from the spike), with a manual library-path override
 - [ ] DOCX → PDF: Word on Windows, LibreOffice on macOS
-- [ ] `flourishive://` link handler, auto-update, Sentry
+- [ ] `flourishive://` link handler _(done in PR 6)_, auto-update, Sentry _(waiting on the code-signing purchase, D-51)_
 - [ ] Packaging: code-signed Windows installer; signed and notarised macOS app
 
 ### External DOCX conversion (D-14)
@@ -100,7 +100,7 @@ Moves file bytes off the VPS. Today every file sits under `STORAGE_DIR`, and eve
   6. Switch `STORAGE_DRIVER=r2` and restart.
   7. Watch fallbacks for a week, then run `--delete-local`.
   8. Rollback: set `STORAGE_DRIVER=local`. Local copies are kept until `--delete-local`.
-- [ ] Backups: the nightly server backup no longer needs file bytes once migration is complete. Note in the runbook that R2 is the store of record, and that bucket deletion is protected only by the token's scope.
+- [x] Backups: the nightly server backup no longer needs file bytes once migration is complete. Note in the runbook that R2 is the store of record, and that bucket deletion is protected only by the token's scope.
 
 **Tests**
 - [x] Driver contract tests run against both drivers. R2 uses `aws-sdk-client-mock`, so no network is needed in CI.

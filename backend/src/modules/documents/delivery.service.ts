@@ -101,7 +101,10 @@ export class DeliveryService {
   async deliver(a: Actor, documentId: string, email?: string) {
     const doc = await this.load(a.tenantId, documentId);
     await this.docAccess.assert(a, 'documents.generate', doc.entityId);
-    if (!(await this.isIssued(a.tenantId, doc.id)))
+    if (
+      doc.status !== 'GENERATED' ||
+      !(await this.isIssued(a.tenantId, doc.id))
+    )
       throw new ConflictException('Only an issued letter can be emailed');
     const person = doc.personId
       ? await runInTenant(a.tenantId, async () =>

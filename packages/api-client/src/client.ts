@@ -82,6 +82,9 @@ const documentDetailSchema = z
     createdAt: z.string(),
     data: z.record(z.string(), z.unknown()),
     downloadUrl: z.string(),
+    status: z.string().default('GENERATED'),
+    statusReason: z.string().nullable().default(null),
+    supersededById: z.string().nullable().default(null),
     workflow: z.object({
       state: z.string(),
       actions: z.array(
@@ -498,6 +501,10 @@ export function createApiClient(opts: Opts) {
         http.request('GET', `/documents/${id}/delivery`, { schema: deliverySchema }),
       releaseDownload: (id: string) => http.request('POST', `/documents/${id}/release`),
       holdDownload: (id: string) => http.request('POST', `/documents/${id}/hold`),
+      revoke: (id: string, reason: string) =>
+        http.request('POST', `/documents/${id}/revoke`, { json: { reason } }),
+      supersede: (id: string, newDocumentId: string, reason: string) =>
+        http.request('POST', `/documents/${id}/supersede`, { json: { newDocumentId, reason } }),
       revokeLinks: (id: string) => http.request('POST', `/documents/${id}/delivery/revoke`),
     },
 
