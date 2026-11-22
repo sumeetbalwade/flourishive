@@ -5,9 +5,10 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={cn(
-        'h-11 w-full rounded-pill border border-line-strong bg-surface-2 px-5 text-sm text-fg placeholder:text-faint',
-        'transition-colors duration-[var(--dur-fast)] focus-visible:border-accent disabled:opacity-50',
-        'aria-[invalid=true]:border-danger',
+        'h-11 w-full rounded-pill border border-line-strong bg-surface px-5 text-sm text-fg shadow-[0_1px_2px_rgb(17_32_27/0.04)] placeholder:text-faint',
+        'transition-[border-color,box-shadow] duration-[var(--dur-fast)] hover:border-accent/60',
+        'focus-visible:border-accent focus-visible:shadow-[0_0_0_4px_var(--accent-lo)]',
+        'disabled:opacity-50 aria-[invalid=true]:border-danger aria-[invalid=true]:focus-visible:shadow-[0_0_0_4px_var(--danger-lo)]',
         className,
       )}
       {...props}
@@ -30,16 +31,16 @@ export function Field({
 }) {
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={htmlFor} className="text-[13px] font-medium text-muted">
+      <label htmlFor={htmlFor} className="pl-1 text-[13px] font-medium text-muted">
         {label}
       </label>
       {children}
       {error ? (
-        <p role="alert" className="text-xs text-danger">
+        <p role="alert" className="animate-fade-in pl-1 text-xs text-danger">
           {error}
         </p>
       ) : hint ? (
-        <p className="text-xs text-faint">{hint}</p>
+        <p className="pl-1 text-xs text-faint">{hint}</p>
       ) : null}
     </div>
   );

@@ -165,7 +165,7 @@ export function Login() {
           <Field label="Password" htmlFor="password" error={error}>
             <Input id="password" name="password" type="password" autoComplete="current-password" />
           </Field>
-          <Button type="submit" size="lg" disabled={busy}>
+          <Button type="submit" size="lg" loading={busy} disabled={busy}>
             {busy ? 'Signing in…' : 'Continue'}
           </Button>
           <GoogleButton
@@ -271,7 +271,7 @@ function MfaChallenge({
                 placeholder="000000"
               />
             </Field>
-            <Button type="submit" size="lg" disabled={busy || code.length !== 6}>
+            <Button type="submit" size="lg" loading={busy} disabled={busy || code.length !== 6}>
               {busy ? 'Checking…' : 'Verify and set up again'}
             </Button>
             <button

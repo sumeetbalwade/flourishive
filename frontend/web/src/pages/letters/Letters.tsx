@@ -95,7 +95,9 @@ export function Letters() {
                     <TD>{typeLabel(l.letterType)}</TD>
                     <TD className="font-mono text-xs text-muted">{l.reference}</TD>
                     <TD>
-                      <Badge tone={s.tone}>{s.label}</Badge>
+                      <Badge dot tone={s.tone}>
+                        {s.label}
+                      </Badge>
                     </TD>
                     <TD className="text-muted">{fmtDate(l.createdAt)}</TD>
                   </TR>

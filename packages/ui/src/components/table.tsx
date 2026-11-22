@@ -8,7 +8,7 @@ export function Table({
   ...p
 }: HTMLAttributes<HTMLTableElement> & { compact?: boolean }) {
   return (
-    <div className="overflow-x-auto rounded-card border border-line bg-surface">
+    <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
       <table
         data-compact={compact ? '' : undefined}
         className={cn('w-full border-collapse text-sm', className)}
@@ -24,7 +24,10 @@ export const TBody = (p: HTMLAttributes<HTMLTableSectionElement>) => <tbody {...
 export function TR({ className, ...p }: HTMLAttributes<HTMLTableRowElement>) {
   return (
     <tr
-      className={cn('border-b border-line last:border-0 hover:bg-surface-2/60', className)}
+      className={cn(
+        'border-b border-line transition-colors duration-[var(--dur-fast)] last:border-0 hover:bg-accent-lo/50',
+        className,
+      )}
       {...p}
     />
   );
@@ -35,7 +38,7 @@ export function TH({ className, ...p }: ThHTMLAttributes<HTMLTableCellElement>) 
     <th
       scope="col"
       className={cn(
-        'px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-faint',
+        'bg-surface-2/60 px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-faint first:rounded-tl-card last:rounded-tr-card',
         className,
       )}
       {...p}
@@ -44,5 +47,5 @@ export function TH({ className, ...p }: ThHTMLAttributes<HTMLTableCellElement>) 
 }
 
 export function TD({ className, ...p }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn('px-5 py-4 text-fg in-data-[compact]:py-2', className)} {...p} />;
+  return <td className={cn('px-6 py-4 text-fg in-data-[compact]:py-2.5', className)} {...p} />;
 }

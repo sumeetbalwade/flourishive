@@ -11,7 +11,7 @@ function readTheme(): Theme {
   } catch {
     /* storage unavailable */
   }
-  return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  return 'light';
 }
 
 export function ThemeToggle() {

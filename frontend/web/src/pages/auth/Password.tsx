@@ -82,7 +82,7 @@ export function ForgotPassword() {
             <Field label="Repeat password" htmlFor="fp-new2" error={error}>
               <Input id="fp-new2" name="confirm" type="password" autoComplete="new-password" />
             </Field>
-            <Button type="submit" size="lg" disabled={busy}>
+            <Button type="submit" size="lg" loading={busy} disabled={busy}>
               {busy ? 'Saving…' : 'Save password'}
             </Button>
           </form>
@@ -121,7 +121,7 @@ export function ForgotPassword() {
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               />
             </Field>
-            <Button type="submit" size="lg" disabled={busy || code.length !== 6}>
+            <Button type="submit" size="lg" loading={busy} disabled={busy || code.length !== 6}>
               {busy ? 'Checking…' : 'Continue'}
             </Button>
             <button
@@ -172,7 +172,7 @@ export function ForgotPassword() {
           <Field label="Work email" htmlFor="f-email" error={error}>
             <Input id="f-email" name="email" type="email" autoComplete="username" />
           </Field>
-          <Button type="submit" size="lg" disabled={busy}>
+          <Button type="submit" size="lg" loading={busy} disabled={busy}>
             {busy ? 'Sending…' : 'Email me a code'}
           </Button>
           <a href="#/login" className="text-center text-sm text-muted underline">
@@ -252,7 +252,7 @@ export function ResetPassword({ token }: { token: string }) {
           <Field label="Repeat password" htmlFor="np2" error={error}>
             <Input id="np2" name="confirm" type="password" autoComplete="new-password" />
           </Field>
-          <Button type="submit" size="lg" disabled={busy}>
+          <Button type="submit" size="lg" loading={busy} disabled={busy}>
             {busy ? 'Saving…' : 'Save password'}
           </Button>
         </form>

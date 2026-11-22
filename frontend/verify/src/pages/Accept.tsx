@@ -229,7 +229,7 @@ function Confirm({ token, onDone }: { token: string; onDone: () => void }) {
             {note}
           </p>
         ) : null}
-        <Button type="submit" disabled={busy || code.length !== 6 || !consent}>
+        <Button type="submit" loading={busy} disabled={busy || code.length !== 6 || !consent}>
           {busy ? 'Confirming…' : 'Accept document'}
         </Button>
       </form>

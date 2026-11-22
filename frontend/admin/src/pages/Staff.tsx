@@ -172,7 +172,7 @@ export function Staff() {
                   autoFocus
                 />
               </Field>
-              <Button type="submit" disabled={busy || !email.trim()}>
+              <Button type="submit" loading={busy} disabled={busy || !email.trim()}>
                 Send invitation
               </Button>
             </form>

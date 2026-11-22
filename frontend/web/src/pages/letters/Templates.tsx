@@ -161,7 +161,7 @@ function NewTemplate({ onDone }: { onDone: () => void }) {
           {error}
         </p>
       ) : null}
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" loading={busy} disabled={busy}>
         {busy ? 'Creating…' : 'Create template'}
       </Button>
     </form>

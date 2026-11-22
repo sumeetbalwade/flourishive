@@ -65,7 +65,7 @@ export function FindCompany() {
               placeholder="you@company.com"
             />
           </Field>
-          <Button type="submit" size="lg" disabled={busy}>
+          <Button type="submit" size="lg" loading={busy} disabled={busy}>
             {busy ? 'Sending…' : 'Email me the link'}
           </Button>
           <a href="#/login" className="text-center text-sm text-muted underline">

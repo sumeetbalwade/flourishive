@@ -24,9 +24,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <T.Root
             key={i.id}
             onOpenChange={(o) => !o && setItems((s) => s.filter((x) => x.id !== i.id))}
-            className="relative flex gap-3 overflow-hidden rounded-md border border-line bg-surface-raised py-3 pl-5 pr-4 shadow-card"
+            className="relative flex gap-3 overflow-hidden rounded-md border border-line-strong bg-surface-raised py-3.5 pl-6 pr-4 shadow-pop data-[state=open]:animate-[toast-in_280ms_var(--ease-out)] data-[state=closed]:animate-fade-out data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=cancel]:translate-x-0 data-[swipe=cancel]:transition-transform data-[swipe=end]:animate-[toast-swipe_150ms_ease-out_forwards]"
           >
-            <span className={cn('absolute inset-y-0 left-0 w-1', bar[i.tone])} />
+            <span className={cn('absolute inset-y-2 left-2 w-1 rounded-full', bar[i.tone])} />
             <div className="grid gap-0.5">
               <T.Title className="text-sm font-medium text-fg">{i.title}</T.Title>
               {i.description ? (

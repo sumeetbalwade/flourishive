@@ -1,4 +1,4 @@
-import { AppShell, brand, type Command, type NavItem } from '@flourishive/ui';
+import { AppShell, BrandMark, brand, type Command, type NavItem } from '@flourishive/ui';
 import {
   Building2,
   ClipboardList,
@@ -119,8 +119,11 @@ export function Layout({
   return (
     <AppShell
       brand={
-        <span className="font-display text-2xl text-accent-hi" title={brand.appName}>
-          {brand.appName.charAt(0).toUpperCase()}
+        <span className="flex items-center gap-3" title={brand.appName}>
+          <BrandMark />
+          <span className="hidden font-display text-xl font-medium md:inline group-data-[collapsed=true]/side:md:hidden">
+            {brand.appName}
+          </span>
         </span>
       }
       nav={nav}

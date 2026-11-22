@@ -257,7 +257,7 @@ export function TenantDetail({ id }: { id: string }) {
                 autoFocus
               />
             </Field>
-            <Button type="submit" disabled={busy || !edit?.value.trim()}>
+            <Button type="submit" loading={busy} disabled={busy || !edit?.value.trim()}>
               Save
             </Button>
           </form>

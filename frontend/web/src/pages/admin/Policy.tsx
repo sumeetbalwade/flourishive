@@ -198,7 +198,7 @@ export function Policy() {
               <DialogClose asChild>
                 <Button variant="secondary">Cancel</Button>
               </DialogClose>
-              <Button type="submit" disabled={busy || name.trim().length < 2}>
+              <Button type="submit" loading={busy} disabled={busy || name.trim().length < 2}>
                 Add role
               </Button>
             </div>

@@ -18,6 +18,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.75.0",
+    "motion": "^14.14.0",
     "radix-ui": "^1.8.1",
     "react-day-picker": "^10.0.2",
     "recharts": "^3.11.0",
