@@ -379,6 +379,10 @@ function discoverRoutes(): string[] {
  */
 const NO_TENANT_DATA: Record<string, string> = {
   'GET /health': 'public status, no data',
+  'GET /public/delivery/:token':
+    'the private emailed link token is the credential; it identifies one letter',
+  'GET /public/delivery/:token/download':
+    'the private emailed link token is the credential, and offers stay held until released',
   'GET /public/accept/:token':
     'the private link token is the credential; it identifies one request',
   'GET /public/accept/:token/document':
@@ -636,6 +640,31 @@ const PROBES = (): Record<string, Probe> => ({
   'GET /documents/bulk/:id': {
     mode: 'refuse',
     send: () => as('get', `/documents/bulk/${ids.bulkA}`),
+  },
+  'POST /documents/bulk/:id/deliver': {
+    mode: 'refuse',
+    send: () => as('post', `/documents/bulk/${ids.bulkA}/deliver`),
+  },
+  'POST /documents/:id/deliver': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/documents/${ids.docA}/deliver`).send({ email: 'x@x.test' }),
+  },
+  'POST /documents/:id/release': {
+    mode: 'refuse',
+    send: () => as('post', `/documents/${ids.docA}/release`),
+  },
+  'POST /documents/:id/hold': {
+    mode: 'refuse',
+    send: () => as('post', `/documents/${ids.docA}/hold`),
+  },
+  'POST /documents/:id/delivery/revoke': {
+    mode: 'refuse',
+    send: () => as('post', `/documents/${ids.docA}/delivery/revoke`),
+  },
+  'GET /documents/:id/delivery': {
+    mode: 'refuse',
+    send: () => as('get', `/documents/${ids.docA}/delivery`),
   },
   'GET /documents/templates/:id': {
     mode: 'refuse',

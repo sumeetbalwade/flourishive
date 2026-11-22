@@ -26,12 +26,16 @@ import { RequirePermission } from '../access/require-permission.js';
 import { CurrentAuth } from '../identity/auth.context.js';
 import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
+import { DeliveryService } from './delivery.service.js';
 import { BulkService } from './bulk.service.js';
 import { DocumentsService } from './documents.service.js';
 import { LetterheadsService } from './letterheads.service.js';
 import { NumberingService } from './numbering.service.js';
 import { TemplatesService } from './templates.service.js';
 
+const deliverBody = z.object({
+  email: z.string().trim().email().max(191).optional(),
+});
 const listQuery = pageQuery.extend({ personId: z.string().uuid().optional() });
 
 @Controller('documents')
@@ -39,6 +43,7 @@ export class DocumentsController {
   constructor(
     private readonly docs: DocumentsService,
     private readonly bulk: BulkService,
+    private readonly delivery: DeliveryService,
     private readonly letterheads: LetterheadsService,
     private readonly numbering: NumberingService,
     private readonly templates: TemplatesService,
@@ -141,6 +146,12 @@ export class DocumentsController {
     return this.bulk.create(a, new ZodPipe(bulkBody).transform(body));
   }
 
+  @Post('bulk/:id/deliver')
+  @RequirePermission('documents.generate')
+  deliverBatch(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
+    return this.delivery.deliverBatch(a, id);
+  }
+
   @Get('bulk/:id')
   @RequirePermission('documents.generate')
   getBulk(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
@@ -179,6 +190,44 @@ export class DocumentsController {
       id,
       new ZodPipe(reviseBody).transform(body).fields,
     );
+  }
+
+  @Post(':id/deliver')
+  @RequirePermission('documents.generate')
+  deliver(
+    @CurrentAuth() a: AccessClaims,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.delivery.deliver(
+      a,
+      id,
+      new ZodPipe(deliverBody).transform(body ?? {}).email,
+    );
+  }
+
+  @Post(':id/release')
+  @RequirePermission('documents.release')
+  release(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
+    return this.delivery.setRelease(a, id, true);
+  }
+
+  @Post(':id/hold')
+  @RequirePermission('documents.release')
+  hold(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
+    return this.delivery.setRelease(a, id, false);
+  }
+
+  @Post(':id/delivery/revoke')
+  @RequirePermission('documents.generate')
+  revokeLinks(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
+    return this.delivery.revoke(a, id);
+  }
+
+  @Get(':id/delivery')
+  @RequirePermission('documents.read')
+  deliveryStatus(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
+    return this.delivery.status(a, id);
   }
 
   @Get(':id/history')

@@ -150,6 +150,9 @@ model GeneratedDocument {
   pageCount         Int
   createdBy         String?        @db.Char(36)
   createdAt         DateTime       @default(now()) @db.DateTime(3)
+  /// An admin lets the recipient download. Held offer letters stay locked until this is set.
+  downloadReleasedAt DateTime?     @db.DateTime(3)
+  downloadReleasedBy String?       @db.Char(36)
 
   tenant          Tenant          @relation(fields: [tenantId], references: [id])
   entity          Entity          @relation(fields: [entityId], references: [id])
@@ -204,4 +207,22 @@ model BulkBatchRow {
   @@unique([batchId, position])
   @@index([tenantId])
   @@map("bulk_batch_rows")
+}
+
+/// A private link emailed to a recipient. Only a hash of the token is stored.
+model DeliveryLink {
+  id         String    @id @default(uuid(7)) @db.Char(36)
+  tenantId   String    @db.Char(36)
+  documentId String    @db.Char(36)
+  tokenHash  String    @unique @db.Char(64)
+  sentTo     String    @db.VarChar(191)
+  expiresAt  DateTime  @db.DateTime(3)
+  revokedAt  DateTime? @db.DateTime(3)
+  createdBy  String    @db.Char(36)
+  createdAt  DateTime  @default(now()) @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, documentId])
+  @@map("delivery_links")
 }

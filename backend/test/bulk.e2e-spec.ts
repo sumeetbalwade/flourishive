@@ -24,6 +24,8 @@ let tenantId = '';
 let userId = '';
 let entityId = '';
 let token = '';
+let adminToken = '';
+const mails: { to: string; text: string }[] = [];
 
 const call = (method: 'get' | 'post' | 'put', path: string) =>
   request(app.getHttpServer())
@@ -35,7 +37,9 @@ beforeAll(async () => {
   app = (
     await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(MailService)
-      .useValue({ send: async () => undefined })
+      .useValue({
+        send: async (m: { to: string; text: string }) => void mails.push(m),
+      })
       .compile()
   ).createNestApplication();
   configureApp(app);
@@ -78,6 +82,31 @@ beforeAll(async () => {
   });
   token = (await app.get(SessionService).start(tenantId, userId, {}))
     .accessToken;
+  const admin = await runAsSystem(
+    async () =>
+      await prisma.db.user.create({
+        data: { tenantId, email: 'admin@bulk.test', passwordHash },
+      }),
+  );
+  await runInTenant(tenantId, async () => {
+    const role = await prisma.db.role.findUnique({
+      where: { tenantId_key: { tenantId, key: 'tenant_admin' } },
+    });
+    await prisma.db.userRole.create({
+      data: { tenantId, userId: admin.id, roleId: role!.id },
+    });
+  });
+  adminToken = (await app.get(SessionService).start(tenantId, admin.id, {}))
+    .accessToken;
+  const portrait = await PDFDocument.create();
+  portrait.addPage([595.28, 841.89]);
+  await call('post', `/documents/letterheads?entityId=${entityId}&name=P`)
+    .set('Content-Type', 'application/pdf')
+    .send(Buffer.from(await portrait.save()))
+    .expect(201);
+  await call('put', '/documents/numbering')
+    .send({ entityId, letterType: 'OFFER', format: 'B/O/{YYYY}/{SEQ:3}' })
+    .expect(200);
   const d = await PDFDocument.create();
   d.addPage([841.89, 595.28]);
   await call(
@@ -191,5 +220,92 @@ describe('starter letters and bulk issue', () => {
     const out = await call('get', `/documents/bulk/${res.body.id}`).expect(200);
     expect(out.body).toMatchObject({ done: 0, failed: 1, finished: true });
     expect(out.body.rows[0].error).toContain('Template not found');
+  });
+});
+
+describe('emailing a letter, and holding offer downloads', () => {
+  let docId = '';
+  let link = '';
+  const pub = (path: string) =>
+    request(app.getHttpServer())
+      .get(`/v1/public/delivery/${path}`)
+      .set('X-Forwarded-For', `10.9.0.${++ip}`);
+
+  it('only emails an issued letter', async () => {
+    const list = await call('get', '/documents/templates').expect(200);
+    const offer = list.body.find(
+      (t: { letterType: string }) => t.letterType === 'OFFER',
+    );
+    const gen = await call('post', '/documents/generate')
+      .send({
+        templateId: offer.id,
+        entityId,
+        fields: {
+          recipientName: 'Asha Rao',
+          role: 'Intern',
+          startDate: '2026-06-01',
+          endDate: '2026-08-31',
+          location: 'Pune',
+          reportingTo: 'Mr Shah',
+          stipend: '10000',
+        },
+      })
+      .expect(201);
+    docId = gen.body.id;
+    await call('post', `/documents/${docId}/deliver`)
+      .send({ email: 'asha@example.test' })
+      .expect(409);
+    await runInTenant(tenantId, async () =>
+      prisma.db.workflowInstance.updateMany({
+        where: { subjectType: 'document', subjectId: docId },
+        data: { state: 'issued' },
+      }),
+    );
+  });
+
+  it('sends a private link; the offer is held until an admin releases it', async () => {
+    const res = await call('post', `/documents/${docId}/deliver`)
+      .send({ email: 'asha@example.test' })
+      .expect(201);
+    expect(res.body).toMatchObject({ sent: true, held: true });
+    const mail = mails.at(-1)!;
+    expect(mail.to).toBe('asha@example.test');
+    link = /\/letter\/([A-Za-z0-9_-]{40,64})/.exec(mail.text)![1]!;
+
+    const info = await pub(link).expect(200);
+    expect(info.body).toMatchObject({ downloadAllowed: false });
+    await pub(`${link}/download`).expect(403);
+
+    // HR cannot release; an admin can
+    await call('post', `/documents/${docId}/release`).expect(403);
+    await request(app.getHttpServer())
+      .post(`/v1/documents/${docId}/release`)
+      .set('X-Forwarded-For', `10.9.1.${++ip}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(201);
+    const ok = await pub(`${link}/download`)
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on('data', (c: Buffer) => chunks.push(c));
+        r.on('end', () => cb(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect((ok.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
+
+    // held again, then the link is cancelled
+    await request(app.getHttpServer())
+      .post(`/v1/documents/${docId}/hold`)
+      .set('X-Forwarded-For', `10.9.2.${++ip}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(201);
+    await pub(`${link}/download`).expect(403);
+    await call('post', `/documents/${docId}/delivery/revoke`).expect(201);
+    await pub(link).expect(404);
+  });
+
+  it('refuses a made-up link', async () => {
+    await pub('x'.repeat(43)).expect(404);
+    await pub('short').expect(404);
   });
 });
