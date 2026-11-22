@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Step 2: base software. Run on the server as the deploy user (uses sudo).
-#   MariaDB 11.4 LTS and Redis, both listening on localhost only; Node 22 + pnpm.
+#   MariaDB 11.4 LTS and Redis, both listening on localhost only; Node 24 + pnpm.
 # Passwords are generated here, stored root-only in /etc/flourishive/, never printed.
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
@@ -63,15 +63,15 @@ sudo systemctl restart redis-server
 RPASS=$(sed 's#.*://:\(.*\)@.*#\1#' $SECRETS/redis.env)
 REDISCLI_AUTH="$RPASS" redis-cli ping
 
-echo "==> Node 22 and pnpm"
-if ! command -v node >/dev/null || ! node -v | grep -q '^v22'; then
-  curl -fsSL https://deb.nodesource.com/setup_22.x -o /tmp/nodesource_setup
+echo "==> Node 24 and pnpm"
+if ! command -v node >/dev/null || ! node -v | grep -q '^v24'; then
+  curl -fsSL https://deb.nodesource.com/setup_24.x -o /tmp/nodesource_setup
   sudo bash /tmp/nodesource_setup
   sudo apt-get install -y nodejs
 fi
 sudo corepack enable
 node -v; corepack --version
-sudo apt-get install -y build-essential python3 poppler-utils
+sudo apt-get install -y build-essential python3 poppler-utils rsync
 
 echo "==> Listening ports (should be localhost only, except SSH)"
 sudo ss -ltnp | awk 'NR==1 || /LISTEN/' | awk '{print $1,$4,$6}'

@@ -1,0 +1,56 @@
+{
+	email admin@flourishive.in
+}
+
+# One wildcard certificate (Cloudflare DNS challenge) covers every hostname below.
+*.flourishive.in, flourishive.in {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+		resolvers 1.1.1.1 1.0.0.1
+	}
+
+	@api host api.flourishive.in
+	@admin host admin.flourishive.in
+	@verify host verify.flourishive.in
+	@apex host flourishive.in www.flourishive.in
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	}
+
+	encode zstd gzip
+
+	handle @api {
+		reverse_proxy 127.0.0.1:3000 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+
+	handle @apex {
+		redir https://app.flourishive.in{uri} 302
+	}
+
+	handle @admin {
+		root * /srv/flourishive/www/admin
+		try_files {path} /index.html
+		file_server
+	}
+
+	handle @verify {
+		root * /srv/flourishive/www/verify
+		try_files {path} /index.html
+		file_server
+	}
+
+	# app.flourishive.in and every <company>.flourishive.in: the staff web app.
+	handle {
+		root * /srv/flourishive/www/company
+		try_files {path} /index.html
+		file_server
+	}
+}
