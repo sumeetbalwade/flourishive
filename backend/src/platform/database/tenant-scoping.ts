@@ -32,6 +32,8 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'Template',
   'TemplateVersion',
   'GeneratedDocument',
+  'BulkBatch',
+  'BulkBatchRow',
   'WorkflowDefinition',
   'WorkflowInstance',
   'WorkflowAction',

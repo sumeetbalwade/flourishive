@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AccessModule } from '../access/access.module.js';
 import { FilesModule } from '../files/files.module.js';
 import { WorkflowModule } from '../workflow/workflow.module.js';
+import { BulkService } from './bulk.service.js';
 import { DocAccess } from './doc-access.service.js';
 import { DocumentsController } from './documents.controller.js';
 import { DocumentsService } from './documents.service.js';
@@ -14,6 +15,7 @@ import { TemplatesService } from './templates.service.js';
   imports: [AccessModule, FilesModule, WorkflowModule],
   controllers: [DocumentsController],
   providers: [
+    BulkService,
     DocAccess,
     DocumentsService,
     LetterheadsService,

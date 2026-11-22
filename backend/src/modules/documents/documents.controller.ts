@@ -1,5 +1,6 @@
 import {
   actionBody,
+  bulkBody,
   generateBody,
   letterheadQuery,
   numberingBody,
@@ -25,6 +26,7 @@ import { RequirePermission } from '../access/require-permission.js';
 import { CurrentAuth } from '../identity/auth.context.js';
 import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
+import { BulkService } from './bulk.service.js';
 import { DocumentsService } from './documents.service.js';
 import { LetterheadsService } from './letterheads.service.js';
 import { NumberingService } from './numbering.service.js';
@@ -36,6 +38,7 @@ const listQuery = pageQuery.extend({ personId: z.string().uuid().optional() });
 export class DocumentsController {
   constructor(
     private readonly docs: DocumentsService,
+    private readonly bulk: BulkService,
     private readonly letterheads: LetterheadsService,
     private readonly numbering: NumberingService,
     private readonly templates: TemplatesService,
@@ -94,6 +97,12 @@ export class DocumentsController {
     return this.templates.create(a, new ZodPipe(templateBody).transform(body));
   }
 
+  @Post('templates/starters')
+  @RequirePermission('documents.manage')
+  installStarters(@CurrentAuth() a: AccessClaims) {
+    return this.templates.installStarters(a);
+  }
+
   @Get('templates/:id')
   @RequirePermission('documents.read')
   getTemplate(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
@@ -124,6 +133,18 @@ export class DocumentsController {
   @RequirePermission('documents.generate')
   generate(@CurrentAuth() a: AccessClaims, @Body() body: unknown) {
     return this.docs.generate(a, new ZodPipe(generateBody).transform(body));
+  }
+
+  @Post('bulk')
+  @RequirePermission('documents.generate')
+  startBulk(@CurrentAuth() a: AccessClaims, @Body() body: unknown) {
+    return this.bulk.create(a, new ZodPipe(bulkBody).transform(body));
+  }
+
+  @Get('bulk/:id')
+  @RequirePermission('documents.generate')
+  getBulk(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
+    return this.bulk.get(a, id);
   }
 
   @Get()

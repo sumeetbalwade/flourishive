@@ -64,6 +64,7 @@ const ids = {
   deviceA: '',
   templateA: '',
   docA: '',
+  bulkA: '',
 };
 const token: Record<'a' | 'b', string> = { a: '', b: '' };
 let bSigned = '';
@@ -161,6 +162,7 @@ const markers = () =>
     ids.deviceA,
     ids.templateA,
     ids.docA,
+    ids.bulkA,
   ].filter(Boolean);
 const leaks = (res: { body: unknown; text: string }) => {
   const text = `${JSON.stringify(res.body ?? '')} ${res.text ?? ''}`;
@@ -296,6 +298,15 @@ beforeAll(async () => {
         templateId: ids.templateA,
         entityId: ids.entityA,
         fields: { recipientName: 'Asha' },
+      }),
+    )
+  ).id;
+  ids.bulkA = (
+    await made(
+      await call('a', 'post', '/documents/bulk').send({
+        templateId: ids.templateA,
+        entityId: ids.entityA,
+        rows: [{ fields: { recipientName: 'Asha' } }],
       }),
     )
   ).id;
@@ -608,6 +619,23 @@ const PROBES = (): Record<string, Probe> => ({
         letterType: 'OFFER',
         layoutKey: 'letter',
       }),
+  },
+  'POST /documents/templates/starters': {
+    mode: 'contained',
+    send: () => as('post', '/documents/templates/starters'),
+  },
+  'POST /documents/bulk': {
+    mode: 'refuse',
+    send: () =>
+      as('post', '/documents/bulk').send({
+        templateId: ids.templateA,
+        entityId: ids.entityA,
+        rows: [{ fields: { recipientName: 'Hijack' } }],
+      }),
+  },
+  'GET /documents/bulk/:id': {
+    mode: 'refuse',
+    send: () => as('get', `/documents/bulk/${ids.bulkA}`),
   },
   'GET /documents/templates/:id': {
     mode: 'refuse',

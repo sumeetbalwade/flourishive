@@ -365,6 +365,38 @@ const fixtures: Record<string, Fixture> = {
     },
     change: { layoutKey: 'hacked' },
   },
+  BulkBatch: {
+    delegate: 'bulkBatch',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        templateId: crypto.randomUUID(),
+        entityId: crypto.randomUUID(),
+        createdBy: crypto.randomUUID(),
+      },
+    }),
+    change: { entityId: 'hacked' },
+  },
+  BulkBatchRow: {
+    delegate: 'bulkBatchRow',
+    create: async (tenantId) => {
+      const batch = await runAsSystem(
+        async () =>
+          await db.bulkBatch.create({
+            data: {
+              tenantId,
+              templateId: crypto.randomUUID(),
+              entityId: crypto.randomUUID(),
+              createdBy: crypto.randomUUID(),
+            },
+          }),
+      );
+      return {
+        data: { tenantId, batchId: batch.id, position: 1, fields: {} },
+      };
+    },
+    change: { error: 'hacked' },
+  },
   GeneratedDocument: {
     delegate: 'generatedDocument',
     create: async (tenantId) => {

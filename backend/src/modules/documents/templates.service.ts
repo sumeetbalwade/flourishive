@@ -9,6 +9,7 @@ import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
 import { BUILT_IN, placeholdersIn } from './fill.js';
 import { LAYOUTS } from './layouts/registry.js';
+import { STARTER_TEMPLATES } from './starters.js';
 
 @Injectable()
 export class TemplatesService {
@@ -64,6 +65,24 @@ export class TemplatesService {
         include: { versions: { orderBy: { version: 'desc' }, take: 1 } },
       }),
     );
+  }
+
+  /** Adds any of the four starter letters this company does not have yet. Safe to repeat. */
+  async installStarters(a: { tenantId: string; userId: string }) {
+    const have = new Set(
+      (
+        await runInTenant(a.tenantId, async () =>
+          this.prisma.db.template.findMany({ select: { name: true } }),
+        )
+      ).map((t) => t.name),
+    );
+    const added: string[] = [];
+    for (const s of STARTER_TEMPLATES) {
+      if (have.has(s.name)) continue;
+      await this.create(a, s);
+      added.push(s.name);
+    }
+    return { added };
   }
 
   async get(tenantId: string, id: string) {

@@ -161,3 +161,47 @@ model GeneratedDocument {
   @@index([tenantId, personId])
   @@map("generated_documents")
 }
+
+enum BulkRowStatus {
+  PENDING
+  DONE
+  FAILED
+}
+
+/// One bulk issue: the same template for many people. Rows are worked through by a queue job,
+/// so a crash or a restart resumes where it stopped and never numbers a letter twice.
+model BulkBatch {
+  id         String   @id @default(uuid(7)) @db.Char(36)
+  tenantId   String   @db.Char(36)
+  templateId String   @db.Char(36)
+  entityId   String   @db.Char(36)
+  createdBy  String   @db.Char(36)
+  createdAt  DateTime @default(now()) @db.DateTime(3)
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id])
+  rows   BulkBatchRow[]
+
+  @@index([tenantId, createdAt])
+  @@map("bulk_batches")
+}
+
+model BulkBatchRow {
+  id           String        @id @default(uuid(7)) @db.Char(36)
+  tenantId     String        @db.Char(36)
+  batchId      String        @db.Char(36)
+  position     Int
+  personId     String?       @db.Char(36)
+  engagementId String?       @db.Char(36)
+  /// What the person typed or chose for this row (shared values already merged in).
+  fields       Json
+  status       BulkRowStatus @default(PENDING)
+  documentId   String?       @db.Char(36)
+  error        String?       @db.VarChar(500)
+
+  tenant Tenant    @relation(fields: [tenantId], references: [id])
+  batch  BulkBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, position])
+  @@index([tenantId])
+  @@map("bulk_batch_rows")
+}

@@ -32,6 +32,8 @@ model Tenant {
   templates           Template[]
   templateVersions    TemplateVersion[]
   generatedDocuments  GeneratedDocument[]
+  bulkBatches         BulkBatch[]
+  bulkBatchRows       BulkBatchRow[]
   workflowDefinitions WorkflowDefinition[]
   workflowInstances   WorkflowInstance[]
   workflowActions     WorkflowAction[]
