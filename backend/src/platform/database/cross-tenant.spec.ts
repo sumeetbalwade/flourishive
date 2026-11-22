@@ -558,6 +558,20 @@ const fixtures: Record<string, Fixture> = {
     },
     change: { type: 'hacked' },
   },
+  DesktopDevice: {
+    delegate: 'desktopDevice',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        userId: crypto.randomUUID(),
+        name: 'PC',
+        platform: 'windows',
+        appVersion: '1.0',
+        credentialHash: crypto.randomUUID().replaceAll('-', '').padEnd(64, '0'),
+      },
+    }),
+    change: { name: 'hacked' },
+  },
   Notification: {
     delegate: 'notification',
     create: async (tenantId) => ({

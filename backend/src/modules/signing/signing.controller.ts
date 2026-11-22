@@ -15,8 +15,14 @@ import { RequirePermission } from '../access/require-permission.js';
 import { CurrentAuth, Public } from '../identity/auth.context.js';
 import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
+import { DscJobsService } from './dsc-jobs.service.js';
 import { SigningService, type ClientInfo } from './signing.service.js';
 
+const dscBody = z.object({
+  method: z.literal('DSC'),
+  signatoryUserId: z.string().uuid(),
+  expiresInDays: z.number().int().min(1).max(60).default(7),
+});
 const requestBody = z.object({
   name: z.string().trim().min(1).max(191),
   email: z.string().trim().toLowerCase().email().max(191),
@@ -38,7 +44,10 @@ const client = (req: Request): ClientInfo => ({
 /** For HR: ask a candidate to accept an approved document, and follow the request. */
 @Controller('documents/:id/signature-requests')
 export class SigningStaffController {
-  constructor(private readonly signing: SigningService) {}
+  constructor(
+    private readonly signing: SigningService,
+    private readonly dsc: DscJobsService,
+  ) {}
 
   @Post()
   @RequirePermission('documents.generate')
@@ -47,6 +56,8 @@ export class SigningStaffController {
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
+    if ((body as { method?: string } | null)?.method === 'DSC')
+      return this.dsc.request(a, id, new ZodPipe(dscBody).transform(body));
     return this.signing.requestOtp(
       a,
       id,

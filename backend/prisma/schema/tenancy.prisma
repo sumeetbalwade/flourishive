@@ -38,6 +38,7 @@ model Tenant {
   signatureRequests   SignatureRequest[]
   signatureParties    SignatureParty[]
   signatureEvents     SignatureEvent[]
+  desktopDevices      DesktopDevice[]
 
   @@map("tenants")
 }

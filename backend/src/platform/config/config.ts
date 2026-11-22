@@ -53,11 +53,19 @@ const base = z.object({
   ADMIN_URL: z.string().optional(),
   // Where a document's QR code points (the public verify site).
   VERIFY_URL: z.string().optional(),
+  // The public address of this API (put in pairing links so the desktop app knows where to connect).
+  API_URL: z.string().optional(),
   // The organisation seal (D-41): PEM key and certificate, base64 encoded. Development makes a temporary one.
   SEAL_KEY_BASE64: z.string().optional(),
   SEAL_CERT_BASE64: z.string().optional(),
   // RFC 3161 time-stamp server for seals; leave out to seal without a time-stamp.
   SEAL_TSA_URL: z.string().url().optional(),
+  // DSC validation (D-48). Folders of PEM certificates the server trusts: licensed CA roots
+  // (Controller of Certifying Authorities) and time-stamp authorities.
+  TRUSTED_ROOTS_DIR: z.string().optional(),
+  TRUSTED_TSA_DIR: z.string().optional(),
+  // Development only (D-38): accept a signer certificate outside its dates. Ignored in production.
+  ALLOW_EXPIRED_SIGNER_CERT: bool.default(false),
 });
 
 /**
@@ -74,6 +82,7 @@ export function withDerivedDefaults<T extends z.infer<typeof base>>(c: T) {
     WEB_URL: c.WEB_URL ?? (d ? `https://app.${d}` : 'http://localhost:5173'),
     ADMIN_URL:
       c.ADMIN_URL ?? (d ? `https://admin.${d}` : 'http://localhost:5174'),
+    API_URL: c.API_URL ?? (d ? `https://api.${d}` : 'http://localhost:3000'),
     VERIFY_URL:
       c.VERIFY_URL ?? (d ? `https://verify.${d}` : 'http://localhost:5175'),
     MAIL_FROM: c.MAIL_FROM ?? `${c.APP_NAME} <no-reply@${d ?? 'localhost'}>`,
