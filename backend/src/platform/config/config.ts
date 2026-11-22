@@ -62,6 +62,8 @@ const base = z.object({
   SEAL_TSA_URL: z.string().url().optional(),
   // DSC validation (D-48). Folders of PEM certificates the server trusts: licensed CA roots
   // (Controller of Certifying Authorities) and time-stamp authorities.
+  // The time-stamp server the desktop app uses when signing; the server must trust its authority.
+  DSC_TSA_URL: z.string().url().default('http://timestamp.digicert.com'),
   TRUSTED_ROOTS_DIR: z.string().optional(),
   TRUSTED_TSA_DIR: z.string().optional(),
   // Development only (D-38): accept a signer certificate outside its dates. Ignored in production.

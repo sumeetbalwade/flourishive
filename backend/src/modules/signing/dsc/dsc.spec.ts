@@ -68,6 +68,26 @@ describe('DSC validation (D-48)', () => {
     );
   });
 
+  it('accepts what the desktop app produces (software token, visible tick stamp, chain from the token)', async () => {
+    const r = await make().validate({
+      sent: input,
+      signed: file('signed-desktop.pdf'),
+    });
+    expect(r.signer).toMatchObject({
+      commonName: 'Desktop SoftHSM Test',
+      organisation: 'Flourisense Test',
+      issuer: 'Test Issuing CA',
+    });
+    expect(r.test).toBe(false);
+    const sealCert = forge.pki.certificateFromPem(file('seal.pem').toString());
+    const ours = createHash('sha256').update(certDer(sealCert)).digest('hex');
+    expect(verifySeal(file('signed-desktop.pdf'), ours)).toMatchObject({
+      intact: true,
+      coversWholeFile: true,
+      laterSignatures: 1,
+    });
+  });
+
   it('keeps our seal valid after the DSC is added (D-47)', () => {
     const sealCert = forge.pki.certificateFromPem(file('seal.pem').toString());
     const ours = createHash('sha256').update(certDer(sealCert)).digest('hex');
