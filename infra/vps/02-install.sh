@@ -33,6 +33,9 @@ CREATE DATABASE IF NOT EXISTS flourishive CHARACTER SET utf8mb4 COLLATE utf8mb4_
 CREATE USER IF NOT EXISTS 'flourishive'@'localhost' IDENTIFIED BY '$DBPASS';
 ALTER USER 'flourishive'@'localhost' IDENTIFIED BY '$DBPASS';
 GRANT ALL PRIVILEGES ON flourishive.* TO 'flourishive'@'localhost';
+CREATE USER IF NOT EXISTS 'flourishive'@'127.0.0.1' IDENTIFIED BY '$DBPASS';
+ALTER USER 'flourishive'@'127.0.0.1' IDENTIFIED BY '$DBPASS';
+GRANT ALL PRIVILEGES ON flourishive.* TO 'flourishive'@'127.0.0.1';
 FLUSH PRIVILEGES;
 SQL
   printf 'DATABASE_URL=mysql://flourishive:%s@127.0.0.1:3306/flourishive\n' "$DBPASS" | sudo tee $SECRETS/db.env >/dev/null
