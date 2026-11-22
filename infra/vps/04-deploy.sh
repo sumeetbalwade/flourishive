@@ -55,6 +55,12 @@ if ! sudo grep -q '^CLOUDFLARE_API_TOKEN=' $ENVF; then
     echo "DNS_TARGET_IP=${DNS_TARGET_IP:?set DNS_TARGET_IP when first deploying}"
   } | sudo tee -a $ENVF >/dev/null
 fi
+# The version shown by /v1/health follows the deployed commit.
+if sudo grep -q '^APP_VERSION=' $ENVF; then
+  sudo sed -i "s/^APP_VERSION=.*/APP_VERSION=$(git rev-parse --short HEAD)/" $ENVF
+else
+  echo "APP_VERSION=$(git rev-parse --short HEAD)" | sudo tee -a $ENVF >/dev/null
+fi
 mkdir -p "$ROOT/storage" "$ROOT/trust/roots" "$ROOT/trust/tsa" "$ROOT/backups"
 chmod 700 "$ROOT/storage"
 load_env
