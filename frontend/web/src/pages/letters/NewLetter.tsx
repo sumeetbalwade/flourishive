@@ -179,7 +179,7 @@ export function NewLetter() {
                   ) : (
                     <Input
                       id={`f-${f.key}`}
-                      inputMode={f.type === 'number' ? 'numeric' : undefined}
+                      inputMode={f.type === 'number' || f.type === 'amount' ? 'numeric' : undefined}
                       value={values[f.key] ?? ''}
                       onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
                     />

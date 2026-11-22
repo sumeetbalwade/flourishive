@@ -24,7 +24,7 @@ export function SelectField({
   return (
     <Select
       id={id}
-      value={value ?? (allowNone ? NONE : undefined)}
+      value={value ?? (allowNone ? NONE : '')}
       onValueChange={(v) => onChange(v === NONE ? undefined : v)}
       placeholder={placeholder}
       options={allowNone ? [{ value: NONE, label: noneLabel }, ...options] : options}

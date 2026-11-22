@@ -385,6 +385,7 @@ export class DocumentsService {
       a.tenantId,
       { type: 'document', id },
       (p) => this.access.can(a.tenantId, a.userId, p as never, doc.entityId),
+      a.userId,
     );
     const person = doc.personId
       ? await runInTenant(a.tenantId, async () =>

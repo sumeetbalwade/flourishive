@@ -47,6 +47,13 @@ export function resolveValues(
       if (Number.isNaN(Number(raw.replaceAll(',', ''))))
         errors.push(`${f.label} must be a number`);
       values[f.key] = raw;
+    } else if (f.type === 'amount') {
+      const n = Number(raw.replaceAll(',', ''));
+      if (Number.isNaN(n)) errors.push(`${f.label} must be an amount`);
+      // Indian digit grouping: 14,50,000
+      values[f.key] = Number.isNaN(n)
+        ? raw
+        : n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
     } else values[f.key] = raw;
   }
   return { values, errors };

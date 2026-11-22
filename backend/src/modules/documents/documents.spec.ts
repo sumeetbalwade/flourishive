@@ -13,6 +13,21 @@ describe('formatReference', () => {
   });
 });
 
+describe('amount fields', () => {
+  it('shows money with Indian digit grouping and refuses non-numbers', () => {
+    const f = [
+      { key: 'ctc', label: 'CTC', type: 'amount' as const, required: true },
+    ];
+    expect(resolveValues(f, { ctc: '1450000' }).values.ctc).toBe('14,50,000');
+    expect(resolveValues(f, { ctc: '14,50,000.5' }).values.ctc).toBe(
+      '14,50,000.5',
+    );
+    expect(resolveValues(f, { ctc: 'lots' }).errors).toEqual([
+      'CTC must be an amount',
+    ]);
+  });
+});
+
 describe('fill and resolveValues', () => {
   it('finds and replaces placeholders, blank when missing', () => {
     expect(placeholdersIn('Hi {{ a }} and {{b}}')).toEqual(['a', 'b']);

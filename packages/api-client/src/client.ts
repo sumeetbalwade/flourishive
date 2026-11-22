@@ -31,7 +31,7 @@ import { z } from 'zod';
 const fieldDefSchema = z.object({
   key: z.string(),
   label: z.string(),
-  type: z.enum(['text', 'longtext', 'date', 'number']),
+  type: z.enum(['text', 'longtext', 'date', 'number', 'amount']),
   required: z.boolean(),
 });
 const templateVersionSchema = z
