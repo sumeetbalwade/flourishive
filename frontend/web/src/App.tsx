@@ -12,6 +12,7 @@ import { ForgotPassword, ResetPassword } from './pages/auth/Password.tsx';
 import { FindCompany } from './pages/auth/FindCompany.tsx';
 import { Login } from './pages/auth/Login.tsx';
 import { Home } from './pages/Home.tsx';
+import { BulkIssue } from './pages/letters/BulkIssue.tsx';
 import { LetterDetail } from './pages/letters/LetterDetail.tsx';
 import { LetterSetup } from './pages/letters/LetterSetup.tsx';
 import { Letters } from './pages/letters/Letters.tsx';
@@ -93,6 +94,7 @@ function Routes() {
   else if (path === '/app/templates') page = <Templates />;
   else if (path === '/app/letter-setup') page = <LetterSetup />;
   else if (path === '/app/letters/new') page = <NewLetter />;
+  else if (path === '/app/letters/bulk') page = <BulkIssue />;
   else if (path.startsWith('/app/letters/')) page = <LetterDetail id={path.split('/').pop()!} />;
   else if (path === '/app/letters') page = <Letters />;
   else if (path.startsWith('/app/')) page = <Home />;

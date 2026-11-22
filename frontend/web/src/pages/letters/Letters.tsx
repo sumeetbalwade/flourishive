@@ -37,9 +37,14 @@ export function Letters() {
       title="Letters"
       actions={
         auth.can('documents.generate') ? (
-          <Button size="sm" onClick={() => go('/app/letters/new')}>
-            <Plus size={16} /> New letter
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => go('/app/letters/bulk')}>
+              Issue in bulk
+            </Button>
+            <Button size="sm" onClick={() => go('/app/letters/new')}>
+              <Plus size={16} /> New letter
+            </Button>
+          </div>
         ) : undefined
       }
     >

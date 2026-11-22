@@ -46,9 +46,11 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 - [x] Upload a copy to compare its hash with the original _(also reports a changed or extended sealed file)_
 
 ### Letters module (`modules/letters`)
-- [ ] Intern offer letter (candidate accepts by OTP or Aadhaar eSign, then HR lead signs with DSC)
-- [ ] Experience letter, reference letter, internship certificate (landscape)
-- [ ] Bulk issue for a batch of interns; email delivery with secure download links
+- [x] Four starter letters as templates (offer, experience, reference, internship certificate), installed per company with one click _(draft wording, not yet approved by HR or legal)_
+- [x] Bulk issue: pick people or paste a CSV; every row checked first, then issued row by row as a resumable queue job (D-76)
+- [x] Email delivery as a private 30-day link; HR clicks Email for one letter or a whole batch; links can be cancelled (D-77)
+- [x] Offer-letter downloads held until an admin releases them, switchable per company (D-77)
+- [ ] Offer letter end to end with a real candidate: OTP acceptance, then HR lead's DSC (needs the renewed DSC)
 
 ### File storage on Cloudflare R2 (PR 8, D-72..D-75)
 
@@ -183,6 +185,11 @@ D-10, D-11, D-12, D-13, D-14, D-24, D-25, D-28, D-31, D-33, D-35
 - **D-73 Uploads still go through the API:** the API keeps checking file type by content and computing sha256 (used by signing and verify) before writing to R2.
 - **D-74 Migration:** a re-runnable command copies existing files to R2 and verifies each sha256. Reads fall back to local disk while the switch settles. Local copies are deleted after a week with no fallbacks. Rollback is one setting until then.
 - **D-75 Build order change (amends D-39):** R2 storage is Phase 2 PR 8, before bulk issue creates many PDFs. The visual editor becomes PR 9 and the Aadhaar eSign adapter PR 10.
+
+## Decisions approved 2026-11-22 for letters (D-76, D-77)
+
+- **D-76 Bulk issue:** HR picks people from the list (names and dates come from their record) or pastes a CSV; shared values are entered once. Every row is validated before anything is numbered. Issuing runs as a queue job, row by row, resumable, with a status page. Up to 200 rows per batch.
+- **D-77 Delivery and offer hold:** HR clicks Email (one letter or a batch). The email holds a private link valid 30 days that HR can cancel; the recipient sees the letter's details and downloads the PDF through the API checks and R2. Offer letters are held: the link works but the download is locked until an admin releases it (permission `documents.release`, tenant admin only) so candidates cannot shop offers. The hold is a company setting, `documents.holdOfferDownloads`, on by default.
 
 ## Open items
 - How the signing animation is built on each surface (options to be presented before the desktop UI work starts, PR 6)

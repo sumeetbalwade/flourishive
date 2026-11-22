@@ -81,3 +81,19 @@ export const acceptApi = {
   documentUrl: (token: string) =>
     `${brand.apiUrl.replace(/\/$/, '')}/v1/public/accept/${encodeURIComponent(token)}/document`,
 };
+
+export interface LetterInfo {
+  reference: string;
+  letterType: string;
+  issuer: string;
+  issuedAt: string;
+  downloadAllowed: boolean;
+  message: string | null;
+}
+
+export const letterApi = {
+  info: (token: string): Promise<LetterInfo> =>
+    request(`/delivery/${encodeURIComponent(token)}`, null),
+  downloadUrl: (token: string) =>
+    `${brand.apiUrl.replace(/\/$/, '')}/v1/public/delivery/${encodeURIComponent(token)}/download`,
+};

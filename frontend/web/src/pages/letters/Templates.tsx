@@ -27,8 +27,29 @@ export function Templates() {
   const api = useApi();
   const auth = useAuth();
   const list = useQuery({ queryKey: ['templates'], queryFn: () => api.documents.templates() });
+  const qc = useQueryClient();
+  const toast = useToast();
   const [adding, setAdding] = useState(false);
+  const [installing, setInstalling] = useState(false);
   const canManage = auth.can('documents.manage');
+
+  async function installStarters() {
+    setInstalling(true);
+    try {
+      const r = await api.documents.installStarters();
+      await qc.invalidateQueries({ queryKey: ['templates'] });
+      toast({
+        tone: 'success',
+        title: r.added.length
+          ? `Added ${r.added.length} starter letters`
+          : 'Starter letters already added',
+      });
+    } catch (e) {
+      toast({ tone: 'danger', title: messageOf(e) });
+    } finally {
+      setInstalling(false);
+    }
+  }
 
   return (
     <Layout
@@ -36,9 +57,20 @@ export function Templates() {
       title="Templates"
       actions={
         canManage ? (
-          <Button size="sm" onClick={() => setAdding(true)}>
-            <Plus size={16} /> New template
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={installing}
+              disabled={installing}
+              onClick={() => void installStarters()}
+            >
+              Add starter letters
+            </Button>
+            <Button size="sm" onClick={() => setAdding(true)}>
+              <Plus size={16} /> New template
+            </Button>
+          </div>
         ) : undefined
       }
     >
@@ -54,7 +86,20 @@ export function Templates() {
           title="No templates yet"
           description="A template sets the wording and the details HR fills in for each letter."
           action={
-            canManage ? <Button onClick={() => setAdding(true)}>New template</Button> : undefined
+            canManage ? (
+              <div className="flex gap-2">
+                <Button
+                  loading={installing}
+                  disabled={installing}
+                  onClick={() => void installStarters()}
+                >
+                  Add the four starter letters
+                </Button>
+                <Button variant="secondary" onClick={() => setAdding(true)}>
+                  New template
+                </Button>
+              </div>
+            ) : undefined
           }
         />
       ) : (
