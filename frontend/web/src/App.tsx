@@ -6,14 +6,17 @@ import { ApiProvider, makeClient } from './lib/api.tsx';
 import { AuthProvider, useAuth } from './lib/auth.tsx';
 import type { ApiClient } from '@flourishive/api-client';
 const Desktop = lazy(() => import('./pages/Desktop.tsx'));
-const Document = lazy(() => import('./pages/Document.tsx').then((m) => ({ default: m.Document })));
 const Gallery = lazy(() => import('./pages/Gallery.tsx'));
-const Letters = lazy(() => import('./pages/Letters.tsx').then((m) => ({ default: m.Letters })));
 import { Audit } from './pages/Audit.tsx';
 import { ForgotPassword, ResetPassword } from './pages/auth/Password.tsx';
 import { FindCompany } from './pages/auth/FindCompany.tsx';
 import { Login } from './pages/auth/Login.tsx';
 import { Home } from './pages/Home.tsx';
+import { LetterDetail } from './pages/letters/LetterDetail.tsx';
+import { LetterSetup } from './pages/letters/LetterSetup.tsx';
+import { Letters } from './pages/letters/Letters.tsx';
+import { NewLetter } from './pages/letters/NewLetter.tsx';
+import { Templates } from './pages/letters/Templates.tsx';
 import { Company } from './pages/admin/Company.tsx';
 import { Policy } from './pages/admin/Policy.tsx';
 import { Roles } from './pages/admin/Roles.tsx';
@@ -23,9 +26,6 @@ import { PersonDetail } from './pages/people/PersonDetail.tsx';
 import { People } from './pages/people/People.tsx';
 import { Security } from './pages/Security.tsx';
 const Signing = lazy(() => import('./pages/Signing.tsx').then((m) => ({ default: m.Signing })));
-const Templates = lazy(() =>
-  import('./pages/Templates.tsx').then((m) => ({ default: m.Templates })),
-);
 import { go, useRoute } from './router.ts';
 
 /** Permission each real screen needs; the API enforces the same, this only avoids dead ends. */
@@ -37,6 +37,9 @@ const NEEDS: Record<string, string | undefined> = {
   '/app/roles': 'roles.read',
   '/app/policy': 'roles.read',
   '/app/company': 'settings.read',
+  '/app/letters': 'documents.read',
+  '/app/templates': 'documents.read',
+  '/app/letter-setup': 'documents.read',
 };
 
 function Private({ children, need }: { children: ReactNode; need?: string }) {
@@ -92,8 +95,11 @@ function Routes() {
   else if (path === '/app/security') page = <Security />;
   else if (path === '/app/signing') page = <Signing />;
   else if (path === '/app/templates') page = <Templates />;
-  else if (path.startsWith('/app/letters/')) page = <Document id={path.split('/').pop()!} />;
-  else if (path.startsWith('/app/')) page = <Letters />;
+  else if (path === '/app/letter-setup') page = <LetterSetup />;
+  else if (path === '/app/letters/new') page = <NewLetter />;
+  else if (path.startsWith('/app/letters/')) page = <LetterDetail id={path.split('/').pop()!} />;
+  else if (path === '/app/letters') page = <Letters />;
+  else if (path.startsWith('/app/')) page = <Home />;
   else return <Login />;
   return <Private need={NEEDS[path]}>{page}</Private>;
 }

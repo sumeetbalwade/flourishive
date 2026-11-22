@@ -123,6 +123,7 @@ export class WorkflowService {
     tenantId: string,
     subject: Subject,
     can: (permission: string) => Promise<boolean>,
+    userId?: string,
   ) {
     const inst = await this.forSubject(tenantId, subject);
     const d = this.data(inst.definition);
@@ -131,6 +132,16 @@ export class WorkflowService {
     for (const t of d.transitions) {
       if (t.system || !t.from.includes(inst.state)) continue;
       if (t.permission && !(await can(t.permission))) continue;
+      // Four eyes: do not offer a step to the person who took the step it must differ from.
+      if (t.differentPersonFrom && userId) {
+        const prior = await runInTenant(tenantId, async () =>
+          this.prisma.db.workflowAction.findFirst({
+            where: { instanceId: inst.id, action: t.differentPersonFrom },
+            orderBy: { createdAt: 'desc' },
+          }),
+        );
+        if (prior?.actorId === userId) continue;
+      }
       out.push({
         action: t.action,
         label: t.label,

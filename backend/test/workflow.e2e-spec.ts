@@ -155,6 +155,15 @@ describe('letters workflow', () => {
     const own = await newDoc('lead');
     await act(own, 'lead', 'submit').expect(201);
     await act(own, 'lead', 'approve').expect(403); // submitted by the same person
+    // the screen must not offer a step the person is not allowed to take
+    const mine = await call('get', `/documents/${own}`, 'lead').expect(200);
+    expect(
+      mine.body.workflow.actions.map((x: { action: string }) => x.action),
+    ).not.toContain('approve');
+    const theirs = await call('get', `/documents/${own}`, 'admin').expect(200);
+    expect(
+      theirs.body.workflow.actions.map((x: { action: string }) => x.action),
+    ).toContain('approve');
     await act(own, 'admin', 'approve').expect(201);
   });
 

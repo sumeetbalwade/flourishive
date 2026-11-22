@@ -7,6 +7,7 @@ import {
   KeyRound,
   Settings,
   LayoutTemplate,
+  Stamp,
   PenLine,
   ShieldCheck,
   Upload,
@@ -21,7 +22,7 @@ type Item = NavItem & { needs?: string };
 
 /**
  * One menu for everyone, trimmed by what the person's permissions allow, so an employee sees a
- * short list and HR sees the full one. The signing pages are previews with sample data until Phase 2.
+ * short list and HR sees the full one. Letters and templates are live; the signing queue is still a preview.
  */
 const NAV: Item[] = [
   { id: 'home', label: 'Home', icon: Home },
@@ -33,16 +34,21 @@ const NAV: Item[] = [
     label: 'Templates',
     icon: LayoutTemplate,
     group: 'Documents',
-    tag: 'Preview',
-    needs: 'people.read',
+    needs: 'documents.read',
   },
   {
     id: 'letters',
     label: 'Letters',
     icon: FileText,
     group: 'Documents',
-    tag: 'Preview',
-    needs: 'people.read',
+    needs: 'documents.read',
+  },
+  {
+    id: 'letter-setup',
+    label: 'Letter setup',
+    icon: Stamp,
+    group: 'Documents',
+    needs: 'documents.manage',
   },
   {
     id: 'signing',

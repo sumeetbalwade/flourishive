@@ -9,7 +9,7 @@ export const orientation = z.enum(['PORTRAIT', 'LANDSCAPE']);
 export const fieldDef = z.object({
   key: z.string().regex(/^[a-zA-Z][a-zA-Z0-9]{0,39}$/, 'Letters and digits only'),
   label: z.string().trim().min(1).max(80),
-  type: z.enum(['text', 'longtext', 'date', 'number']),
+  type: z.enum(['text', 'longtext', 'date', 'number', 'amount']),
   required: z.boolean().default(true),
 });
 export type FieldDef = z.infer<typeof fieldDef>;
