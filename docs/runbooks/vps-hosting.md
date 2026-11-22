@@ -24,4 +24,20 @@ If any is missing the API leaves DNS alone.
 Change `DNS_TARGET_IP`, restart the API, then call the endpoint above for each company; also update `@`, `app`, `admin`, `api`, `verify`, `www` by hand.
 
 ## Updating the app
-On the server: `bash /srv/flourishive/repo/infra/vps/04-deploy.sh`
+Merging to `main` deploys by itself: when CI passes on a push to `main`, `.github/workflows/deploy.yml` connects to the server
+and runs `04-deploy.sh`, then checks that `https://api.flourishive.in/v1/health` reports the new commit.
+To deploy by hand (or retry): GitHub, Actions, Deploy, Run workflow; or on the server run
+`bash /srv/flourishive/repo/infra/vps/04-deploy.sh`.
+A failed CI run never deploys. To roll back, revert on `main` (the revert deploys the same way).
+
+### One-time setup for automatic deploys
+1. **Make a key for GitHub** (on your own computer, not the server): `ssh-keygen -t ed25519 -f flourishive-deploy -N ""`.
+2. **Allow it on the server**, locked to the deploy script. Append this one line to `/home/deploy/.ssh/authorized_keys`
+   (replace the key text with the contents of `flourishive-deploy.pub`):
+   `command="bash /srv/flourishive/repo/infra/vps/04-deploy.sh",restrict ssh-ed25519 AAAA... flourishive-github-deploy`
+   With `restrict` and `command=`, this key can only run the deploy script and nothing else.
+3. **Get the server's host key** (so GitHub can tell it is talking to your server): `ssh-keyscan -t ed25519 <server-ip>`.
+4. **Add GitHub secrets** (repo Settings, Secrets and variables, Actions, or on the `production` environment):
+   `VPS_HOST` (server IP or hostname), `VPS_USER` (`deploy`), `VPS_SSH_KEY` (the private key file contents),
+   `VPS_KNOWN_HOSTS` (the line from step 3).
+5. Delete the private key file from your computer once it is in GitHub.

@@ -1,0 +1,59 @@
+name: Deploy
+
+# Runs only after CI has passed on a push to main. See docs/runbooks/vps-hosting.md ("Automatic deploys").
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# Never cancel a deploy that is already running; a newer one waits its turn.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to the VPS
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Prepare SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      # The key on the server is locked to run 04-deploy.sh, whatever command is sent.
+      - name: Run the deploy script
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER_NAME: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$USER_NAME@$HOST" deploy
+
+      - name: Confirm the new version is live
+        env:
+          EXPECTED: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          want="${EXPECTED:0:7}"
+          for i in $(seq 1 20); do
+            got=$(curl -fsS https://api.flourishive.in/v1/health | grep -oE '"version":"[^"]+"' | cut -d'"' -f4 || true)
+            if [[ -n "$got" && "$got" == "$want"* ]]; then echo "Live version $got"; exit 0; fi
+            sleep 5
+          done
+          echo "Expected version $want but the site reports '${got:-nothing}'"
+          exit 1
