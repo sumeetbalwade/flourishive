@@ -173,6 +173,8 @@ export function TemplateEditor({ value, onChange, fields }: Props) {
         <button
           type="button"
           className={btn}
+          disabled={on('table')}
+          title={on('table') ? 'Put the signature box outside the table' : undefined}
           onClick={() =>
             c()
               .insertContent({ type: 'signatureBox', attrs: { name: '', title: 'HR Lead' } })
