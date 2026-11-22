@@ -236,7 +236,7 @@ export function PersonForm({
           ))}
         </ul>
       ) : null}
-      <Button type="submit" size="lg" disabled={busy}>
+      <Button type="submit" size="lg" loading={busy} disabled={busy}>
         {busy ? 'Saving…' : existing ? 'Save changes' : 'Add person'}
       </Button>
     </form>

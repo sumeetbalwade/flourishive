@@ -1,4 +1,5 @@
 import {
+  Avatar,
   Button,
   Dialog,
   DialogContent,
@@ -78,9 +79,10 @@ export function People() {
         ) : undefined
       }
     >
-      <div className="mb-5 flex flex-wrap items-center gap-3">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <Input
           aria-label="Search people"
+          type="search"
           className="max-w-xs"
           placeholder="Search name, email or code"
           value={search}
@@ -168,15 +170,20 @@ export function People() {
               {list.data.items.map((e) => (
                 <TR key={e.id} className="cursor-pointer" onClick={() => go(`/app/people/${e.id}`)}>
                   <TD>
-                    <a
-                      href={`#/app/people/${e.id}`}
-                      className="font-medium text-fg hover:underline"
-                      onClick={(ev) => ev.stopPropagation()}
-                    >
-                      {fullName(e)}
-                    </a>
-                    <div className="text-xs text-faint">
-                      {e.person.workEmail ?? 'No work email'}
+                    <div className="flex items-center gap-3">
+                      <Avatar name={fullName(e)} />
+                      <div className="min-w-0">
+                        <a
+                          href={`#/app/people/${e.id}`}
+                          className="font-medium text-fg hover:text-accent-hi"
+                          onClick={(ev) => ev.stopPropagation()}
+                        >
+                          {fullName(e)}
+                        </a>
+                        <div className="text-xs text-faint">
+                          {e.person.workEmail ?? 'No work email'}
+                        </div>
+                      </div>
                     </div>
                   </TD>
                   <TD className="font-mono text-xs">{e.employeeCode}</TD>

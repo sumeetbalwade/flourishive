@@ -48,9 +48,9 @@ export function CommandPalette({
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>
-        <D.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
+        <D.Overlay className="fixed inset-0 z-40 bg-[#07110d]/50 backdrop-blur-[6px] data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out" />
         <D.Content
-          className="fixed left-1/2 top-[14vh] z-50 w-[calc(100vw-32px)] max-w-xl -translate-x-1/2 overflow-hidden rounded-card border border-line-strong bg-surface shadow-card"
+          className="fixed inset-x-0 top-[14vh] z-50 mx-auto w-[calc(100vw-32px)] max-w-xl overflow-hidden rounded-card border border-line-strong bg-surface-raised shadow-pop [--pop-y:-12px] data-[state=open]:animate-pop-in data-[state=closed]:animate-pop-out"
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') {
               e.preventDefault();
@@ -85,7 +85,7 @@ export function CommandPalette({
                   onClick={() => run(c)}
                   onMouseMove={() => setSel(i)}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm',
+                    'flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-left text-sm transition-colors duration-75',
                     i === sel ? 'bg-accent-lo text-accent-hi' : 'text-fg',
                   )}
                 >

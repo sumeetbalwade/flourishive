@@ -138,7 +138,7 @@ function UploadLetterhead({ entities }: { entities: Entity[] }) {
           {error}
         </p>
       ) : null}
-      <Button type="submit" size="sm" className="justify-self-start" disabled={busy}>
+      <Button type="submit" size="sm" className="justify-self-start" loading={busy} disabled={busy}>
         {busy ? 'Uploading…' : 'Upload letterhead'}
       </Button>
     </form>
@@ -202,7 +202,7 @@ function SetNumbering({ entities }: { entities: Entity[] }) {
           {error}
         </p>
       ) : null}
-      <Button type="submit" size="sm" className="justify-self-start" disabled={busy}>
+      <Button type="submit" size="sm" className="justify-self-start" loading={busy} disabled={busy}>
         {busy ? 'Saving…' : 'Save format'}
       </Button>
     </form>

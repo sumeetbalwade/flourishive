@@ -1,4 +1,5 @@
 import { Button, Card, Field, Input } from '@flourishive/ui';
+import { ScanSearch } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { ApiProblem, verifyApi } from '../api.ts';
 import { navigate } from '../router.ts';
@@ -33,6 +34,9 @@ export function Home() {
   return (
     <Card className="grid gap-5 p-8">
       <div className="grid gap-1">
+        <span className="mb-3 grid h-14 w-14 place-items-center rounded-full bg-accent-lo text-accent ring-8 ring-accent-lo/50">
+          <ScanSearch size={26} />
+        </span>
         <h1 className="font-display text-3xl">Check a document</h1>
         <p className="text-sm text-muted">
           Scan the QR code on the document, or enter the company's short name and the reference
@@ -68,7 +72,7 @@ export function Home() {
             {error}
           </p>
         ) : null}
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" size="lg" loading={busy} disabled={busy}>
           {busy ? 'Checking…' : 'Check document'}
         </Button>
       </form>

@@ -229,9 +229,9 @@ describe('product name', () => {
     Object.assign(brand, { appName: 'Acme HR', tagline: 'People, simply.' });
     try {
       open('#/login');
-      expect(await screen.findByText('Acme HR')).toBeInTheDocument();
-      expect(screen.getByText('People, simply.')).toBeInTheDocument();
-      expect(screen.queryByText('Flourishive')).not.toBeInTheDocument();
+      expect((await screen.findAllByText('Acme HR')).length).toBeGreaterThan(0);
+      expect(screen.getAllByText('People, simply.').length).toBeGreaterThan(0);
+      expect(screen.queryAllByText('Flourishive')).toHaveLength(0);
     } finally {
       Object.assign(brand, saved);
     }

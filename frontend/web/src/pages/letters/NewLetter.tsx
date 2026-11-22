@@ -195,7 +195,7 @@ export function NewLetter() {
             </p>
           ) : null}
           <div className="flex gap-3">
-            <Button type="submit" disabled={busy || !template}>
+            <Button type="submit" loading={busy} disabled={busy || !template}>
               {busy ? 'Creating…' : 'Create letter'}
             </Button>
             <Button type="button" variant="ghost" onClick={() => go('/app/letters')}>

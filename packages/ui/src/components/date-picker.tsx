@@ -20,7 +20,7 @@ export function DatePicker({
       <Popover.Trigger
         id={id}
         className={cn(
-          'flex h-11 w-full items-center justify-between gap-2 rounded-pill border border-line-strong bg-surface-2 px-5 text-sm focus-visible:border-accent',
+          'flex h-11 w-full items-center justify-between gap-2 rounded-pill border border-line-strong bg-surface px-5 text-sm shadow-[0_1px_2px_rgb(17_32_27/0.04)] transition-[border-color,box-shadow] hover:border-accent/60 focus-visible:border-accent focus-visible:shadow-[0_0_0_4px_var(--accent-lo)] data-[state=open]:border-accent',
           value ? 'text-fg' : 'text-faint',
         )}
       >
@@ -29,8 +29,8 @@ export function DatePicker({
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
-          sideOffset={6}
-          className="z-50 rounded-card border border-line bg-surface-raised p-3 text-sm text-fg shadow-card [--rdp-accent-color:var(--accent)] [--rdp-accent-background-color:var(--accent-lo)]"
+          sideOffset={8}
+          className="z-50 origin-[var(--radix-popper-transform-origin)] rounded-card border border-line-strong bg-surface-raised p-4 text-sm text-fg shadow-pop data-[state=open]:animate-pop-in data-[state=closed]:animate-pop-out [--rdp-accent-color:var(--accent)] [--rdp-accent-background-color:var(--accent-lo)]"
         >
           <DayPicker mode="single" selected={value} onSelect={onChange} />
         </Popover.Content>

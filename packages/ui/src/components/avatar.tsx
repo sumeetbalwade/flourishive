@@ -22,7 +22,7 @@ export function Avatar({
   return (
     <RadixAvatar.Root
       className={cn(
-        'inline-grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-pill bg-surface-raised text-xs font-semibold text-accent-hi',
+        'inline-grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-pill bg-accent-lo text-xs font-semibold text-accent-hi',
         className,
       )}
     >

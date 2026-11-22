@@ -118,7 +118,7 @@ function Catalogue({ kind, one }: { kind: OrgKind; one: string }) {
               </Field>
             </>
           ) : null}
-          <Button type="submit" disabled={busy || !name.trim()}>
+          <Button type="submit" loading={busy} disabled={busy || !name.trim()}>
             Add
           </Button>
         </form>
@@ -208,7 +208,7 @@ function Catalogue({ kind, one }: { kind: OrgKind; one: string }) {
                 autoFocus
               />
             </Field>
-            <Button type="submit" disabled={busy || !renameTo.trim()}>
+            <Button type="submit" loading={busy} disabled={busy || !renameTo.trim()}>
               Save
             </Button>
           </form>

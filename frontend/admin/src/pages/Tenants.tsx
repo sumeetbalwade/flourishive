@@ -223,7 +223,7 @@ export function Tenants() {
                 ))}
               </ul>
             ) : null}
-            <Button type="submit" size="lg" disabled={busy}>
+            <Button type="submit" size="lg" loading={busy} disabled={busy}>
               {busy ? 'Creating…' : 'Create tenant'}
             </Button>
           </form>

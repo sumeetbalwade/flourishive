@@ -6,6 +6,7 @@
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-raised: var(--surface-raised);
+  --color-surface-raised: var(--surface-raised);
   --color-line: var(--border);
   --color-line-strong: var(--border-strong);
   --color-fg: var(--text);
@@ -15,6 +16,10 @@
   --color-accent-hi: var(--accent-hi);
   --color-accent-lo: var(--accent-lo);
   --color-on-accent: var(--on-accent);
+  --color-deep: var(--deep);
+  --color-deep-hi: var(--deep-hi);
+  --color-on-deep: var(--on-deep);
+  --color-glass: var(--glass);
   --color-success: var(--success);
   --color-success-lo: var(--success-lo);
   --color-warning: var(--warning);
@@ -31,6 +36,110 @@
   --radius-card: var(--radius-lg);
   --radius-pill: var(--radius-pill);
   --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --shadow-press: var(--shadow-press);
+
+  --animate-pop-in: pop-in 180ms var(--ease-out);
+  --animate-pop-out: pop-out 120ms var(--ease-out) forwards;
+  --animate-fade-in: fade-in 200ms var(--ease-out);
+  --animate-fade-out: fade-out 140ms var(--ease-out) forwards;
+  --animate-sheet-in: sheet-in 300ms var(--ease-out);
+  --animate-sheet-out: sheet-out 200ms var(--ease-out) forwards;
+  --animate-rise: rise 420ms var(--ease-out) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(var(--pop-y, -6px)) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes pop-out {
+    to {
+      opacity: 0;
+      transform: translateY(var(--pop-y, -4px)) scale(0.97);
+    }
+  }
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, calc(-50% + 12px)) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%);
+    }
+  }
+  @keyframes dialog-out {
+    to {
+      opacity: 0;
+      transform: translate(-50%, calc(-50% + 6px)) scale(0.98);
+    }
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateX(24px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes toast-swipe {
+    to {
+      transform: translateX(calc(100% + 24px));
+      opacity: 0;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes sheet-in {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: none;
+    }
+  }
+  @keyframes sheet-out {
+    to {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
 }
 
 @layer base {
@@ -39,6 +148,26 @@
     color: var(--text);
     font-family: var(--font-ui);
     -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+  .font-display {
+    font-weight: 500;
+    letter-spacing: -0.015em;
+  }
+  ::selection {
+    background: var(--accent-lo);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
   body {
     margin: 0;
@@ -49,5 +178,13 @@
   :focus-visible {
     outline: none;
     box-shadow: var(--focus-ring);
+  }
+  button:not(:disabled),
+  [role='button'],
+  [role='tab'],
+  [role='switch'],
+  [role='radio'],
+  select {
+    cursor: pointer;
   }
 }
