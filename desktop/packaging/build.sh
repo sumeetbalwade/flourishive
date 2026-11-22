@@ -7,6 +7,6 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 uv run pyinstaller --noconfirm --clean --windowed --name FlourishiveDesktop \
   --collect-all pyhanko --collect-all pyhanko_certvalidator --collect-all pkcs11 \
-  --collect-submodules keyring.backends --collect-all certifi \
+  --collect-submodules keyring.backends --collect-all certifi --collect-all sentry_sdk \
   --hidden-import flourishive_desktop \
   packaging/entry.py

@@ -33,6 +33,12 @@ describe('StorageService', () => {
     expect(await storage.exists('t1/a.txt')).toBe(false);
   });
 
+  it('checks itself by writing, reading and removing a test file', async () => {
+    const r = await storage.check();
+    expect(r).toMatchObject({ driver: 'local', ok: true, fallbackReads: 0 });
+    expect(await storage.exists(`_health/none`)).toBe(false);
+  });
+
   it('refuses keys that escape the storage root', async () => {
     await expect(
       storage.save('../evil.txt', Readable.from(['x'])),

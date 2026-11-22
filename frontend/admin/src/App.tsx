@@ -9,6 +9,7 @@ import { Policy } from './pages/Policy.tsx';
 import { Login, SetPassword } from './pages/Login.tsx';
 import { Staff } from './pages/Staff.tsx';
 import { TenantDetail } from './pages/TenantDetail.tsx';
+import { System } from './pages/System.tsx';
 import { Tenants } from './pages/Tenants.tsx';
 import { go, useRoute } from './router.ts';
 
@@ -39,6 +40,7 @@ function Routes() {
   else if (path === '/users') page = <Staff />;
   else if (path === '/settings') page = <Defaults />;
   else if (path === '/policy') page = <Policy />;
+  else if (path === '/system') page = <System />;
   else return <Login />;
   return <Private>{page}</Private>;
 }

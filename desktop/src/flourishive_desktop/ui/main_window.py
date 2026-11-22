@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt, QThreadPool, QTimer
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QCheckBox,
     QFileDialog,
     QFrame,
@@ -22,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__
+from .. import __version__, telemetry, updater
 from ..api import Job
 from ..controller import Controller
 from ..errors import DesktopError, Offline, Unpaired
@@ -191,6 +194,9 @@ class QueuePage(QWidget):
         jobs = self.selected()
         if not jobs:
             return
+        if self.window.update_required:
+            self.window.banner.setText("This version is too old to sign. Install the update first.")
+            return
         self.window.timer.stop()
         dlg = SignDialog(self.c, jobs, self)
         dlg.exec()
@@ -319,12 +325,24 @@ class MainWindow(QWidget):
         self.banner = label("")
         self.banner.setProperty("danger", True)
         self.banner.setContentsMargins(28, 0, 28, 0)
+        self.update_required = False
+        self._update: updater.UpdateInfo | None = None
+        self.update_bar = QWidget()
+        ub = QHBoxLayout(self.update_bar)
+        ub.setContentsMargins(28, 4, 28, 4)
+        self.update_label = label("", wrap=False)
+        self.update_button = QPushButton("Install and restart")
+        self.update_button.clicked.connect(self.install_update)
+        ub.addWidget(self.update_label, 1)
+        ub.addWidget(self.update_button)
+        self.update_bar.hide()
         self.root = QStackedWidget()
         shell = QWidget()
         sl = QVBoxLayout(shell)
         sl.setContentsMargins(0, 0, 0, 0)
         sl.addWidget(self.bar)
         sl.addWidget(self.banner)
+        sl.addWidget(self.update_bar)
         sl.addWidget(self.tabs, 1)
         self.root.addWidget(shell)
         self.root.addWidget(self.pair_page)
@@ -334,6 +352,10 @@ class MainWindow(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.poll)
         self._polling = False
+        # look for a newer version now and every six hours
+        self.update_timer = QTimer(self)
+        self.update_timer.setInterval(6 * 3600 * 1000)
+        self.update_timer.timeout.connect(self.check_updates)
         self.refresh_state()
 
     # -- state ---------------------------------------------------------------
@@ -350,9 +372,61 @@ class MainWindow(QWidget):
             self.company.setText(f"  {self.c.settings.company}")
             self.timer.start()
             self.poll()
+            self.update_timer.start()
+            self.check_updates()
         else:
             self.timer.stop()
             self.root.setCurrentIndex(1)
+
+    # -- updates -------------------------------------------------------------
+    def check_updates(self) -> None:
+        if not self.c.paired:
+            return
+        task = Call(lambda: self.c.api().update(updater.platform_key(), __version__))
+        task.signals.done.connect(self._update_answer)
+        task.signals.failed.connect(lambda _e: None)  # an update check must never get in the way of signing
+        QThreadPool.globalInstance().start(task)
+
+    def _update_answer(self, body: dict) -> None:
+        telemetry.start(body.get("sentryDsn"))  # crash reports only if the company's server asked for them
+        info = updater.parse(body)
+        self._update = info
+        self.update_required = bool(info and info.mandatory)
+        if not info:
+            self.update_bar.hide()
+            return
+        self.update_label.setText(
+            f"Version {info.latest} is available" + (" and is required to keep signing." if info.mandatory else ".")
+        )
+        self.update_button.setEnabled(True)
+        self.update_button.setText("Install and restart")
+        self.update_bar.show()
+
+    def install_update(self) -> None:
+        info = self._update
+        if not info:
+            return
+        self.update_button.setEnabled(False)
+        self.update_button.setText("Downloading…")
+        dest = Path(__import__("tempfile").gettempdir()) / f"FlourishiveDesktop-{info.latest}.zip"
+        cred = self.c.credentials.get(self.c.settings.device_id)
+        task = Call(lambda: updater.download(info, dest, server=self.c.settings.server, credential=cred))
+        task.signals.done.connect(self._downloaded)
+        task.signals.failed.connect(self._update_failed)
+        QThreadPool.globalInstance().start(task)
+
+    def _downloaded(self, path: Path) -> None:
+        try:
+            updater.install_and_restart(path)
+        except DesktopError as exc:
+            self._update_failed(exc)
+            return
+        QApplication.quit()
+
+    def _update_failed(self, exc: Exception) -> None:
+        self.update_button.setEnabled(True)
+        self.update_button.setText("Try again")
+        self.banner.setText(str(exc) if isinstance(exc, DesktopError) else "The update could not be installed.")
 
     def _paired(self, company: str) -> None:
         self.refresh_state()

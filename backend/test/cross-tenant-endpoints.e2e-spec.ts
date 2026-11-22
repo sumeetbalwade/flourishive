@@ -410,6 +410,10 @@ const NO_TENANT_DATA: Record<string, string> = {
     'public by design: compares an uploaded file with one issued document',
   'POST /desktop/pair':
     'public by design: the one-time pairing code is the credential and names the tenant',
+  'GET /desktop/update':
+    'the paired device credential is the credential; the release is the same for every company',
+  'GET /desktop/update/download':
+    'the paired device credential is the credential; the release is the same for every company',
   'GET /desktop/me':
     'the paired device credential is the credential; it only reaches its own tenant',
   'GET /desktop/jobs':

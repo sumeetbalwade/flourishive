@@ -23,6 +23,7 @@ import {
 import { z } from 'zod';
 import { Public } from '../identity/auth.context.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
+import { StorageService } from '../../platform/storage/storage.service.js';
 import { PlatformAdminService } from './platform-admin.service.js';
 import { PlatformGuard, type PlatformRequest } from './platform.guard.js';
 
@@ -31,9 +32,17 @@ import { PlatformGuard, type PlatformRequest } from './platform.guard.js';
 @UseGuards(PlatformGuard)
 @Controller('platform')
 export class PlatformAdminController {
-  constructor(private readonly admin: PlatformAdminService) {}
+  constructor(
+    private readonly admin: PlatformAdminService,
+    private readonly storage: StorageService,
+  ) {}
 
   private actor = (req: PlatformRequest) => req.platformAuth!.platformUserId;
+
+  /** Is file storage working? Writes and removes a tiny test file. */
+  @Get('diagnostics/storage') storageCheck() {
+    return this.storage.check();
+  }
 
   @Get('tenants') tenants() {
     return this.admin.listTenants();

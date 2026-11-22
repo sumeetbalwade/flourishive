@@ -13,6 +13,7 @@ dependencies = [
     "platformdirs>=4.14.8",
     "pyhanko[pkcs11]>=0.38.1",
     "pyside6-essentials>=6.8",
+    "sentry-sdk>=2.75.0",
 ]
 
 [project.scripts]
@@ -24,6 +25,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "boto3>=1.44.9",
     "pyinstaller>=6.22.3",
     "pytest>=9.2.0",
     "pytest-qt>=4.5.0",
