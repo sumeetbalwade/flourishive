@@ -66,6 +66,17 @@ const base = z.object({
   DSC_TSA_URL: z.string().url().default('http://timestamp.digicert.com'),
   TRUSTED_ROOTS_DIR: z.string().optional(),
   TRUSTED_TSA_DIR: z.string().optional(),
+  // Company addresses (<slug>.<APP_DOMAIN>) are created in Cloudflare DNS when a company is added.
+  // Leave these out (development) and no DNS is touched. Token needs "DNS: Edit" on this one zone.
+  CLOUDFLARE_API_TOKEN: z.string().min(20).optional(),
+  CLOUDFLARE_ZONE_ID: z
+    .string()
+    .regex(/^[0-9a-f]{32}$/i)
+    .optional(),
+  // The server's public IPv4 address that company names point at.
+  DNS_TARGET_IP: z.ipv4().optional(),
+  // true = traffic goes through Cloudflare's proxy (orange cloud).
+  DNS_PROXIED: bool.default(false),
   // Development only (D-38): accept a signer certificate outside its dates. Ignored in production.
   ALLOW_EXPIRED_SIGNER_CERT: bool.default(false),
 });

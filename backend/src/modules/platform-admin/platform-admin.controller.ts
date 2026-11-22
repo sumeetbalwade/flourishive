@@ -61,6 +61,13 @@ export class PlatformAdminController {
     return this.admin.updateTenant(this.actor(req), id, b, req.ip);
   }
 
+  /** Creates the company's address in Cloudflare again (after a failure, or a changed server address). */
+  @Post('tenants/:id/dns')
+  @HttpCode(200)
+  syncDns(@Req() req: PlatformRequest, @Param('id') id: string) {
+    return this.admin.syncDns(this.actor(req), id, req.ip);
+  }
+
   @Get('users') users() {
     return this.admin.listUsers();
   }

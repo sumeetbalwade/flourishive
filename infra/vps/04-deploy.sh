@@ -38,6 +38,15 @@ if [ ! -f $ENVF ]; then
   } | sudo tee $ENVF >/dev/null
   sudo chown root:deploy $ENVF; sudo chmod 640 $ENVF
 fi
+# Company addresses are created in Cloudflare by the API (no wildcard DNS record). Added once.
+if ! sudo grep -q '^CLOUDFLARE_API_TOKEN=' $ENVF; then
+  . /etc/flourishive/cloudflare.env
+  {
+    echo "CLOUDFLARE_API_TOKEN=$CF_API_TOKEN"
+    echo "CLOUDFLARE_ZONE_ID=${CLOUDFLARE_ZONE_ID:?set CLOUDFLARE_ZONE_ID when first deploying}"
+    echo "DNS_TARGET_IP=${DNS_TARGET_IP:?set DNS_TARGET_IP when first deploying}"
+  } | sudo tee -a $ENVF >/dev/null
+fi
 mkdir -p "$ROOT/storage" "$ROOT/trust/roots" "$ROOT/trust/tsa" "$ROOT/backups"
 chmod 700 "$ROOT/storage"
 set -a; . $ENVF; set +a
