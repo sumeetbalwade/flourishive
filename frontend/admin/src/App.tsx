@@ -1,5 +1,5 @@
 import { ApiError, type PlatformClient } from '@flourishive/api-client';
-import { ToastProvider } from '@flourishive/ui';
+import { PageLoader, ToastProvider } from '@flourishive/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { ApiProvider, makeClient } from './lib/api.tsx';
@@ -12,7 +12,7 @@ import { TenantDetail } from './pages/TenantDetail.tsx';
 import { Tenants } from './pages/Tenants.tsx';
 import { go, useRoute } from './router.ts';
 
-const Loading = () => <p className="p-10 text-sm text-muted">Loading…</p>;
+const Loading = () => <PageLoader fullscreen />;
 
 function Private({ children }: { children: ReactNode }) {
   const auth = useAuth();

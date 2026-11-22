@@ -47,6 +47,10 @@
   --animate-sheet-out: sheet-out 200ms var(--ease-out) forwards;
   --animate-rise: rise 420ms var(--ease-out) both;
   --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-sweep: sweep 1.3s var(--ease-in-out) infinite;
+  --animate-ripple: ripple 650ms var(--ease-out) forwards;
+  --animate-glow: glow 2.4s ease-in-out infinite;
+  --animate-bar: bar 1.4s var(--ease-in-out) infinite;
 
   @keyframes pop-in {
     from {
@@ -94,6 +98,43 @@
     to {
       transform: translateX(calc(100% + 24px));
       opacity: 0;
+    }
+  }
+  @keyframes sweep {
+    from {
+      transform: translateX(-120%);
+    }
+    to {
+      transform: translateX(120%);
+    }
+  }
+  @keyframes ripple {
+    from {
+      transform: scale(0);
+      opacity: 0.35;
+    }
+    to {
+      transform: scale(1);
+      opacity: 0;
+    }
+  }
+  @keyframes glow {
+    0%,
+    100% {
+      opacity: 0.45;
+      transform: scale(0.9);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.15);
+    }
+  }
+  @keyframes bar {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(260%);
     }
   }
   @keyframes fade-in {

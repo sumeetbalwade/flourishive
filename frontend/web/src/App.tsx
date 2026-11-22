@@ -1,4 +1,4 @@
-import { ToastProvider } from '@flourishive/ui';
+import { PageLoader, ToastProvider } from '@flourishive/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApiError } from '@flourishive/api-client';
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
@@ -48,7 +48,7 @@ function Private({ children, need }: { children: ReactNode; need?: string }) {
   useEffect(() => {
     if (anon) go('/login');
   }, [anon]);
-  if (auth.state.status !== 'authed') return <p className="p-10 text-sm text-muted">Loading…</p>;
+  if (auth.state.status !== 'authed') return <PageLoader fullscreen />;
   if (need && !auth.can(need))
     return (
       <p className="p-10 text-sm text-muted">
@@ -71,11 +71,7 @@ function Routes() {
   }, [auth.state.status, path]);
 
   if (path === '/login' || path === '/')
-    return auth.state.status === 'loading' ? (
-      <p className="p-10 text-sm text-muted">Loading…</p>
-    ) : (
-      <Login />
-    );
+    return auth.state.status === 'loading' ? <PageLoader fullscreen /> : <Login />;
   if (path === '/find-company') return <FindCompany />;
   if (path === '/forgot-password') return <ForgotPassword />;
   if (path === '/reset-password') return <ResetPassword token={query.get('token') ?? ''} />;
@@ -129,7 +125,7 @@ export default function App({
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <AuthProvider>
-            <Suspense fallback={<p className="p-10 text-sm text-muted">Loading…</p>}>
+            <Suspense fallback={<PageLoader fullscreen />}>
               <Routes />
             </Suspense>
           </AuthProvider>

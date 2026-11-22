@@ -33,3 +33,4 @@ export {
 } from './components/settings-editor.tsx';
 export { brand, brandSlug, loadBrand, type Brand } from './brand.ts';
 export { AuthFrame, BrandMark } from './components/auth-frame.tsx';
+export { PageLoader } from './components/page-loader.tsx';
