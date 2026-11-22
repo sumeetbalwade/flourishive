@@ -338,8 +338,26 @@ export class DocumentsService {
         'document',
         items.map((i) => i.id),
       );
+      const personIds = [
+        ...new Set(
+          items.map((i) => i.personId).filter((x): x is string => !!x),
+        ),
+      ];
+      const people = personIds.length
+        ? await this.prisma.db.person.findMany({
+            where: { id: { in: personIds } },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : [];
+      const names = new Map(
+        people.map((p) => [p.id, `${p.firstName} ${p.lastName}`.trim()]),
+      );
       return {
-        items: items.map((i) => ({ ...i, state: states.get(i.id) ?? null })),
+        items: items.map((i) => ({
+          ...i,
+          personName: i.personId ? (names.get(i.personId) ?? null) : null,
+          state: states.get(i.id) ?? null,
+        })),
         total,
         page: q.page,
         pageSize: q.pageSize,
@@ -368,8 +386,25 @@ export class DocumentsService {
       { type: 'document', id },
       (p) => this.access.can(a.tenantId, a.userId, p as never, doc.entityId),
     );
+    const person = doc.personId
+      ? await runInTenant(a.tenantId, async () =>
+          this.prisma.db.person.findUnique({
+            where: { id: doc.personId! },
+            select: {
+              firstName: true,
+              lastName: true,
+              workEmail: true,
+              personalEmail: true,
+            },
+          }),
+        )
+      : null;
     return {
       ...doc,
+      personName: person
+        ? `${person.firstName} ${person.lastName}`.trim()
+        : null,
+      personEmail: person?.personalEmail ?? person?.workEmail ?? null,
       workflow,
       downloadUrl: link.url,
       downloadUrlExpiresAt: link.expiresAt,

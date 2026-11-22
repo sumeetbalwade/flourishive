@@ -429,3 +429,71 @@ describe('import', () => {
     expect(await screen.findByText('2 added and 0 updated.')).toBeInTheDocument();
   });
 });
+
+describe('letters', () => {
+  const DOC_PERMS = [...ME.permissions, 'documents.read', 'documents.generate', 'documents.manage'];
+
+  it('lists real letters with their stage', async () => {
+    const client = signedInAdmin(DOC_PERMS);
+    client.documents.list.mockResolvedValue({
+      items: [
+        {
+          id: 'd1',
+          reference: 'FS/OFR/2026/0001',
+          letterType: 'OFFER',
+          entityId: 'e1',
+          personId: 'p1',
+          personName: 'Asha Patil',
+          pageCount: 1,
+          createdAt: '2026-11-22T08:00:00.000Z',
+          state: 'submitted',
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 25,
+    });
+    open('#/app/letters', client);
+    expect(await screen.findByText('Asha Patil')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for approval')).toBeInTheDocument();
+    expect(screen.getByText('FS/OFR/2026/0001')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /New letter/ })).toBeInTheDocument();
+  });
+
+  it('hides the New letter button without permission to generate', async () => {
+    const client = signedInAdmin([...ME.permissions, 'documents.read']);
+    open('#/app/letters', client);
+    expect(await screen.findByText('No letters yet')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /New letter/ })).not.toBeInTheDocument();
+  });
+
+  it('shows what HR can do next on a letter and takes the action', async () => {
+    const client = signedInAdmin(DOC_PERMS);
+    client.documents.get.mockResolvedValue({
+      id: 'd1',
+      reference: 'FS/OFR/2026/0001',
+      letterType: 'OFFER',
+      entityId: 'e1',
+      personId: 'p1',
+      personName: 'Asha Patil',
+      personEmail: 'asha@example.test',
+      sha256: 'a'.repeat(64),
+      pageCount: 1,
+      createdAt: '2026-11-22T08:00:00.000Z',
+      data: {},
+      downloadUrl: '/v1/files/f1/content?expires=1&sig=x',
+      workflow: {
+        state: 'draft',
+        actions: [{ action: 'submit', label: 'Submit for approval', commentRequired: false }],
+      },
+    });
+    client.documents.act.mockResolvedValue({});
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new Blob(['%PDF']))));
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:x');
+    URL.revokeObjectURL = vi.fn();
+    const { user } = open('#/app/letters/d1', client);
+    await user.click(await screen.findByRole('button', { name: 'Submit for approval' }));
+    expect(client.documents.act).toHaveBeenCalledWith('d1', 'submit', undefined);
+    vi.unstubAllGlobals();
+  });
+});
