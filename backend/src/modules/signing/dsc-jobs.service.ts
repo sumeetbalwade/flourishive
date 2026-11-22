@@ -268,7 +268,14 @@ export class DscJobsService {
   async input(d: DeviceCtx, id: string) {
     const r = await this.held(d, id);
     const file = await this.files.get(d.tenantId, r.inputFileId!);
-    return { file, stream: this.storage.read(file.storageKey) };
+    return {
+      file,
+      stream: this.storage.read(file.storageKey),
+      url: await this.storage.downloadUrl(file.storageKey, {
+        filename: file.originalName,
+        mimeType: 'application/pdf',
+      }),
+    };
   }
 
   async release(d: DeviceCtx, id: string) {

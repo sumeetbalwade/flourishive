@@ -101,7 +101,14 @@ export class DesktopJobsController {
     @Param('id') id: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { file, stream } = await this.jobs.input(d, id);
+    const { file, stream, url } = await this.jobs.input(d, id);
+    res.setHeader('X-Content-SHA256', file.sha256);
+    if (url) {
+      stream.destroy();
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.redirect(302, url);
+      return;
+    }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',

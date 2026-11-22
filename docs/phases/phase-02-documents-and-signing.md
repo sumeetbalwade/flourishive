@@ -55,41 +55,41 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 Moves file bytes off the VPS. Today every file sits under `STORAGE_DIR`, and every download streams through the API (`files.controller.ts` pipes it; signing and desktop return `StreamableFile`). After this PR, files live in a private R2 bucket and downloads go straight from R2. The API still decides who may download.
 
 **Backend**
-- [ ] Storage driver interface behind the existing `StorageService` (`backend/src/platform/storage/`). Callers keep using `save`, `read`, `exists`, `remove`, `sign` and `verify` unchanged.
+- [x] Storage driver interface behind the existing `StorageService` (`backend/src/platform/storage/`). Callers keep using `save`, `read`, `exists`, `remove`, `sign` and `verify` unchanged.
   - `LocalDriver`: today's code.
   - `R2Driver`: `@aws-sdk/client-s3` against `https://<account-id>.r2.cloudflarestorage.com`, region `auto`.
-- [ ] New `config.ts` settings: `STORAGE_DRIVER` (`local` | `r2`, default `local`), `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (sensitive), `R2_BUCKET`.
+- [x] New `config.ts` settings: `STORAGE_DRIVER` (`local` | `r2`, default `local`), `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (sensitive), `R2_BUCKET`.
   - Local development and tests keep `local`.
   - These move into runtime config in Phase 2B PR 1 (D-57).
-- [ ] `R2Driver.save` streams to R2 (multipart for files over 8 MB) with `ContentType`.
+- [x] `R2Driver.save` streams to R2 (multipart for files over 8 MB) with `ContentType`.
   - Keys stay as today (tenant-prefixed `storageKey`). Never allow `..` or a leading `/`.
   - Write once: refuse to overwrite an existing key, matching today's `wx` flag.
-- [ ] Download by redirect (D-72): a new `StorageService.downloadUrl(key, { filename, mimeType, ttlSeconds = 300 })`.
+- [x] Download by redirect (D-72): a new `StorageService.downloadUrl(key, { filename, mimeType, ttlSeconds = 300 })`.
   - With R2, it returns a presigned GET (`@aws-sdk/s3-request-presigner`) with `ResponseContentDisposition` (`attachment` or `inline`, filename RFC 5987-encoded) and `ResponseContentType`.
   - With local, it returns null and the caller streams as today.
   - Each download endpoint keeps its permission and tenant checks and the existing signed-link check, then answers `302` to the R2 URL with `Cache-Control: no-store`. This covers the file download endpoints, the signing PDF endpoints, the acceptance page's document and the desktop job download.
   - Never redirect without the checks.
-- [ ] Server-side reads (sealing, DSC validation, letterhead merge, `readAll` in `signing.service.ts`, `dsc-jobs.service.ts`, `documents.service.ts`) read from R2 through `read()`. Timeout is 30 seconds, with 2 retries on network errors.
-- [ ] Uploads stay through the API (D-73): content-type check by magic bytes and sha256 as today, then `save` to R2. The size limit is unchanged.
-- [ ] Read fallback during migration (D-74): `R2Driver.read`/`exists` fall back to the local disk when the object is missing.
+- [x] Server-side reads (sealing, DSC validation, letterhead merge, `readAll` in `signing.service.ts`, `dsc-jobs.service.ts`, `documents.service.ts`) read from R2 through `read()`. Timeout is 30 seconds, with 2 retries on network errors.
+- [x] Uploads stay through the API (D-73): content-type check by magic bytes and sha256 as today, then `save` to R2. The size limit is unchanged.
+- [x] Read fallback during migration (D-74): `R2Driver.read`/`exists` fall back to the local disk when the object is missing.
   - Each fallback logs `storage.fallback_local` with the key (no personal data) and counts in Redis.
   - `STORAGE_LOCAL_FALLBACK=true|false`, default `true` with R2.
-- [ ] Migration command `node dist/cli.js storage-migrate-r2 [--dry-run]`:
+- [x] Migration command `node dist/cli.js storage-migrate-r2 [--dry-run]`:
   - Copies every `files` row's object that is missing in R2.
   - Re-reads it from R2 and compares the sha256 with `files.sha256`.
   - Prints a summary (copied, already present, mismatched, missing locally).
   - Safe to re-run.
   - `--delete-local` removes local copies only for files verified in R2. Use it after a week with zero fallbacks (D-74).
 - [ ] Health: `/v1/health` stays fast. Add a `storage` check to an admin-only diagnostics endpoint (a HEAD on a known object).
-- [ ] Deletes: `remove` deletes in R2 (and locally if present). Soft delete in `files.deletedAt` stays as today.
+- [x] Deletes: `remove` deletes in R2 (and locally if present). Soft delete in `files.deletedAt` stays as today.
 
 **Clients**
-- [ ] Web `PdfPreview.tsx` fetches the PDF, then follows the redirect to R2. Set the bucket CORS rule for `GET`/`HEAD` from any origin, with no credentials (the URLs are presigned and expire in 5 minutes; custom tenant domains from Phase 2B mean origins can't be listed in advance).
+- [x] Web `PdfPreview.tsx` fetches the PDF, then follows the redirect to R2. Set the bucket CORS rule for `GET`/`HEAD` from any origin, with no credentials (the URLs are presigned and expire in 5 minutes; custom tenant domains from Phase 2B mean origins can't be listed in advance).
   - Check the preview, "Download" and the verify page's compare-upload still work.
-- [ ] Desktop: `httpx` does not follow redirects by default. Set `follow_redirects=True` on the client used for downloads, and confirm the `Authorization` header is not sent to R2 (`httpx` drops it on a cross-origin redirect; add a test). Update `desktop/tests`.
+- [x] Desktop: `httpx` does not follow redirects by default. Set `follow_redirects=True` on the client used for downloads, and confirm the `Authorization` header is not sent to R2 (`httpx` drops it on a cross-origin redirect; add a test). Update `desktop/tests`.
 
 **Infrastructure and runbook**
-- [ ] Runbook `docs/runbooks/r2-storage.md`, with these steps:
+- [x] Runbook `docs/runbooks/r2-storage.md`, with these steps:
   1. Create the bucket (private, no public access, Asia-Pacific location hint).
   2. Create an API token limited to that bucket with Object Read & Write.
   3. Add the CORS rule.
@@ -101,11 +101,13 @@ Moves file bytes off the VPS. Today every file sits under `STORAGE_DIR`, and eve
 - [ ] Backups: the nightly server backup no longer needs file bytes once migration is complete. Note in the runbook that R2 is the store of record, and that bucket deletion is protected only by the token's scope.
 
 **Tests**
-- [ ] Driver contract tests run against both drivers. R2 uses `aws-sdk-client-mock`, so no network is needed in CI.
-- [ ] Presigned URL contains the disposition and expires. A download endpoint returns 302 only after its permission check; a wrong tenant still gets 404.
-- [ ] Fallback is used when the object is missing in R2 and is counted.
-- [ ] The migration command verifies sha256 and reports a mismatch.
-- [ ] The e2e suite stays on `local`.
+- [x] Driver contract tests run against both drivers. R2 uses `aws-sdk-client-mock`, so no network is needed in CI.
+- [x] Presigned URL contains the disposition and expires. A download endpoint returns 302 only after its permission check; a wrong tenant still gets 404.
+- [x] Fallback is used when the object is missing in R2 and is counted.
+- [x] The migration command verifies sha256 and reports a mismatch.
+- [x] The e2e suite stays on `local`.
+
+_Built in PR 8 except the admin storage diagnostics check, the backup note and the live-server run, which remain open._
 
 **Done when:** on the live server, after migration, an issued letter's download, the PDF preview, the desktop signing job and the verify compare all work. `backend/storage` is empty after `--delete-local`. Server bandwidth for downloads drops to the redirect only.
 

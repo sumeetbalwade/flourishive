@@ -83,3 +83,20 @@ def test_the_signed_file_goes_up_as_a_pdf():
         return httpx.Response(200, json={"signed": True, "test": False})
 
     assert api(h).submit("j1", b"%PDF-1.7 x")["signed"] is True
+
+
+def test_download_follows_a_storage_redirect_without_sending_the_credential():
+    from types import SimpleNamespace
+
+    seen = []
+
+    def h(req):
+        seen.append((req.url.host, req.headers.get("authorization")))
+        if req.url.host == "api.example.test":
+            return httpx.Response(302, headers={"location": "https://files.r2.example.test/k?sig=1"})
+        return httpx.Response(200, content=b"%PDF-1.7 bytes")
+
+    data = api(h).download(SimpleNamespace(input_path="/v1/desktop/jobs/j1/input"))
+    assert data == b"%PDF-1.7 bytes"
+    assert seen[0] == ("api.example.test", f"Device {CRED}")
+    assert seen[1] == ("files.r2.example.test", None)
