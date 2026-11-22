@@ -72,6 +72,10 @@ Approved decisions. Changing any of them needs a new entry, not an edit.
 | D-69 | Company configuration | Region and formats, sign-in rules (password policy, idle timeout, allowed domains, admin IP allowlist), notification rules, custom domains via Caddy on-demand TLS for verified domains. |
 | D-70 | Platform controls | Announcement banner, maintenance mode, feature switches per tenant, usage overview, settings import/export without secrets. |
 | D-71 | Console UX | Grouped settings hub with search, per-setting control, hint and lock; setup wizard for new tenants. |
+| D-72 | File storage | Files in a private Cloudflare R2 bucket behind the storage service; downloads pass the API's checks, then redirect to a 5-minute presigned link. |
+| D-73 | Uploads | Still through the API (content check, sha256), then written to R2. |
+| D-74 | Storage migration | Verified copy command, local read fallback while settling, local copies deleted after a clean week. |
+| D-75 | Phase 2 order | Amends D-39: R2 is Phase 2 PR 8; visual editor PR 9; Aadhaar eSign adapter PR 10. |
 
 ---
 
