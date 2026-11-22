@@ -28,6 +28,7 @@ import {
   EmptyState,
   Field,
   Input,
+  PageLoader,
   Skeleton,
   SigningAnimation,
   Stat,
@@ -163,6 +164,24 @@ export default function Gallery() {
                   <LineChart data={MONTHS} x="m" series={['sent', 'signed']} />
                 </TabsContent>
               </Tabs>
+            </div>
+          </Card>
+          <Card>
+            <CardTitle>Loading states</CardTitle>
+            <PageLoader />
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => new Promise((r) => setTimeout(r, 2200))}>
+                Save (click me)
+              </Button>
+              <Button variant="secondary" onClick={() => new Promise((r) => setTimeout(r, 2200))}>
+                Export
+              </Button>
+              <Button variant="deep" loading>
+                Sending
+              </Button>
+              <Button variant="danger" onClick={() => new Promise((r) => setTimeout(r, 2200))}>
+                Delete
+              </Button>
             </div>
           </Card>
           <Card>

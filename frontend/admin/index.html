@@ -5,9 +5,55 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Flourishive Admin</title>
+    <style>
+      /* First-paint loader: shown until the app mounts, so there is no blank flash. */
+      html {
+        background: #eef3f1;
+      }
+      html[data-theme='dark'] {
+        background: #0b1210;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+      }
+      #boot i {
+        display: block;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 3px solid rgb(42 145 88 / 0.18);
+        border-top-color: #2a9158;
+        animation: boot-spin 0.8s linear infinite;
+      }
+      html[data-theme='dark'] #boot i {
+        border-color: rgb(111 207 138 / 0.18);
+        border-top-color: #6fcf8a;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot i {
+          animation-duration: 3s;
+        }
+      }
+    </style>
+    <script>
+      try {
+        var t = localStorage.getItem('fh-theme');
+        if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot" role="status" aria-label="Loading"><i></i></div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
