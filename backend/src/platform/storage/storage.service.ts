@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
-import type { Readable } from 'node:stream';
+import { randomUUID } from 'node:crypto';
+import { Readable } from 'node:stream';
 import { RedisService } from '../cache/redis.service.js';
 import { APP_CONFIG, type AppConfig } from '../config/config.js';
 import { CryptoService } from '../crypto/crypto.service.js';
@@ -88,6 +89,43 @@ export class StorageService {
    */
   downloadUrl(key: string, opts: DownloadUrlOptions): Promise<string | null> {
     return this.driver.downloadUrl(key, { ttlSeconds: 300, ...opts });
+  }
+
+  /** How many reads had to use local disk since the counter was last cleared. */
+  async fallbackReads(): Promise<number> {
+    const raw = await this.redis?.client.get(FALLBACK_COUNTER_KEY);
+    return raw ? Number(raw) : 0;
+  }
+
+  /** Writes, reads back and deletes a tiny test object, so a broken bucket or key is noticed early. */
+  async check(): Promise<{
+    driver: 'local' | 'r2';
+    ok: boolean;
+    latencyMs: number;
+    error?: string;
+    fallbackReads: number;
+  }> {
+    const driver = this.r2 ? 'r2' : 'local';
+    const key = `_health/${randomUUID()}`;
+    const started = Date.now();
+    let error: string | undefined;
+    try {
+      await this.driver.save(key, Readable.from(['ok']));
+      let text = '';
+      for await (const c of this.driver.read(key)) text += c;
+      if (text !== 'ok') throw new Error('Read back the wrong content');
+    } catch (e) {
+      error = e instanceof Error ? e.message.slice(0, 200) : 'Check failed';
+    } finally {
+      await this.driver.remove(key).catch(() => undefined);
+    }
+    return {
+      driver,
+      ok: !error,
+      latencyMs: Date.now() - started,
+      error,
+      fallbackReads: await this.fallbackReads().catch(() => 0),
+    };
   }
 
   /** Returns `expires` and `sig` query values for a download of `key`. */

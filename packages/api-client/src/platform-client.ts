@@ -98,6 +98,19 @@ export function createPlatformClient(opts: Opts) {
       },
     },
 
+    diagnostics: {
+      storage: () =>
+        http.request('GET', '/platform/diagnostics/storage', {
+          schema: z.object({
+            driver: z.enum(['local', 'r2']),
+            ok: z.boolean(),
+            latencyMs: z.number(),
+            error: z.string().optional(),
+            fallbackReads: z.number(),
+          }),
+        }),
+    },
+
     tenants: {
       list: () => http.request('GET', '/platform/tenants', { schema: z.array(tenantListItem) }),
       get: (id: string) => http.request('GET', `/platform/tenants/${id}`, { schema: tenantDetail }),

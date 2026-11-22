@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { StorageMigrateService } from './modules/files/storage-migrate.service.js';
+import { StorageService } from './platform/storage/storage.service.js';
 import { AccessService } from './modules/access/access.service.js';
 import { AuditWatchService } from './modules/platform-admin/audit-watch.service.js';
 import { PlatformAuthService } from './modules/platform-admin/platform-auth.service.js';
@@ -12,6 +13,7 @@ import { QueueService } from './platform/queue/queue.service.js';
  * Command line entry point (run by cron or by an operator over SSH):
  *   node dist/cli.js worker [--max-seconds=55]
  *   node dist/cli.js create-platform-user --email=you@example.com
+ *   node dist/cli.js storage-check           (is file storage working, and how many reads fell back to local disk)
  *   node dist/cli.js sync-roles              (after a deploy: gives every company's system roles any new permissions)
  *   node dist/cli.js storage-migrate-r2 [--dry-run] [--delete-local]
  *   node dist/cli.js verify-audit            (nightly cron: re-checks every audit hash chain)
@@ -30,16 +32,26 @@ async function main() {
     command !== 'create-platform-user' &&
     command !== 'verify-audit' &&
     command !== 'storage-migrate-r2' &&
-    command !== 'sync-roles'
+    command !== 'sync-roles' &&
+    command !== 'storage-check'
   ) {
     console.error(
-      'Usage: cli.js worker [--max-seconds=55] | create-platform-user --email=<address> | verify-audit | storage-migrate-r2 [--dry-run] [--delete-local] | sync-roles',
+      'Usage: cli.js worker [--max-seconds=55] | create-platform-user --email=<address> | verify-audit | storage-migrate-r2 [--dry-run] [--delete-local] | sync-roles | storage-check',
     );
     process.exit(1);
   }
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn'],
   });
+
+  if (command === 'storage-check') {
+    const r = await app.get(StorageService).check();
+    console.log(
+      `${r.driver} storage: ${r.ok ? 'OK' : `FAILED (${r.error})`} in ${r.latencyMs} ms; reads that used local disk: ${r.fallbackReads}`,
+    );
+    await app.close();
+    process.exit(r.ok ? 0 : 2);
+  }
 
   if (command === 'sync-roles') {
     const n = await app.get(AccessService).provisionAllTenants();

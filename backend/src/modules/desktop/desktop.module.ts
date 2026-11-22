@@ -6,6 +6,7 @@ import {
   DesktopPairController,
   DesktopStaffController,
 } from './desktop.controller.js';
+import { ReleasesService } from './releases.service.js';
 import { DeviceGuard } from './device.guard.js';
 import { DeviceService } from './device.service.js';
 
@@ -16,6 +17,6 @@ import { DeviceService } from './device.service.js';
     DesktopPairController,
     DesktopJobsController,
   ],
-  providers: [DeviceService, DeviceGuard],
+  providers: [DeviceService, DeviceGuard, ReleasesService],
 })
 export class DesktopModule {}

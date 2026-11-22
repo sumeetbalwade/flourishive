@@ -35,7 +35,7 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 - [x] Signing animation in the web signature timeline and on the candidate OTP acceptance screen (D-37)
 - [x] Token driver detection (from the spike), with a manual library-path override
 - [ ] DOCX → PDF: Word on Windows, LibreOffice on macOS
-- [ ] `flourishive://` link handler _(done in PR 6)_, auto-update, Sentry _(waiting on the code-signing purchase, D-51)_
+- [x] `flourishive://` link handler (PR 6); auto-update from a release manifest in R2 with hash check, and opt-in Sentry crash reports with nothing personal (docs/runbooks/desktop-release.md). Still unsigned until the certificates are bought (D-51)
 - [ ] Packaging: code-signed Windows installer; signed and notarised macOS app
 
 ### External DOCX conversion (D-14)
@@ -82,7 +82,7 @@ Moves file bytes off the VPS. Today every file sits under `STORAGE_DIR`, and eve
   - Prints a summary (copied, already present, mismatched, missing locally).
   - Safe to re-run.
   - `--delete-local` removes local copies only for files verified in R2. Use it after a week with zero fallbacks (D-74).
-- [ ] Health: `/v1/health` stays fast. Add a `storage` check to an admin-only diagnostics endpoint (a HEAD on a known object).
+- [x] Health: `/v1/health` stays fast. A storage check (write, read back, remove a test file) is on the admin console's System checks page and in `node dist/cli.js storage-check`.
 - [x] Deletes: `remove` deletes in R2 (and locally if present). Soft delete in `files.deletedAt` stays as today.
 
 **Clients**

@@ -22,6 +22,7 @@ import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
 import { DscJobsService, type DeviceCtx } from '../signing/dsc-jobs.service.js';
 import { AccessService } from '../access/access.service.js';
+import { ReleasesService } from './releases.service.js';
 import { CurrentDevice, DeviceGuard } from './device.guard.js';
 import { DeviceService } from './device.service.js';
 
@@ -31,6 +32,8 @@ const pairBody = z.object({
   platform: z.string().trim().min(1).max(30),
   appVersion: z.string().trim().min(1).max(30),
 });
+const platformOf = (v: unknown): 'windows' | 'macos' =>
+  v === 'macos' || v === 'darwin' ? 'macos' : 'windows';
 const failBody = z.object({ reason: z.string().trim().min(1).max(300) });
 
 /** For the signatory in the web app: pair a computer, see and unpair computers. */
@@ -78,7 +81,31 @@ export class DesktopPairController {
 @UseGuards(DeviceGuard)
 @Controller('desktop')
 export class DesktopJobsController {
-  constructor(private readonly jobs: DscJobsService) {}
+  constructor(
+    private readonly jobs: DscJobsService,
+    private readonly releases: ReleasesService,
+  ) {}
+
+  /** Is there a newer Flourishive Desktop? The app asks when it starts and every few hours. */
+  @Get('update')
+  update(@Req() req: Request) {
+    return this.releases.check(
+      platformOf(req.query.platform),
+      String(req.query.version ?? '0.0.0').slice(0, 20),
+    );
+  }
+
+  @Get('update/download')
+  async updateDownload(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const f = await this.releases.fileFor(platformOf(req.query.platform));
+    if (!f) throw new BadRequestException('No release is published');
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Cache-Control', 'private, no-store');
+    return new StreamableFile(f.stream);
+  }
 
   @Get('me')
   me(@CurrentDevice() d: DeviceCtx) {

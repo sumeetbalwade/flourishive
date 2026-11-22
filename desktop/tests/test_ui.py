@@ -33,6 +33,11 @@ class FakeApi:
             raise self.pair_error
         return Paired("dev1", "c" * 43, "Flourisense")
 
+    update_body: dict = {"updateAvailable": False}
+
+    def update(self, platform, version):
+        return self.update_body
+
     def jobs(self):
         if self.jobs_error:
             raise self.jobs_error
@@ -166,10 +171,12 @@ def test_an_empty_queue_says_so_and_a_lost_pairing_returns_to_the_pairing_page(q
     api = FakeApi(b"", [])
     w = MainWindow(make_controller(tmp_path, api))
     qtbot.addWidget(w)
-    qtbot.waitUntil(lambda: not w.queue.empty.isHidden() or w.queue.empty.isVisibleTo(w), timeout=3000)
+    # poll() does nothing while a check is already running, so let the first one finish
+    qtbot.waitUntil(lambda: not w._polling, timeout=3000)
     api.jobs_error = Offline("Could not reach the server.")
     w.poll()
     qtbot.waitUntil(lambda: "No connection" in w.banner.text(), timeout=3000)
+    qtbot.waitUntil(lambda: not w._polling, timeout=3000)
     api.jobs_error = Unpaired("This computer is no longer paired.")
     w.poll()
     qtbot.waitUntil(lambda: w.root.currentIndex() == 1, timeout=3000)
@@ -232,3 +239,24 @@ def test_a_held_upload_shows_waiting_then_finishes(qtbot, tmp_path, token, pdf, 
     qtbot.mouseClick(d.start_btn, Qt.MouseButton.LeftButton)
     qtbot.waitUntil(lambda: d.close_btn.isVisibleTo(d), timeout=20000)
     assert "waiting" in seen and d.anim.state == animation.DONE and list(api.submitted) == ["j1"]
+
+
+def test_a_newer_version_shows_a_bar_and_a_required_one_blocks_signing(qtbot, tmp_path):
+    api = FakeApi(b"", jobs(2))
+    api.update_body = {"updateAvailable": True, "latest": "9.9.9", "notes": "", "mandatory": True, "sha256": "a" * 64, "url": "https://x/y.zip", "downloadPath": None, "sentryDsn": None}
+    w = MainWindow(make_controller(tmp_path, api))
+    qtbot.addWidget(w)
+    qtbot.waitUntil(lambda: not w.update_bar.isHidden(), timeout=3000)
+    assert "9.9.9" in w.update_label.text() and "required" in w.update_label.text()
+    qtbot.waitUntil(lambda: w.queue.table.rowCount() == 2, timeout=3000)
+    qtbot.mouseClick(w.queue.all_btn, Qt.MouseButton.LeftButton)
+    qtbot.mouseClick(w.queue.sign_btn, Qt.MouseButton.LeftButton)
+    assert "too old" in w.banner.text()  # no signing dialog opened
+
+
+def test_no_bar_when_up_to_date(qtbot, tmp_path):
+    w = MainWindow(make_controller(tmp_path, FakeApi(b"", jobs(1))))
+    qtbot.addWidget(w)
+    qtbot.waitUntil(lambda: w.queue.table.rowCount() == 1, timeout=3000)
+    assert w.update_bar.isHidden() and not w.update_required
+

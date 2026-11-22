@@ -119,6 +119,11 @@ class Api:
             raise ServerRefused(res.status_code, message, code)
         return body
 
+    # -- updates -------------------------------------------------------------
+    def update(self, platform: str, version: str) -> dict[str, Any]:
+        body = self._json(self._request("GET", "/v1/desktop/update", params={"platform": platform, "version": version}))
+        return body if isinstance(body, dict) else {}
+
     # -- pairing -------------------------------------------------------------
     def pair(self, code: str, name: str, platform: str) -> Paired:
         body = self._json(
