@@ -634,6 +634,13 @@ const PROBES = (): Record<string, Probe> => ({
         layoutKey: 'letter',
       }),
   },
+  'POST /documents/templates/upload': {
+    mode: 'contained',
+    send: () =>
+      as('post', '/documents/templates/upload?name=B-Upload&letterType=OFFER')
+        .set('Content-Type', 'application/pdf')
+        .send(Buffer.from('%PDF-1.4 not really')),
+  },
   'POST /documents/templates/starters': {
     mode: 'contained',
     send: () => as('post', '/documents/templates/starters'),

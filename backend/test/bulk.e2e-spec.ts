@@ -309,3 +309,54 @@ describe('emailing a letter, and holding offer downloads', () => {
     await pub('short').expect(404);
   });
 });
+
+describe('uploaded PDF templates (Path C)', () => {
+  it('turns a fillable PDF into a template and issues a flattened, stamped copy', async () => {
+    const src = await PDFDocument.create();
+    const page = src.addPage([595, 842]);
+    src
+      .getForm()
+      .createTextField('Candidate')
+      .addToPage(page, { x: 50, y: 700, width: 200, height: 20 });
+    const up = await call(
+      'post',
+      '/documents/templates/upload?name=Pre-printed%20offer&letterType=OFFER',
+    )
+      .set('Content-Type', 'application/pdf')
+      .send(Buffer.from(await src.save()))
+      .expect(201);
+    expect(up.body.kind).toBe('PDF_UPLOAD');
+    const v = up.body.versions[0];
+    expect(v.fields).toEqual([
+      { key: 'Candidate', label: 'Candidate', type: 'text', required: false },
+    ]);
+    expect(v.content.mapping).toEqual({ Candidate: 'Candidate' });
+
+    await call('post', '/documents/templates/upload?name=Bad&letterType=OFFER')
+      .set('Content-Type', 'application/pdf')
+      .send(Buffer.from('not a pdf'))
+      .expect(400);
+
+    const gen = await call('post', '/documents/generate')
+      .send({
+        templateId: up.body.id,
+        entityId,
+        fields: { Candidate: 'Asha Rao' },
+      })
+      .expect(201);
+    expect(gen.body.pageCount).toBe(1);
+
+    // editing the mapping adds a version and refuses unknown names
+    await call('post', `/documents/templates/${up.body.id}/versions`)
+      .send({ content: { mapping: { Nope: 'Candidate' } } })
+      .expect(400);
+    await call('post', `/documents/templates/${up.body.id}/versions`)
+      .send({
+        fields: [
+          { key: 'person', label: 'Person', type: 'text', required: true },
+        ],
+        content: { mapping: { Candidate: 'person' } },
+      })
+      .expect(201);
+  });
+});

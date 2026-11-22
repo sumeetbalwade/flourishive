@@ -24,7 +24,8 @@ export class PdfService {
    */
   async compose(input: {
     body: Buffer;
-    letterhead: Buffer;
+    /** Null for uploaded PDFs: they already carry their own stationery. */
+    letterhead: Buffer | null;
     reference: string;
     verifyUrl: string;
     margins: Margins;
@@ -33,14 +34,17 @@ export class PdfService {
   }): Promise<{ bytes: Buffer; pageCount: number }> {
     const out = await PDFDocument.create();
     // A blank stationery page has no content stream, which pdf-lib cannot embed; give it an empty one.
-    const lhDoc = await PDFDocument.load(input.letterhead);
-    const lhPage = lhDoc.getPage(0);
-    if (!lhPage.node.Contents())
-      lhPage.node.set(
-        PDFName.of('Contents'),
-        lhDoc.context.register(lhDoc.context.stream('')),
-      );
-    const [lh] = await out.embedPdf(lhDoc, [0]);
+    let lh: Awaited<ReturnType<typeof out.embedPdf>>[number] | undefined;
+    if (input.letterhead) {
+      const lhDoc = await PDFDocument.load(input.letterhead);
+      const lhPage = lhDoc.getPage(0);
+      if (!lhPage.node.Contents())
+        lhPage.node.set(
+          PDFName.of('Contents'),
+          lhDoc.context.register(lhDoc.context.stream('')),
+        );
+      [lh] = await out.embedPdf(lhDoc, [0]);
+    }
     const body = await PDFDocument.load(input.body);
     const pages = await out.embedPdf(body, body.getPageIndices());
     const font = await out.embedFont(StandardFonts.Helvetica);
@@ -54,7 +58,8 @@ export class PdfService {
     const total = pages.length;
     pages.forEach((bp, i) => {
       const page = out.addPage([bp.width, bp.height]);
-      page.drawPage(lh!, { x: 0, y: 0, width: bp.width, height: bp.height });
+      if (lh)
+        page.drawPage(lh, { x: 0, y: 0, width: bp.width, height: bp.height });
       page.drawPage(bp, { x: 0, y: 0 });
       const size = 36;
       const bottom = input.stamp?.bottom ?? 22;

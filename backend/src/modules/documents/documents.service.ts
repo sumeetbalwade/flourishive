@@ -19,6 +19,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { FilesService } from '../files/files.service.js';
 import { LETTER_FLOW_KEY } from '../workflow/definition.js';
 import { fill, longDate, resolveValues } from './fill.js';
+import { fillAndFlatten } from './pdf-forms.js';
 import { LAYOUTS } from './layouts/registry.js';
 import { LetterheadsService } from './letterheads.service.js';
 import { NumberingService } from './numbering.service.js';
@@ -78,9 +79,12 @@ export class DocumentsService {
     if (!engagement)
       throw new BadRequestException('That engagement does not exist');
     const version = template.versions[0]!;
-    const layout = LAYOUTS[version.layoutKey ?? ''];
-    if (!layout) throw new BadRequestException('The layout is not available');
+    const upload = template.kind === 'PDF_UPLOAD';
+    const layout = upload ? null : (LAYOUTS[version.layoutKey ?? ''] ?? null);
+    if (!upload && !layout)
+      throw new BadRequestException('The layout is not available');
 
+    // An uploaded PDF keeps its own stationery; the company's letterhead only sets where the stamp goes.
     const lh = await this.letterheads.latest(
       a.tenantId,
       b.entityId,
@@ -160,7 +164,7 @@ export class DocumentsService {
         content: unknown;
         orientation: 'PORTRAIT' | 'LANDSCAPE';
       };
-      layout: (typeof LAYOUTS)[string];
+      layout: (typeof LAYOUTS)[string] | null;
       lh: NonNullable<Awaited<ReturnType<LetterheadsService['latest']>>>;
       values: Record<string, string>;
       reference: string;
@@ -170,26 +174,41 @@ export class DocumentsService {
   ) {
     const { version, layout, lh, values, reference, verifyToken, now } = p;
     const all = { ...values, reference, issueDate: longDate(now) };
-    const raw = version.content as Record<string, string>;
-    const content = layout.fillsItself
-      ? raw
-      : Object.fromEntries(
-          Object.entries(raw).map(([k, v]) => [k, fill(v, all)]),
-        );
     const margins = {
       top: lh.marginTop,
       bottom: lh.marginBottom,
       left: lh.marginLeft,
       right: lh.marginRight,
     };
-    const body = await this.pdf.renderBody(layout, {
-      content: { ...content, reference, issueDate: all.issueDate },
-      orientation: version.orientation,
-      margins,
-      values: all,
-    });
-    const letterheadFile = await this.files.get(a.tenantId, lh.fileId);
-    const lhBytes = await readAll(this.storage.read(letterheadFile.storageKey));
+    let body: Buffer;
+    let lhBytes: Buffer | null = null;
+    if (layout) {
+      const raw = version.content as Record<string, string>;
+      const content = layout.fillsItself
+        ? raw
+        : Object.fromEntries(
+            Object.entries(raw).map(([k, v]) => [k, fill(v, all)]),
+          );
+      body = await this.pdf.renderBody(layout, {
+        content: { ...content, reference, issueDate: all.issueDate },
+        orientation: version.orientation,
+        margins,
+        values: all,
+      });
+      const letterheadFile = await this.files.get(a.tenantId, lh.fileId);
+      lhBytes = await readAll(this.storage.read(letterheadFile.storageKey));
+    } else {
+      const c = version.content as {
+        fileId: string;
+        mapping: Record<string, string>;
+      };
+      const src = await this.files.get(a.tenantId, c.fileId);
+      const original = await readAll(this.storage.read(src.storageKey));
+      body =
+        Object.keys(c.mapping ?? {}).length > 0
+          ? await fillAndFlatten(original, c.mapping, all)
+          : original;
+    }
     const { bytes, pageCount } = await this.pdf.compose({
       body,
       letterhead: lhBytes,
@@ -275,8 +294,11 @@ export class DocumentsService {
         where: { id: doc.letterheadId },
       }),
     }));
-    const layout = LAYOUTS[version.layoutKey ?? ''];
-    if (!layout) throw new BadRequestException('The layout is not available');
+    const layout = version.layoutKey
+      ? (LAYOUTS[version.layoutKey] ?? null)
+      : null;
+    if (version.layoutKey && !layout)
+      throw new BadRequestException('The layout is not available');
     const { values, errors } = resolveValues(
       version.fields as unknown as FieldDef[],
       fields,

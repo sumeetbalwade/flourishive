@@ -2,6 +2,7 @@ import {
   actionBody,
   bulkBody,
   generateBody,
+  letterType,
   letterheadQuery,
   numberingBody,
   pageQuery,
@@ -33,6 +34,10 @@ import { LetterheadsService } from './letterheads.service.js';
 import { NumberingService } from './numbering.service.js';
 import { TemplatesService } from './templates.service.js';
 
+const uploadTemplateQuery = z.object({
+  name: z.string().trim().min(1).max(120),
+  letterType,
+});
 const deliverBody = z.object({
   email: z.string().trim().email().max(191).optional(),
 });
@@ -100,6 +105,23 @@ export class DocumentsController {
   @RequirePermission('documents.manage')
   createTemplate(@CurrentAuth() a: AccessClaims, @Body() body: unknown) {
     return this.templates.create(a, new ZodPipe(templateBody).transform(body));
+  }
+
+  /** Body is the PDF (plain or fillable). It becomes a template that is issued as it is, or filled and flattened. */
+  @Post('templates/upload')
+  @RequirePermission('documents.manage')
+  uploadTemplate(
+    @CurrentAuth() a: AccessClaims,
+    @Query(new ZodPipe(uploadTemplateQuery))
+    q: z.infer<typeof uploadTemplateQuery>,
+    @Headers('content-type') contentType: string | undefined,
+    @Body() body: unknown,
+  ) {
+    if ((contentType ?? '').split(';')[0]!.trim() !== 'application/pdf')
+      throw new UnsupportedMediaTypeException('Send a PDF');
+    if (!Buffer.isBuffer(body) || body.length === 0)
+      throw new BadRequestException('Send the PDF as the request body');
+    return this.templates.createFromPdf(a, { ...q, body });
   }
 
   @Post('templates/starters')

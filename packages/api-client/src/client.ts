@@ -458,6 +458,13 @@ export function createApiClient(opts: Opts) {
         http.request('GET', '/documents/numbering', { schema: z.array(numberingSchema) }),
       saveNumbering: (body: { entityId: string; letterType: string; format: string }) =>
         http.request('PUT', '/documents/numbering', { json: body, schema: numberingSchema }),
+      uploadTemplate: (file: Blob, q: { name: string; letterType: string }) =>
+        http.request('POST', '/documents/templates/upload', {
+          body: file,
+          contentType: 'application/pdf',
+          query: q,
+          schema: templateSchema,
+        }),
       addTemplateVersion: (
         id: string,
         body: { content?: Record<string, unknown>; fields?: z.infer<typeof fieldDefSchema>[] },
