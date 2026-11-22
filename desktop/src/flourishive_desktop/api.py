@@ -166,7 +166,9 @@ class Api:
         )
 
     def download(self, claim: Claim) -> bytes:
-        res = self._request("GET", claim.input_path)
+        # The server may answer with a redirect to a short-lived storage link (D-72). httpx drops the
+        # Authorization header when the redirect leaves the server's origin.
+        res = self._request("GET", claim.input_path, follow_redirects=True)
         if res.status_code >= 400:
             self._json(res)
         return res.content

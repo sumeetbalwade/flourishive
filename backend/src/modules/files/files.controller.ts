@@ -73,7 +73,18 @@ export class FilesController {
     @Res() res: Response,
     @Req() _req: Request,
   ) {
-    const { file, stream } = await this.files.openSigned(id, q.expires, q.sig);
+    const { file, stream, url } = await this.files.openSigned(
+      id,
+      q.expires,
+      q.sig,
+    );
+    if (url) {
+      // The signed link was the check; the bytes come straight from R2.
+      stream.destroy();
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.redirect(302, url);
+      return;
+    }
     res.setHeader('Content-Type', file.mimeType);
     res.setHeader('Content-Length', String(file.sizeBytes));
     res.setHeader(

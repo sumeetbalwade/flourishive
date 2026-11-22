@@ -206,7 +206,14 @@ export class FilesService {
     ) {
       throw new NotFoundException();
     }
-    return { file, stream: this.storage.read(file.storageKey) };
+    return {
+      file,
+      stream: this.storage.read(file.storageKey),
+      url: await this.storage.downloadUrl(file.storageKey, {
+        filename: file.originalName,
+        mimeType: file.mimeType,
+      }),
+    };
   }
 
   async remove(tenantId: string, id: string): Promise<void> {

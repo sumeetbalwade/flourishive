@@ -17,6 +17,7 @@ import {
   runAsSystem,
   runInTenant,
 } from '../src/platform/database/tenant-context.js';
+import { StorageService } from '../src/platform/storage/storage.service.js';
 import { MailService } from '../src/platform/mail/mail.service.js';
 import { JobHandlerRegistry } from '../src/platform/queue/job-handlers.js';
 import { deleteTenantData } from './helpers.js';
@@ -270,6 +271,30 @@ describe('files', () => {
     expect(Buffer.compare(dl.body as Buffer, PDF)).toBe(0);
     expect(dl.headers['content-disposition']).toContain('offer letter.pdf');
     expect(dl.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('redirects to the storage link only after the signed link checks out', async () => {
+    const up = await upload('hr', PDF).expect(201);
+    const meta = await call('get', `/files/${up.body.id}`, 'hr').expect(200);
+    const spy = vi
+      .spyOn(app.get(StorageService), 'downloadUrl')
+      .mockResolvedValue('https://files.r2.example.test/k?sig=1');
+    try {
+      const ok = await request(app.getHttpServer())
+        .get(meta.body.downloadUrl)
+        .redirects(0)
+        .expect(302);
+      expect(ok.headers.location).toBe('https://files.r2.example.test/k?sig=1');
+      expect(ok.headers['cache-control']).toContain('no-store');
+      spy.mockClear();
+      await request(app.getHttpServer())
+        .get(meta.body.downloadUrl.replace(/expires=\d+/, 'expires=1'))
+        .redirects(0)
+        .expect(404);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('refuses tampered or expired links and other tenants', async () => {

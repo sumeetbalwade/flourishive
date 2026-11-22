@@ -34,6 +34,15 @@ const base = z.object({
   // Outside public_html in production.
   STORAGE_DIR: z.string().default('./storage'),
 
+  // Where file bytes live. `r2` is a private Cloudflare R2 bucket (D-72); `local` is STORAGE_DIR.
+  STORAGE_DRIVER: z.enum(['local', 'r2']).default('local'),
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().optional(),
+  // While moving to R2, a missing object is read from local disk instead (D-74).
+  STORAGE_LOCAL_FALLBACK: bool.default(true),
+
   // 32 bytes as 64 hex characters. Generate with `openssl rand -hex 32`.
   FIELD_ENCRYPTION_KEY: z
     .string()

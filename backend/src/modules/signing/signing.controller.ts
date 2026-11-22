@@ -106,7 +106,16 @@ export class AcceptanceController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { file, stream } = await this.signing.document(token, client(req));
+    const { file, stream, url } = await this.signing.document(
+      token,
+      client(req),
+    );
+    if (url) {
+      stream.destroy();
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.redirect(302, url);
+      return;
+    }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',

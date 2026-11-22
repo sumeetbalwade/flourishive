@@ -192,6 +192,7 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - `CLOUDFLARE_*`, `DNS_TARGET_IP`
   - `SEAL_TSA_URL`, `DSC_TSA_URL`
   - `ERROR_TRACKING_DSN` (new)
+  - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (from Phase 2 PR 8, D-72); `STORAGE_DRIVER` stays in `api.env`
   - `TENANT_URL_TEMPLATE`, `WEB_URL`, `ADMIN_URL`, `VERIFY_URL`, `API_URL`
   - Each consumer reads through `RuntimeConfigService`. `MailService` rebuilds its transport when SMTP settings change.
 - [ ] Test actions per group: `POST /v1/platform/config/test/:group` (smtp: connect, then EHLO; cloudflare: zone read; google: client id format; error tracking: send a test event). The result says what failed in plain words.

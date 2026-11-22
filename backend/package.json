@@ -28,6 +28,9 @@
     "seal:generate": "tsx src/seal-generate.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1175.0",
+    "@aws-sdk/lib-storage": "^3.1175.0",
+    "@aws-sdk/s3-request-presigner": "^3.1175.0",
     "@flourishive/schemas": "workspace:*",
     "@nestjs/common": "^12.0.1",
     "@nestjs/core": "^12.0.1",
@@ -70,6 +73,7 @@
     "@types/react": "^19.3.0",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.2",
+    "aws-sdk-client-mock": "^4.1.0",
     "oxlint": "^1.58.0",
     "oxlint-tsgolint": "^7.0.2001",
     "prettier": "^3.4.2",

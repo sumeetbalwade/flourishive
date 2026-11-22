@@ -410,7 +410,15 @@ export class SigningService {
       tenantId,
       request.sealedFileId ?? request.inputFileId ?? doc.fileId,
     );
-    return { file, stream: this.storage.read(file.storageKey) };
+    return {
+      file,
+      stream: this.storage.read(file.storageKey),
+      url: await this.storage.downloadUrl(file.storageKey, {
+        filename: file.originalName,
+        mimeType: 'application/pdf',
+        disposition: 'inline',
+      }),
+    };
   }
 
   async sendCode(token: string, c: ClientInfo) {
