@@ -64,6 +64,7 @@ const ids = {
   deviceA: '',
   templateA: '',
   docA: '',
+  bulkA: '',
 };
 const token: Record<'a' | 'b', string> = { a: '', b: '' };
 let bSigned = '';
@@ -161,6 +162,7 @@ const markers = () =>
     ids.deviceA,
     ids.templateA,
     ids.docA,
+    ids.bulkA,
   ].filter(Boolean);
 const leaks = (res: { body: unknown; text: string }) => {
   const text = `${JSON.stringify(res.body ?? '')} ${res.text ?? ''}`;
@@ -299,6 +301,15 @@ beforeAll(async () => {
       }),
     )
   ).id;
+  ids.bulkA = (
+    await made(
+      await call('a', 'post', '/documents/bulk').send({
+        templateId: ids.templateA,
+        entityId: ids.entityA,
+        rows: [{ fields: { recipientName: 'Asha' } }],
+      }),
+    )
+  ).id;
   const pairing = await made(await call('a', 'post', '/desktop/pairing-code'));
   const paired = await request(app.getHttpServer())
     .post('/v1/desktop/pair')
@@ -368,6 +379,20 @@ function discoverRoutes(): string[] {
  */
 const NO_TENANT_DATA: Record<string, string> = {
   'GET /health': 'public status, no data',
+  'GET /public/delivery/:token':
+    'the private emailed link token is the credential; it identifies one letter',
+  'GET /public/delivery/:token/download':
+    'the private emailed link token is the credential, and offers stay held until released',
+  'POST /public/accept/:token/esign/start':
+    'the private link token is the credential',
+  'POST /public/accept/:token/esign/complete':
+    'the private link token plus the provider trip it started',
+  'GET /public/esign/mock/:id':
+    'test provider page, only with ESIGN_PROVIDER=mock',
+  'GET /public/esign/mock/:id/approve':
+    'test provider page, only with ESIGN_PROVIDER=mock',
+  'GET /public/esign/mock/:id/decline':
+    'test provider page, only with ESIGN_PROVIDER=mock',
   'GET /public/accept/:token':
     'the private link token is the credential; it identifies one request',
   'GET /public/accept/:token/document':
@@ -608,6 +633,70 @@ const PROBES = (): Record<string, Probe> => ({
         letterType: 'OFFER',
         layoutKey: 'letter',
       }),
+  },
+  'POST /documents/templates/upload': {
+    mode: 'contained',
+    send: () =>
+      as('post', '/documents/templates/upload?name=B-Upload&letterType=OFFER')
+        .set('Content-Type', 'application/pdf')
+        .send(Buffer.from('%PDF-1.4 not really')),
+  },
+  'POST /documents/templates/starters': {
+    mode: 'contained',
+    send: () => as('post', '/documents/templates/starters'),
+  },
+  'POST /documents/bulk': {
+    mode: 'refuse',
+    send: () =>
+      as('post', '/documents/bulk').send({
+        templateId: ids.templateA,
+        entityId: ids.entityA,
+        rows: [{ fields: { recipientName: 'Hijack' } }],
+      }),
+  },
+  'GET /documents/bulk/:id': {
+    mode: 'refuse',
+    send: () => as('get', `/documents/bulk/${ids.bulkA}`),
+  },
+  'POST /documents/bulk/:id/deliver': {
+    mode: 'refuse',
+    send: () => as('post', `/documents/bulk/${ids.bulkA}/deliver`),
+  },
+  'POST /documents/:id/revoke': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/documents/${ids.docA}/revoke`).send({
+        reason: 'Hijack attempt',
+      }),
+  },
+  'POST /documents/:id/supersede': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/documents/${ids.docA}/supersede`).send({
+        newDocumentId: ids.docA,
+        reason: 'Hijack attempt',
+      }),
+  },
+  'POST /documents/:id/deliver': {
+    mode: 'refuse',
+    send: () =>
+      as('post', `/documents/${ids.docA}/deliver`).send({ email: 'x@x.test' }),
+  },
+  'POST /documents/:id/release': {
+    mode: 'refuse',
+    send: () => as('post', `/documents/${ids.docA}/release`),
+  },
+  'POST /documents/:id/hold': {
+    mode: 'refuse',
+    send: () => as('post', `/documents/${ids.docA}/hold`),
+  },
+  'POST /documents/:id/delivery/revoke': {
+    mode: 'refuse',
+    send: () => as('post', `/documents/${ids.docA}/delivery/revoke`),
+  },
+  'GET /documents/:id/delivery': {
+    mode: 'refuse',
+    send: () => as('get', `/documents/${ids.docA}/delivery`),
   },
   'GET /documents/templates/:id': {
     mode: 'refuse',

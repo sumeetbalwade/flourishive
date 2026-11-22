@@ -21,6 +21,7 @@ export default defineConfig({
         'mysql://flourishive:flourishive_dev@127.0.0.1:3306/flourishive_test',
       FIELD_ENCRYPTION_KEY: 'ab'.repeat(32),
       HMAC_SECRET: 'e2e-only-hmac-secret-0000000000000000',
+      ESIGN_PROVIDER: 'mock',
       JWT_SECRET: 'e2e-only-jwt-secret-00000000000000000',
       // Test-only certificate authorities (test/fixtures/dsc/generate.py) for the DSC checks.
       // The seal the DSC fixtures were made on top of.

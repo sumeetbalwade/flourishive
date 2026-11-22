@@ -66,6 +66,16 @@ export const acceptApi = {
       null,
       { method: 'POST' },
     ),
+  startEsign: (token: string) =>
+    request<{ redirectUrl: string }>(`/accept/${encodeURIComponent(token)}/esign/start`, null, {
+      method: 'POST',
+    }),
+  completeEsign: (token: string, txn: string) =>
+    request<{ accepted: boolean; message?: string }>(
+      `/accept/${encodeURIComponent(token)}/esign/complete`,
+      null,
+      json({ txn }),
+    ),
   confirm: (token: string, code: string) =>
     request<{ accepted: boolean }>(
       `/accept/${encodeURIComponent(token)}/confirm`,
@@ -80,4 +90,20 @@ export const acceptApi = {
     ),
   documentUrl: (token: string) =>
     `${brand.apiUrl.replace(/\/$/, '')}/v1/public/accept/${encodeURIComponent(token)}/document`,
+};
+
+export interface LetterInfo {
+  reference: string;
+  letterType: string;
+  issuer: string;
+  issuedAt: string;
+  downloadAllowed: boolean;
+  message: string | null;
+}
+
+export const letterApi = {
+  info: (token: string): Promise<LetterInfo> =>
+    request(`/delivery/${encodeURIComponent(token)}`, null),
+  downloadUrl: (token: string) =>
+    `${brand.apiUrl.replace(/\/$/, '')}/v1/public/delivery/${encodeURIComponent(token)}/download`,
 };

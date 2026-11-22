@@ -365,6 +365,64 @@ const fixtures: Record<string, Fixture> = {
     },
     change: { layoutKey: 'hacked' },
   },
+  EsignTransaction: {
+    delegate: 'esignTransaction',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        requestId: crypto.randomUUID(),
+        provider: 'mock',
+        providerTxnId: crypto.randomUUID(),
+      },
+    }),
+    change: { provider: 'hacked' },
+  },
+  DeliveryLink: {
+    delegate: 'deliveryLink',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        documentId: crypto.randomUUID(),
+        tokenHash: crypto.randomUUID().replaceAll('-', '').padEnd(64, '0'),
+        sentTo: 'x@example.test',
+        expiresAt: new Date(Date.now() + 86_400_000),
+        createdBy: crypto.randomUUID(),
+      },
+    }),
+    change: { sentTo: 'hacked@example.test' },
+  },
+  BulkBatch: {
+    delegate: 'bulkBatch',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        templateId: crypto.randomUUID(),
+        entityId: crypto.randomUUID(),
+        createdBy: crypto.randomUUID(),
+      },
+    }),
+    change: { entityId: 'hacked' },
+  },
+  BulkBatchRow: {
+    delegate: 'bulkBatchRow',
+    create: async (tenantId) => {
+      const batch = await runAsSystem(
+        async () =>
+          await db.bulkBatch.create({
+            data: {
+              tenantId,
+              templateId: crypto.randomUUID(),
+              entityId: crypto.randomUUID(),
+              createdBy: crypto.randomUUID(),
+            },
+          }),
+      );
+      return {
+        data: { tenantId, batchId: batch.id, position: 1, fields: {} },
+      };
+    },
+    change: { error: 'hacked' },
+  },
   GeneratedDocument: {
     delegate: 'generatedDocument',
     create: async (tenantId) => {

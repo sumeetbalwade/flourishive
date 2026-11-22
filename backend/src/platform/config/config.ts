@@ -34,6 +34,9 @@ const base = z.object({
   // Outside public_html in production.
   STORAGE_DIR: z.string().default('./storage'),
 
+  // Aadhaar eSign provider. `mock` pretends to sign (documents are labelled TEST); `none` turns it off.
+  ESIGN_PROVIDER: z.enum(['none', 'mock']).default('none'),
+
   // Where file bytes live. `r2` is a private Cloudflare R2 bucket (D-72); `local` is STORAGE_DIR.
   STORAGE_DRIVER: z.enum(['local', 'r2']).default('local'),
   R2_ACCOUNT_ID: z.string().optional(),

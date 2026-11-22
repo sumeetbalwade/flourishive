@@ -70,6 +70,25 @@ export const generateBody = z.object({
 });
 export type GenerateBody = z.infer<typeof generateBody>;
 
+export const BULK_MAX_ROWS = 200;
+export const bulkBody = z.object({
+  templateId: uuid,
+  entityId: uuid,
+  /** Values every row shares (dates, signatory); a row's own value wins. */
+  shared: z.record(z.string(), z.string().max(5000)).default({}),
+  rows: z
+    .array(
+      z.object({
+        personId: uuid.optional(),
+        engagementId: uuid.optional(),
+        fields: z.record(z.string(), z.string().max(5000)).default({}),
+      }),
+    )
+    .min(1)
+    .max(BULK_MAX_ROWS),
+});
+export type BulkBody = z.infer<typeof bulkBody>;
+
 export const actionBody = z.object({
   action: z.string().min(1).max(60),
   comment: z.string().trim().max(1000).optional(),
@@ -140,6 +159,7 @@ export const acceptInfo = z.object({
   issuedBy: z.string(),
   name: z.string(),
   emailHint: z.string(),
+  method: z.enum(['OTP', 'AADHAAR']).default('OTP'),
   status: z.enum(['PENDING', 'COMPLETED', 'DECLINED', 'EXPIRED', 'CANCELLED']),
   expiresAt: z.string(),
   canAccept: z.boolean(),

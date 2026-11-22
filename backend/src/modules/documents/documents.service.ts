@@ -19,6 +19,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { FilesService } from '../files/files.service.js';
 import { LETTER_FLOW_KEY } from '../workflow/definition.js';
 import { fill, longDate, resolveValues } from './fill.js';
+import { fillAndFlatten } from './pdf-forms.js';
 import { LAYOUTS } from './layouts/registry.js';
 import { LetterheadsService } from './letterheads.service.js';
 import { NumberingService } from './numbering.service.js';
@@ -78,9 +79,12 @@ export class DocumentsService {
     if (!engagement)
       throw new BadRequestException('That engagement does not exist');
     const version = template.versions[0]!;
-    const layout = LAYOUTS[version.layoutKey ?? ''];
-    if (!layout) throw new BadRequestException('The layout is not available');
+    const upload = template.kind === 'PDF_UPLOAD';
+    const layout = upload ? null : (LAYOUTS[version.layoutKey ?? ''] ?? null);
+    if (!upload && !layout)
+      throw new BadRequestException('The layout is not available');
 
+    // An uploaded PDF keeps its own stationery; the company's letterhead only sets where the stamp goes.
     const lh = await this.letterheads.latest(
       a.tenantId,
       b.entityId,
@@ -160,7 +164,7 @@ export class DocumentsService {
         content: unknown;
         orientation: 'PORTRAIT' | 'LANDSCAPE';
       };
-      layout: (typeof LAYOUTS)[string];
+      layout: (typeof LAYOUTS)[string] | null;
       lh: NonNullable<Awaited<ReturnType<LetterheadsService['latest']>>>;
       values: Record<string, string>;
       reference: string;
@@ -170,24 +174,41 @@ export class DocumentsService {
   ) {
     const { version, layout, lh, values, reference, verifyToken, now } = p;
     const all = { ...values, reference, issueDate: longDate(now) };
-    const content = Object.fromEntries(
-      Object.entries(version.content as Record<string, string>).map(
-        ([k, v]) => [k, fill(v, all)],
-      ),
-    );
     const margins = {
       top: lh.marginTop,
       bottom: lh.marginBottom,
       left: lh.marginLeft,
       right: lh.marginRight,
     };
-    const body = await this.pdf.renderBody(layout, {
-      content: { ...content, reference, issueDate: all.issueDate },
-      orientation: version.orientation,
-      margins,
-    });
-    const letterheadFile = await this.files.get(a.tenantId, lh.fileId);
-    const lhBytes = await readAll(this.storage.read(letterheadFile.storageKey));
+    let body: Buffer;
+    let lhBytes: Buffer | null = null;
+    if (layout) {
+      const raw = version.content as Record<string, string>;
+      const content = layout.fillsItself
+        ? raw
+        : Object.fromEntries(
+            Object.entries(raw).map(([k, v]) => [k, fill(v, all)]),
+          );
+      body = await this.pdf.renderBody(layout, {
+        content: { ...content, reference, issueDate: all.issueDate },
+        orientation: version.orientation,
+        margins,
+        values: all,
+      });
+      const letterheadFile = await this.files.get(a.tenantId, lh.fileId);
+      lhBytes = await readAll(this.storage.read(letterheadFile.storageKey));
+    } else {
+      const c = version.content as {
+        fileId: string;
+        mapping: Record<string, string>;
+      };
+      const src = await this.files.get(a.tenantId, c.fileId);
+      const original = await readAll(this.storage.read(src.storageKey));
+      body =
+        Object.keys(c.mapping ?? {}).length > 0
+          ? await fillAndFlatten(original, c.mapping, all)
+          : original;
+    }
     const { bytes, pageCount } = await this.pdf.compose({
       body,
       letterhead: lhBytes,
@@ -273,8 +294,11 @@ export class DocumentsService {
         where: { id: doc.letterheadId },
       }),
     }));
-    const layout = LAYOUTS[version.layoutKey ?? ''];
-    if (!layout) throw new BadRequestException('The layout is not available');
+    const layout = version.layoutKey
+      ? (LAYOUTS[version.layoutKey] ?? null)
+      : null;
+    if (version.layoutKey && !layout)
+      throw new BadRequestException('The layout is not available');
     const { values, errors } = resolveValues(
       version.fields as unknown as FieldDef[],
       fields,
@@ -363,6 +387,93 @@ export class DocumentsService {
         pageSize: q.pageSize,
       };
     });
+  }
+
+  /**
+   * Withdraws an issued document. The verify page then says it was withdrawn, and any emailed
+   * download links stop working. The reason is recorded.
+   */
+  async revoke(a: Actor, id: string, reason: string) {
+    const doc = await this.visible(a, id);
+    await this.docAccess.assert(a, 'documents.approve', doc.entityId);
+    await this.assertLive(a, doc);
+    return this.endLife(a, doc, 'REVOKED', reason, null);
+  }
+
+  /** Replaces an issued document with a newer issued one for the same company. */
+  async supersede(
+    a: Actor,
+    id: string,
+    input: { newDocumentId: string; reason: string },
+  ) {
+    const doc = await this.visible(a, id);
+    await this.docAccess.assert(a, 'documents.approve', doc.entityId);
+    await this.assertLive(a, doc);
+    if (input.newDocumentId === id)
+      throw new BadRequestException('A document cannot replace itself');
+    const next = await this.visible(a, input.newDocumentId);
+    if (next.entityId !== doc.entityId)
+      throw new BadRequestException(
+        'The replacement must be from the same company',
+      );
+    await this.assertLive(
+      a,
+      next,
+      'The replacement must be an issued document',
+    );
+    return this.endLife(a, doc, 'SUPERSEDED', input.reason, next.id);
+  }
+
+  private async assertLive(
+    a: Actor,
+    doc: { id: string; status: string },
+    message = 'Only an issued document can be withdrawn or replaced',
+  ) {
+    const { state } = await this.workflow.history(a.tenantId, {
+      type: 'document',
+      id: doc.id,
+    });
+    if (doc.status !== 'GENERATED' || state !== 'issued')
+      throw new ConflictException(message);
+  }
+
+  private async endLife(
+    a: Actor,
+    doc: { id: string; reference: string },
+    status: 'REVOKED' | 'SUPERSEDED',
+    reason: string,
+    supersededById: string | null,
+  ) {
+    const now = new Date();
+    const updated = await runInTenant(a.tenantId, async () =>
+      this.prisma.db.$transaction(async (tx) => {
+        const row = await tx.generatedDocument.update({
+          where: { id: doc.id },
+          data: {
+            status,
+            statusReason: reason,
+            statusChangedAt: now,
+            statusChangedBy: a.userId,
+            supersededById,
+          },
+        });
+        await tx.deliveryLink.updateMany({
+          where: { documentId: doc.id, revokedAt: null },
+          data: { revokedAt: now },
+        });
+        return row;
+      }),
+    );
+    await this.audit.recordSafely({
+      tenantId: a.tenantId,
+      actorType: 'USER',
+      actorId: a.userId,
+      action: status === 'REVOKED' ? 'document.revoke' : 'document.supersede',
+      entityType: 'document',
+      entityId: doc.id,
+      meta: { reference: doc.reference, reason, supersededById },
+    });
+    return updated;
   }
 
   async get(a: Actor, id: string) {

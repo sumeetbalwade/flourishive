@@ -24,11 +24,13 @@ const dscBody = z.object({
   expiresInDays: z.number().int().min(1).max(60).default(7),
 });
 const requestBody = z.object({
+  method: z.enum(['OTP', 'AADHAAR']).optional(),
   name: z.string().trim().min(1).max(191),
   email: z.string().trim().toLowerCase().email().max(191),
   expiresInDays: z.number().int().min(1).max(60).default(7),
   finalStep: z.boolean().default(false),
 });
+const esignCompleteBody = z.object({ txn: z.string().uuid() });
 const cancelBody = z.object({ reason: z.string().trim().min(1).max(500) });
 const confirmBody = z.object({
   code: z.string().regex(/^\d{6}$/),
@@ -139,6 +141,24 @@ export class AcceptanceController {
     return this.signing.confirm(
       token,
       new ZodPipe(confirmBody).transform(body),
+      client(req),
+    );
+  }
+
+  @Post('accept/:token/esign/start')
+  startEsign(@Param('token') token: string, @Req() req: Request) {
+    return this.signing.startEsign(token, client(req));
+  }
+
+  @Post('accept/:token/esign/complete')
+  completeEsign(
+    @Param('token') token: string,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ) {
+    return this.signing.completeEsign(
+      token,
+      new ZodPipe(esignCompleteBody).transform(body).txn,
       client(req),
     );
   }

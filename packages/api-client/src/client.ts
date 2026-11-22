@@ -82,6 +82,9 @@ const documentDetailSchema = z
     createdAt: z.string(),
     data: z.record(z.string(), z.unknown()),
     downloadUrl: z.string(),
+    status: z.string().default('GENERATED'),
+    statusReason: z.string().nullable().default(null),
+    supersededById: z.string().nullable().default(null),
     workflow: z.object({
       state: z.string(),
       actions: z.array(
@@ -159,6 +162,36 @@ import { Http, type HttpOptions } from './http.js';
 type Opts = Omit<HttpOptions, 'refreshPath'>;
 
 /** Client for the tenant app (web, desktop, mobile). */
+const bulkSchema = z.object({
+  id: z.string(),
+  total: z.number(),
+  done: z.number(),
+  failed: z.number(),
+  pending: z.number(),
+  finished: z.boolean(),
+  rows: z.array(
+    z.object({
+      position: z.number(),
+      status: z.enum(['PENDING', 'DONE', 'FAILED']),
+      documentId: z.string().nullable(),
+      reference: z.string().nullable(),
+      error: z.string().nullable(),
+    }),
+  ),
+});
+const deliverySchema = z.object({
+  held: z.boolean(),
+  releasedAt: z.string().nullable(),
+  links: z.array(
+    z.object({
+      sentTo: z.string(),
+      sentAt: z.string(),
+      expiresAt: z.string(),
+      active: z.boolean(),
+    }),
+  ),
+});
+
 export function createApiClient(opts: Opts) {
   const http = new Http({ ...opts, refreshPath: '/auth/refresh' });
 
@@ -400,7 +433,13 @@ export function createApiClient(opts: Opts) {
         }),
       requestAcceptance: (
         id: string,
-        body: { name: string; email: string; expiresInDays?: number; finalStep?: boolean },
+        body: {
+          name: string;
+          email: string;
+          expiresInDays?: number;
+          finalStep?: boolean;
+          method?: 'OTP' | 'AADHAAR';
+        },
       ) => http.request('POST', `/documents/${id}/signature-requests`, { json: body }),
       cancelRequest: (id: string, requestId: string, reason: string) =>
         http.request('POST', `/documents/${id}/signature-requests/${requestId}/cancel`, {
@@ -422,6 +461,51 @@ export function createApiClient(opts: Opts) {
         http.request('GET', '/documents/numbering', { schema: z.array(numberingSchema) }),
       saveNumbering: (body: { entityId: string; letterType: string; format: string }) =>
         http.request('PUT', '/documents/numbering', { json: body, schema: numberingSchema }),
+      uploadTemplate: (file: Blob, q: { name: string; letterType: string }) =>
+        http.request('POST', '/documents/templates/upload', {
+          body: file,
+          contentType: 'application/pdf',
+          query: q,
+          schema: templateSchema,
+        }),
+      addTemplateVersion: (
+        id: string,
+        body: { content?: Record<string, unknown>; fields?: z.infer<typeof fieldDefSchema>[] },
+      ) => http.request('POST', `/documents/templates/${id}/versions`, { json: body }),
+      installStarters: () =>
+        http.request('POST', '/documents/templates/starters', {
+          schema: z.object({ added: z.array(z.string()) }),
+        }),
+      startBulk: (body: {
+        templateId: string;
+        entityId: string;
+        shared: Record<string, string>;
+        rows: { personId?: string; engagementId?: string; fields: Record<string, string> }[];
+      }) => http.request('POST', '/documents/bulk', { json: body, schema: bulkSchema }),
+      bulk: (id: string) => http.request('GET', `/documents/bulk/${id}`, { schema: bulkSchema }),
+      deliverBulk: (id: string) =>
+        http.request('POST', `/documents/bulk/${id}/deliver`, {
+          schema: z.object({
+            sent: z.number(),
+            results: z.array(
+              z.object({ position: z.number(), sent: z.boolean(), reason: z.string().optional() }),
+            ),
+          }),
+        }),
+      deliver: (id: string, email?: string) =>
+        http.request('POST', `/documents/${id}/deliver`, {
+          json: email ? { email } : {},
+          schema: z.object({ sent: z.boolean(), to: z.string(), held: z.boolean() }).loose(),
+        }),
+      deliveryStatus: (id: string) =>
+        http.request('GET', `/documents/${id}/delivery`, { schema: deliverySchema }),
+      releaseDownload: (id: string) => http.request('POST', `/documents/${id}/release`),
+      holdDownload: (id: string) => http.request('POST', `/documents/${id}/hold`),
+      revoke: (id: string, reason: string) =>
+        http.request('POST', `/documents/${id}/revoke`, { json: { reason } }),
+      supersede: (id: string, newDocumentId: string, reason: string) =>
+        http.request('POST', `/documents/${id}/supersede`, { json: { newDocumentId, reason } }),
+      revokeLinks: (id: string) => http.request('POST', `/documents/${id}/delivery/revoke`),
     },
 
     notifications: {

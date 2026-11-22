@@ -347,3 +347,67 @@ describe('OTP acceptance and the seal', () => {
     );
   });
 });
+
+describe('Aadhaar eSign through the mock provider', () => {
+  const pathOf = (url: string) => new URL(url).pathname;
+
+  it('signs, labels the document TEST and issues it', async () => {
+    const id = await approvedDoc();
+    await ask(id, { method: 'AADHAAR', finalStep: true }).expect(201);
+    const token = tokenFromMail();
+    const info = (await pub('get', `/accept/${token}`).expect(200)).body;
+    expect(info.method).toBe('AADHAAR');
+    // the email code route does not apply to an Aadhaar request
+    const start = (
+      await pub('post', `/accept/${token}/esign/start`).expect(201)
+    ).body;
+    expect(start.redirectUrl).toContain('/v1/public/esign/mock/');
+    const page = await request(app.getHttpServer())
+      .get(pathOf(start.redirectUrl))
+      .expect(200);
+    expect(page.text).toContain('pretend provider');
+    const back = await request(app.getHttpServer())
+      .get(`${pathOf(start.redirectUrl)}/approve`)
+      .expect(302);
+    const txn = new URL(back.headers.location!).searchParams.get('esign')!;
+    const done = await pub('post', `/accept/${token}/esign/complete`)
+      .send({ txn })
+      .expect(201);
+    expect(done.body.accepted).toBe(true);
+    expect(await stateOf(id)).toBe('issued');
+    const reqs = (
+      await call('get', `/documents/${id}/signature-requests`, 'lead').expect(
+        200,
+      )
+    ).body;
+    expect(reqs[0]).toMatchObject({ method: 'AADHAAR', status: 'COMPLETED' });
+    // the same trip cannot be completed twice
+    await pub('post', `/accept/${token}/esign/complete`)
+      .send({ txn })
+      .expect(409);
+  });
+
+  it('records a decline at the provider and returns the document to approved', async () => {
+    const id = await approvedDoc();
+    await ask(id, { method: 'AADHAAR' }).expect(201);
+    const token = tokenFromMail();
+    const start = (
+      await pub('post', `/accept/${token}/esign/start`).expect(201)
+    ).body;
+    const back = await request(app.getHttpServer())
+      .get(`${pathOf(start.redirectUrl)}/decline`)
+      .expect(302);
+    const txn = new URL(back.headers.location!).searchParams.get('esign')!;
+    const res = await pub('post', `/accept/${token}/esign/complete`)
+      .send({ txn })
+      .expect(201);
+    expect(res.body.accepted).toBe(false);
+    expect(await stateOf(id)).toBe('approved');
+  });
+
+  it('refuses eSign on an email-code request', async () => {
+    const id = await approvedDoc();
+    await ask(id).expect(201);
+    await pub('post', `/accept/${tokenFromMail()}/esign/start`).expect(409);
+  });
+});

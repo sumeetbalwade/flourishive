@@ -17,6 +17,10 @@ export async function deleteTenantData(
     await prisma.db.workflowAction.deleteMany({ where });
     await prisma.db.workflowInstance.deleteMany({ where });
     await prisma.db.workflowDefinition.deleteMany({ where });
+    await prisma.db.esignTransaction.deleteMany({ where });
+    await prisma.db.deliveryLink.deleteMany({ where });
+    await prisma.db.bulkBatchRow.deleteMany({ where });
+    await prisma.db.bulkBatch.deleteMany({ where });
     await prisma.db.generatedDocument.deleteMany({ where });
     await prisma.db.templateVersion.deleteMany({ where });
     await prisma.db.template.deleteMany({ where });

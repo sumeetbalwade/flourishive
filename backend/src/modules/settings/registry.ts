@@ -46,6 +46,15 @@ export const SETTINGS = {
     group: 'Branding',
     description: 'Sender name on emails',
   }),
+  'documents.holdOfferDownloads': def({
+    schema: z.boolean(),
+    default: true,
+    levels: ['tenant'],
+    label: 'Hold offer letter downloads',
+    group: 'Security',
+    description:
+      'Candidates cannot download an offer letter until an admin releases it (stops offer shopping)',
+  }),
   'security.passwordMinLength': def({
     schema: z.number().int().min(8).max(64),
     default: 12,

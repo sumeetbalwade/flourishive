@@ -20,6 +20,8 @@ export const PERMISSIONS = {
   'documents.read': 'View issued documents and templates',
   'documents.manage': 'Manage letterheads, numbering and templates',
   'documents.generate': 'Generate documents from templates',
+  'documents.release':
+    'Let recipients download held letters, and change the hold',
   'documents.approve': 'Approve documents or ask for changes',
   'documents.sign':
     'Sign documents with a digital signature certificate (the authorised signatory)',

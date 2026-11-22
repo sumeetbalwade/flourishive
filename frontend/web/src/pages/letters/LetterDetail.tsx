@@ -12,11 +12,14 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Download, Send } from 'lucide-react';
 import { useState } from 'react';
+import { SelectField } from '../../components/SelectField.tsx';
 import { useApi } from '../../lib/api.tsx';
 import { useAuth } from '../../lib/auth.tsx';
 import { messageOf } from '../../lib/errors.ts';
 import { go } from '../../router.ts';
 import { Layout } from '../Layout.tsx';
+import { EndLifePanel } from './EndLifePanel.tsx';
+import { DeliveryPanel } from './DeliveryPanel.tsx';
 import { PdfPreview } from './PdfPreview.tsx';
 import { REQUEST_STATUS, eventLabel, stateOf, typeLabel } from './labels.ts';
 
@@ -39,7 +42,11 @@ export function LetterDetail({ id }: { id: string }) {
   });
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
-  const [sendTo, setSendTo] = useState<{ name: string; email: string } | null>(null);
+  const [sendTo, setSendTo] = useState<{
+    name: string;
+    email: string;
+    method: 'OTP' | 'AADHAAR';
+  } | null>(null);
 
   const refresh = () =>
     Promise.all([
@@ -77,6 +84,7 @@ export function LetterDetail({ id }: { id: string }) {
       await api.documents.requestAcceptance(id, {
         name: sendTo.name.trim(),
         email: sendTo.email.trim(),
+        method: sendTo.method,
       });
       setSendTo(null);
       await refresh();
@@ -214,6 +222,18 @@ export function LetterDetail({ id }: { id: string }) {
                         onChange={(e) => setSendTo({ ...sendTo, email: e.target.value })}
                       />
                     </Field>
+                    <Field label="How they accept" htmlFor="s-method">
+                      <SelectField
+                        id="s-method"
+                        value={sendTo.method}
+                        allowNone={false}
+                        onChange={(m) => setSendTo({ ...sendTo, method: m as 'OTP' | 'AADHAAR' })}
+                        options={[
+                          { value: 'OTP', label: 'Email code' },
+                          { value: 'AADHAAR', label: 'Aadhaar eSign' },
+                        ]}
+                      />
+                    </Field>
                     <div className="flex gap-2">
                       <Button
                         type="submit"
@@ -237,7 +257,11 @@ export function LetterDetail({ id }: { id: string }) {
                     className="mt-4"
                     size="sm"
                     onClick={() =>
-                      setSendTo({ name: d.personName ?? '', email: d.personEmail ?? '' })
+                      setSendTo({
+                        name: d.personName ?? '',
+                        email: d.personEmail ?? '',
+                        method: 'OTP',
+                      })
                     }
                   >
                     <Send size={14} /> Send for acceptance
@@ -289,6 +313,22 @@ export function LetterDetail({ id }: { id: string }) {
                   })}
                 </div>
               </Card>
+            ) : null}
+
+            {(d.workflow.state === 'issued' && auth.can('documents.approve')) ||
+            d.status !== 'GENERATED' ? (
+              <EndLifePanel
+                id={id}
+                personId={d.personId}
+                status={d.status}
+                statusReason={d.statusReason}
+              />
+            ) : null}
+
+            {d.workflow.state === 'issued' &&
+            d.status === 'GENERATED' &&
+            auth.can('documents.generate') ? (
+              <DeliveryPanel id={id} letterType={d.letterType} />
             ) : null}
 
             <Card>

@@ -23,12 +23,15 @@ import { OtpService } from '../identity/otp.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { WorkflowService } from '../workflow/workflow.service.js';
 import { renderAcceptancePage } from './acceptance-page.js';
+import { EsignGateway } from './esign/gateway.js';
 import { SealService } from './seal/seal.service.js';
 
 const sha256 = (v: string | Buffer) =>
   createHash('sha256').update(v).digest('hex');
 const STATEMENT =
   'The person named below confirmed, using a one-time code sent to their email address, that they have read this document and accept it.';
+const ESIGN_STATEMENT =
+  'The person named below confirmed, through an Aadhaar eSign provider, that they have read this document and accept it.';
 
 export interface Actor {
   tenantId: string;
@@ -64,6 +67,7 @@ export class SigningService {
     private readonly access: AccessService,
     private readonly audit: AuditService,
     private readonly seal: SealService,
+    private readonly esign: EsignGateway,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -182,12 +186,16 @@ export class SigningService {
       email: string;
       expiresInDays: number;
       finalStep: boolean;
+      method?: 'OTP' | 'AADHAAR';
     },
   ) {
+    const method = b.method ?? 'OTP';
+    if (method === 'AADHAAR' && !this.esign.enabled)
+      throw new BadRequestException('Aadhaar eSign is not switched on');
     const { doc, file } = await this.beginRequest(a, documentId);
     const accepted = await runInTenant(a.tenantId, async () =>
       this.prisma.db.signatureRequest.count({
-        where: { documentId, method: 'OTP', status: 'COMPLETED' },
+        where: { documentId, method, status: 'COMPLETED' },
       }),
     );
     if (accepted)
@@ -198,7 +206,7 @@ export class SigningService {
         data: {
           tenantId: a.tenantId,
           documentId,
-          method: 'OTP',
+          method,
           finalStep: b.finalStep,
           expiresAt: new Date(Date.now() + b.expiresInDays * 86_400_000),
           documentSha256: file.sha256,
@@ -223,7 +231,11 @@ export class SigningService {
     await this.mail.send({
       to: b.email,
       subject: `Please review and accept: ${doc.reference}`,
-      text: `Hello ${b.name},\n\nYou have a document to review and accept: ${doc.reference}.\n\nOpen this private link, read the document and confirm with a code we email you:\n${link}\n\nThe link works until ${req.expiresAt.toDateString()}. Do not forward it.`,
+      text: `Hello ${b.name},\n\nYou have a document to review and accept: ${doc.reference}.\n\nOpen this private link, read the document and ${
+        method === 'AADHAAR'
+          ? 'sign it with your Aadhaar'
+          : 'confirm with a code we email you'
+      }:\n${link}\n\nThe link works until ${req.expiresAt.toDateString()}. Do not forward it.`,
       fromName: await this.from(a.tenantId),
     });
     await this.audit.recordSafely({
@@ -233,7 +245,7 @@ export class SigningService {
       action: 'signature.request',
       entityType: 'document',
       entityId: documentId,
-      meta: { reference: doc.reference, method: 'OTP' },
+      meta: { reference: doc.reference, method },
     });
     return {
       id: req.id,
@@ -391,6 +403,7 @@ export class SigningService {
       issuedBy: entity.legalName,
       name: party.name,
       emailHint: maskEmail(party.email),
+      method: request.method === 'AADHAAR' ? 'AADHAAR' : 'OTP',
       status: request.status,
       expiresAt: request.expiresAt,
       canAccept: request.status === 'PENDING' && party.status === 'PENDING',
@@ -496,6 +509,39 @@ export class SigningService {
         'The document changed after it was sent. Ask HR to send it again.',
       );
 
+    return this.finishAcceptance({
+      tenantId,
+      party,
+      request,
+      doc,
+      original,
+      c,
+      methodLabel: 'Email one-time code',
+      statement: STATEMENT,
+      reason: `Accepted by ${party.name} using an email code`,
+      test: false,
+    });
+  }
+
+  /** Seals the accepted document with its record page, stores it and issues it if this was the last step. */
+  private async finishAcceptance(p: {
+    tenantId: string;
+    party: { id: string; name: string; email: string };
+    request: {
+      id: string;
+      documentSha256: string;
+      finalStep: boolean;
+      documentId: string;
+    };
+    doc: { id: string; reference: string; letterType: string };
+    original: Buffer;
+    c: ClientInfo;
+    methodLabel: string;
+    statement: string;
+    reason: string;
+    test: boolean;
+  }) {
+    const { tenantId, party, request, doc, original, c } = p;
     const acceptedAt = new Date();
     const record = await renderAcceptancePage({
       reference: doc.reference,
@@ -503,12 +549,12 @@ export class SigningService {
       documentSha256: request.documentSha256,
       partyName: party.name,
       partyEmail: party.email,
-      method: 'Email one-time code',
+      method: p.methodLabel,
       acceptedAt,
       ip: c.ip ?? 'unknown',
       userAgent: c.userAgent ?? 'unknown',
       requestId: request.id,
-      statement: STATEMENT,
+      statement: p.statement,
     });
     const merged = await PDFDocument.load(original);
     const rec = await PDFDocument.load(record);
@@ -516,7 +562,7 @@ export class SigningService {
       merged.addPage(p);
     const sealed = await this.seal.seal(
       Buffer.from(await merged.save({ useObjectStreams: false })),
-      { reason: `Accepted by ${party.name} using an email code` },
+      { reason: p.reason },
     );
     const file = await this.files.storeTrusted(
       { tenantId, userId: null },
@@ -535,6 +581,7 @@ export class SigningService {
             status: 'COMPLETED',
             completedAt: acceptedAt,
             sealedFileId: file.id,
+            testSignature: p.test,
           },
         });
         if (won.count !== 1)
@@ -583,6 +630,146 @@ export class SigningService {
       })
       .catch(() => undefined);
     return { accepted: true, reference: doc.reference, acceptedAt };
+  }
+
+  /** Aadhaar eSign step 1: sends the person to the provider. */
+  async startEsign(token: string, c: ClientInfo) {
+    await this.limit(c, 'esign', 20, 3600);
+    const provider = this.esign.provider();
+    if (!provider)
+      throw new BadRequestException('Aadhaar eSign is not available');
+    const { party, request, tenantId } = await this.resolve(token);
+    if (
+      request.method !== 'AADHAAR' ||
+      request.status !== 'PENDING' ||
+      party.status !== 'PENDING'
+    )
+      throw new ConflictException('This request is no longer open');
+    const { doc, original } = await this.originalOf(tenantId, request);
+    const row = await runInTenant(tenantId, async () =>
+      this.prisma.db.esignTransaction.create({
+        data: {
+          tenantId,
+          requestId: request.id,
+          provider: provider.key,
+          providerTxnId: 'starting',
+        },
+      }),
+    );
+    const started = await provider.start({
+      reference: row.id,
+      documentName: doc.reference,
+      documentSha256: request.documentSha256,
+      document: original,
+      signerName: party.name,
+      returnUrl: `${this.config.VERIFY_URL.replace(/\/$/, '')}/accept/${token}?esign=${row.id}`,
+    });
+    await runInTenant(tenantId, async () =>
+      this.prisma.db.esignTransaction.update({
+        where: { id: row.id },
+        data: { providerTxnId: started.providerTxnId },
+      }),
+    );
+    await this.event(tenantId, request.id, 'esign_started', c, party.id, {
+      provider: provider.key,
+    });
+    return { redirectUrl: started.redirectUrl };
+  }
+
+  /** Aadhaar eSign step 2: the person is back; ask the provider how it ended and finish. */
+  async completeEsign(token: string, txnId: string, c: ClientInfo) {
+    await this.limit(c, 'esign', 40, 3600);
+    const provider = this.esign.provider();
+    if (!provider)
+      throw new BadRequestException('Aadhaar eSign is not available');
+    const { party, request, tenantId } = await this.resolve(token);
+    const txn = await runInTenant(tenantId, async () =>
+      this.prisma.db.esignTransaction.findFirst({
+        where: { id: txnId, requestId: request.id },
+      }),
+    );
+    if (!txn) throw new NotFoundException();
+    if (
+      txn.status !== 'PENDING' ||
+      request.status !== 'PENDING' ||
+      party.status !== 'PENDING'
+    )
+      throw new ConflictException('This request is no longer open');
+    const outcome = await provider.finish(txn.providerTxnId);
+    const settle = (status: 'SIGNED' | 'DECLINED' | 'FAILED') =>
+      runInTenant(tenantId, async () =>
+        this.prisma.db.esignTransaction.update({
+          where: { id: txn.id },
+          data: { status, completedAt: new Date() },
+        }),
+      );
+    if (outcome.status === 'FAILED') {
+      await settle('FAILED');
+      await this.event(tenantId, request.id, 'esign_failed', c, party.id, {
+        reason: outcome.reason,
+      });
+      return { accepted: false as const, message: outcome.reason };
+    }
+    if (outcome.status === 'DECLINED') {
+      await settle('DECLINED');
+      await runInTenant(tenantId, async () =>
+        this.prisma.db.signatureParty.update({
+          where: { id: party.id },
+          data: { status: 'DECLINED', respondedAt: new Date() },
+        }),
+      );
+      await this.close(
+        tenantId,
+        request.documentId,
+        request.id,
+        'DECLINED',
+        'declined',
+        c,
+        { via: 'esign' },
+        party.id,
+      );
+      return { accepted: false as const, message: 'You declined to sign.' };
+    }
+    const { doc, original } = await this.originalOf(tenantId, request);
+    await settle('SIGNED');
+    return this.finishAcceptance({
+      tenantId,
+      party,
+      request,
+      doc,
+      original: outcome.signedPdf ?? original,
+      c,
+      methodLabel: outcome.methodLabel,
+      statement: ESIGN_STATEMENT,
+      reason: `Signed by ${party.name} with Aadhaar eSign`,
+      test: outcome.test,
+    });
+  }
+
+  /** The document the person was shown, checked against the hash fixed when the request was made. */
+  private async originalOf(
+    tenantId: string,
+    request: {
+      documentId: string;
+      inputFileId: string | null;
+      documentSha256: string;
+    },
+  ) {
+    const doc = await runInTenant(tenantId, async () =>
+      this.prisma.db.generatedDocument.findUniqueOrThrow({
+        where: { id: request.documentId },
+      }),
+    );
+    const orig = await this.files.get(
+      tenantId,
+      request.inputFileId ?? doc.fileId,
+    );
+    const original = await readAll(this.storage.read(orig.storageKey));
+    if (sha256(original) !== request.documentSha256)
+      throw new ConflictException(
+        'The document changed after it was sent. Ask HR to send it again.',
+      );
+    return { doc, original };
   }
 
   async decline(token: string, input: { reason?: string }, c: ClientInfo) {
