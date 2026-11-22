@@ -1,5 +1,6 @@
 import { createTenantBody } from '@flourishive/schemas';
 import {
+  BadGatewayException,
   BadRequestException,
   ConflictException,
   Inject,
@@ -27,6 +28,7 @@ import {
   PlatformAuditService,
   PLATFORM_TENANT_SLUG,
 } from './platform-audit.service.js';
+import { CompanyDnsService, type DnsResult } from './company-dns.service.js';
 import { PlatformAuthService } from './platform-auth.service.js';
 
 export const suspendedKey = (tenantId: string) =>
@@ -44,6 +46,7 @@ export class PlatformAdminService {
     private readonly audit: PlatformAuditService,
     private readonly tenantAudit: AuditService,
     private readonly platformAuth: PlatformAuthService,
+    private readonly dns: CompanyDnsService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -181,12 +184,55 @@ export class PlatformAdminService {
       meta: { slug: tenant.slug },
       ip,
     });
+    // A DNS problem must not undo the company. The result says what happened; syncDns() retries.
+    let dns: DnsResult | 'failed' = 'off';
+    try {
+      dns = await this.dns.ensure(tenant.slug);
+    } catch (e) {
+      dns = 'failed';
+      await this.audit.record({
+        actorId,
+        tenantId: tenant.id,
+        action: 'platform.tenant_dns_failed',
+        entityType: 'tenants',
+        entityId: tenant.id,
+        meta: { error: e instanceof Error ? e.message : String(e) },
+        ip,
+      });
+    }
     return {
       id: tenant.id,
       slug: tenant.slug,
       name: tenant.name,
       adminEmail: body.adminEmail,
+      dns,
     };
+  }
+
+  /** (Re)creates the company's address in Cloudflare, for example after a failure. */
+  async syncDns(actorId: string, id: string, ip?: string) {
+    const t = await runAsSystem(
+      async () => await this.db.tenant.findUnique({ where: { id } }),
+    );
+    if (!t || t.slug === PLATFORM_TENANT_SLUG) throw new NotFoundException();
+    let dns: DnsResult;
+    try {
+      dns = await this.dns.ensure(t.slug);
+    } catch (e) {
+      throw new BadGatewayException(
+        e instanceof Error ? e.message : 'Cloudflare could not be reached',
+      );
+    }
+    await this.audit.record({
+      actorId,
+      tenantId: id,
+      action: 'platform.tenant_dns_synced',
+      entityType: 'tenants',
+      entityId: id,
+      meta: { result: dns },
+      ip,
+    });
+    return { dns, host: this.dns.hostFor(t.slug) };
   }
 
   async updateTenant(

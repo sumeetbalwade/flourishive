@@ -187,6 +187,12 @@ describe('tenant management', () => {
       })
       .expect(201);
     expect(mails.at(-1)!.to).toBe('boss@plat-new.test');
+    // No Cloudflare settings in tests: DNS is left alone, and the retry endpoint says so.
+    expect(created.body.dns).toBe('off');
+    await call('post', `/platform/tenants/${created.body.id}/dns`, tokens.root)
+      .expect(200)
+      .expect((r) => expect(r.body.dns).toBe('off'));
+    await call('post', `/platform/tenants/${created.body.id}/dns`).expect(401);
 
     await call('post', '/platform/tenants', tokens.root)
       .send({
