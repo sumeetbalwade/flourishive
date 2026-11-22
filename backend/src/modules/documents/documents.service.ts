@@ -170,11 +170,12 @@ export class DocumentsService {
   ) {
     const { version, layout, lh, values, reference, verifyToken, now } = p;
     const all = { ...values, reference, issueDate: longDate(now) };
-    const content = Object.fromEntries(
-      Object.entries(version.content as Record<string, string>).map(
-        ([k, v]) => [k, fill(v, all)],
-      ),
-    );
+    const raw = version.content as Record<string, string>;
+    const content = layout.fillsItself
+      ? raw
+      : Object.fromEntries(
+          Object.entries(raw).map(([k, v]) => [k, fill(v, all)]),
+        );
     const margins = {
       top: lh.marginTop,
       bottom: lh.marginBottom,
@@ -185,6 +186,7 @@ export class DocumentsService {
       content: { ...content, reference, issueDate: all.issueDate },
       orientation: version.orientation,
       margins,
+      values: all,
     });
     const letterheadFile = await this.files.get(a.tenantId, lh.fileId);
     const lhBytes = await readAll(this.storage.read(letterheadFile.storageKey));

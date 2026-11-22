@@ -452,6 +452,10 @@ export function createApiClient(opts: Opts) {
         http.request('GET', '/documents/numbering', { schema: z.array(numberingSchema) }),
       saveNumbering: (body: { entityId: string; letterType: string; format: string }) =>
         http.request('PUT', '/documents/numbering', { json: body, schema: numberingSchema }),
+      addTemplateVersion: (
+        id: string,
+        body: { content?: Record<string, unknown>; fields?: z.infer<typeof fieldDefSchema>[] },
+      ) => http.request('POST', `/documents/templates/${id}/versions`, { json: body }),
       installStarters: () =>
         http.request('POST', '/documents/templates/starters', {
           schema: z.object({ added: z.array(z.string()) }),

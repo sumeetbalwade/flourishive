@@ -114,7 +114,7 @@ export class TemplatesService {
             tenantId: a.tenantId,
             name: b.name,
             letterType: b.letterType,
-            kind: 'CODED',
+            kind: c.layout.key.startsWith('editor') ? 'EDITOR' : 'CODED',
             createdBy: a.userId,
             versions: {
               create: {

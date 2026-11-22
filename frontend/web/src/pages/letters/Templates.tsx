@@ -116,6 +116,16 @@ export function Templates() {
                 <p className="text-sm text-muted">
                   Asks for: {v?.fields.map((f) => f.label).join(', ') || 'nothing'}
                 </p>
+                {canManage && v?.layoutKey?.startsWith('editor') ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="mt-2 justify-self-start"
+                    onClick={() => go(`/app/templates/${t.id}/edit`)}
+                  >
+                    Edit wording
+                  </Button>
+                ) : null}
                 {auth.can('documents.generate') ? (
                   <Button
                     size="sm"
@@ -160,10 +170,11 @@ function NewTemplate({ onDone }: { onDone: () => void }) {
     setBusy(true);
     setError('');
     try {
-      await api.documents.createTemplate({ name: name.trim(), letterType, layoutKey });
+      const made = await api.documents.createTemplate({ name: name.trim(), letterType, layoutKey });
       await qc.invalidateQueries({ queryKey: ['templates'] });
       toast({ tone: 'success', title: 'Template created' });
       onDone();
+      if (layoutKey.startsWith('editor')) go(`/app/templates/${made.id}/edit`);
     } catch (err) {
       setError(messageOf(err));
       setBusy(false);

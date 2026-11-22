@@ -12,7 +12,7 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 - [x] Letterheads per entity (portrait A4, landscape for certificates), versioned
 - [x] Reference numbering per entity and letter type (for example `FS/INT/2026/0012`), configurable format, never reused
 - [x] Templates, versioned; every document records the template version it used
-- [ ] **Path A, visual editor:** rich-text editor with `{{placeholders}}`, tables and a signature box, saved as JSON, rendered with pdfmake on the letterhead with pdf-lib (D-13)
+- [x] **Path A, visual editor:** Tiptap editor with `{{placeholders}}`, headings, lists, tables and a signature box, saved as JSON and drawn by React-PDF on the letterhead (D-78 replaces the pdfmake note in D-13)
 - [x] **Path B, coded layouts:** React-PDF layouts registered in code, editable text fields only
 - [ ] **Path C, uploads:** plain PDF straight to signing; fillable PDF with field-to-placeholder mapping, then flattened; DOCX with placeholder filling, then converted (D-14)
 - [ ] Generation and bulk generation as queue jobs; QR code and reference stamped on every page _(single generation and the stamp are done in PR 1; bulk and queue jobs come in PR 7)_
@@ -190,6 +190,8 @@ D-10, D-11, D-12, D-13, D-14, D-24, D-25, D-28, D-31, D-33, D-35
 
 - **D-76 Bulk issue:** HR picks people from the list (names and dates come from their record) or pastes a CSV; shared values are entered once. Every row is validated before anything is numbered. Issuing runs as a queue job, row by row, resumable, with a status page. Up to 200 rows per batch.
 - **D-77 Delivery and offer hold:** HR clicks Email (one letter or a batch). The email holds a private link valid 30 days that HR can cancel; the recipient sees the letter's details and downloads the PDF through the API checks and R2. Offer letters are held: the link works but the download is locked until an admin releases it (permission `documents.release`, tenant admin only) so candidates cannot shop offers. The hold is a company setting, `documents.holdOfferDownloads`, on by default.
+
+- **D-78 Editor PDF engine (2026-11-22):** the visual editor's JSON is drawn by React-PDF, the same engine as coded layouts, so fonts, letterhead and stamping are shared. Only bold and underline marks, headings, lists, tables, lines and a signature box are allowed.
 
 ## Open items
 - How the signing animation is built on each surface (options to be presented before the desktop UI work starts, PR 6)

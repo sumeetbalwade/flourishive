@@ -77,6 +77,7 @@ Approved decisions. Changing any of them needs a new entry, not an edit.
 | D-74 | Storage migration | Verified copy command, local read fallback while settling, local copies deleted after a clean week. |
 | D-76 | Bulk issue | Pick people or paste CSV; all rows checked first; queue job, resumable; 200 rows max. |
 | D-77 | Letter delivery | HR-triggered email with a private 30-day link; offer downloads held until an admin releases them (company setting). |
+| D-78 | Editor PDF engine | Visual editor JSON drawn by React-PDF (replaces pdfmake in D-13). |
 | D-75 | Phase 2 order | Amends D-39: R2 is Phase 2 PR 8; visual editor PR 9; Aadhaar eSign adapter PR 10. |
 
 ---

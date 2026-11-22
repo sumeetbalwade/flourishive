@@ -17,6 +17,7 @@ import { LetterDetail } from './pages/letters/LetterDetail.tsx';
 import { LetterSetup } from './pages/letters/LetterSetup.tsx';
 import { Letters } from './pages/letters/Letters.tsx';
 import { NewLetter } from './pages/letters/NewLetter.tsx';
+import { TemplateEdit } from './pages/letters/TemplateEdit.tsx';
 import { Templates } from './pages/letters/Templates.tsx';
 import { Company } from './pages/admin/Company.tsx';
 import { Policy } from './pages/admin/Policy.tsx';
@@ -92,6 +93,8 @@ function Routes() {
   else if (path === '/app/security') page = <Security />;
   else if (path === '/app/signing') page = <Signing />;
   else if (path === '/app/templates') page = <Templates />;
+  else if (path.startsWith('/app/templates/') && path.endsWith('/edit'))
+    page = <TemplateEdit id={path.split('/')[3]!} />;
   else if (path === '/app/letter-setup') page = <LetterSetup />;
   else if (path === '/app/letters/new') page = <NewLetter />;
   else if (path === '/app/letters/bulk') page = <BulkIssue />;
