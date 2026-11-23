@@ -34,3 +34,15 @@ model PlatformSetting {
 
   @@map("platform_settings")
 }
+
+/// Platform-wide runtime configuration set from the console (keys, SMTP, URLs). A plain value sits in
+/// `valueJson`; a secret sits encrypted in `secretEnc` and is never returned by any API.
+model PlatformConfig {
+  key       String   @id @db.VarChar(100)
+  valueJson Json?
+  secretEnc String?  @db.Text
+  updatedBy String?  @db.Char(36)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  @@map("platform_config")
+}

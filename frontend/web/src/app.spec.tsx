@@ -294,7 +294,11 @@ describe('sign in', () => {
     expect(verify).toBeDisabled();
     await user.type(screen.getByLabelText('Authentication code'), '123456');
     await user.click(verify);
-    expect(client.auth.mfaVerify).toHaveBeenCalledWith({ mfaToken: 'm1', code: '123456' });
+    expect(client.auth.mfaVerify).toHaveBeenCalledWith({
+      mfaToken: 'm1',
+      code: '123456',
+      remember: false,
+    });
     expect(await screen.findByRole('heading', { name: 'Welcome, Hr' })).toBeInTheDocument();
   });
 
@@ -311,6 +315,7 @@ describe('sign in', () => {
     expect(client.auth.mfaVerify).toHaveBeenCalledWith({
       mfaToken: 'm1',
       recoveryCode: 'abcde-12345',
+      remember: false,
     });
   });
 

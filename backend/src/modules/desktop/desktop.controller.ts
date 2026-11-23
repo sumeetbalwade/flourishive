@@ -133,7 +133,9 @@ export class DesktopJobsController {
     return this.jobs.signElectronically(
       d,
       id,
-      new ZodPipe(z.object({ code: z.string().regex(/^\d{6}$/) })).transform(body).code,
+      new ZodPipe(z.object({ code: z.string().regex(/^\d{6}$/) })).transform(
+        body,
+      ).code,
       { ip: req.ip, userAgent: req.headers['user-agent'] },
     );
   }

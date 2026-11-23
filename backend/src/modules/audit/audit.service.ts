@@ -7,7 +7,7 @@ export const GENESIS_HASH = '0'.repeat(64);
 
 export interface AuditInput {
   tenantId: string;
-  actorType: 'USER' | 'PLATFORM' | 'SYSTEM';
+  actorType: 'USER' | 'PLATFORM' | 'SYSTEM' | 'SUPPORT';
   actorId?: string | null;
   action: string;
   entityType?: string | null;

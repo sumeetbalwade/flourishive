@@ -2,6 +2,7 @@ enum ActorType {
   USER
   PLATFORM
   SYSTEM
+  SUPPORT
 }
 
 /// Append-only, hash-chained per tenant. hash = sha256(prevHash + canonical fields).

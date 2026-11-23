@@ -6,6 +6,7 @@ import {
   EmptyState,
   Field,
   Input,
+  Select,
   Skeleton,
   Table,
   TBody,
@@ -18,6 +19,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
+import { AccountDialog } from '../components/AccountDialogs.tsx';
 import { useApi } from '../lib/api.tsx';
 import { useAuth } from '../lib/auth.tsx';
 import { messageOf } from '../lib/errors.ts';
@@ -33,7 +35,10 @@ export function Staff() {
   const qc = useQueryClient();
   const list = useQuery({ queryKey: ['staff'], queryFn: () => api.staff.list() });
   const [open, setOpen] = useState(false);
+  const roles = useQuery({ queryKey: ['platform-roles'], queryFn: () => api.roles.list() });
   const [email, setEmail] = useState('');
+  const [roleId, setRoleId] = useState('');
+  const [accountOf, setAccountOf] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const me = auth.state.status === 'authed' ? auth.state.email : '';
@@ -62,6 +67,7 @@ export function Staff() {
             setOpen(true);
             setLink(null);
             setEmail('');
+            setRoleId(roles.data?.roles.find((r) => r.key === 'support')?.id ?? '');
           }}
         >
           <Plus size={16} /> Invite
@@ -77,6 +83,7 @@ export function Staff() {
           <THead>
             <TR>
               <TH>Email</TH>
+              <TH>Role</TH>
               <TH>Status</TH>
               <TH>Two-step</TH>
               <TH>Last sign-in</TH>
@@ -90,6 +97,22 @@ export function Staff() {
                   {u.email}
                   {u.email === me ? <span className="ml-2 text-xs text-faint">(you)</span> : null}
                 </TD>
+                <TD className="min-w-48">
+                  <Select
+                    value={u.role.id}
+                    onValueChange={(rid) =>
+                      void run(
+                        () => api.roles.assign(u.id, rid),
+                        `${u.email} is now ${roles.data?.roles.find((r) => r.id === rid)?.name ?? 'updated'}`,
+                      )
+                    }
+                    options={(roles.data?.roles ?? [u.role]).map((r) => ({
+                      value: r.id,
+                      label: r.name,
+                    }))}
+                    className={busy ? 'pointer-events-none opacity-50' : undefined}
+                  />
+                </TD>
                 <TD>
                   <Badge tone={tone[u.status]}>
                     {u.status.charAt(0) + u.status.slice(1).toLowerCase()}
@@ -98,6 +121,11 @@ export function Staff() {
                 <TD>{u.mfaEnabledAt ? 'On' : '—'}</TD>
                 <TD className="text-muted">{when(u.lastLoginAt)}</TD>
                 <TD className="text-right">
+                  {u.email !== me ? (
+                    <Button size="sm" variant="secondary" onClick={() => setAccountOf(u.id)}>
+                      Account
+                    </Button>
+                  ) : null}
                   {u.status === 'ACTIVE' && u.email !== me ? (
                     <Button
                       size="sm"
@@ -128,6 +156,9 @@ export function Staff() {
           </TBody>
         </Table>
       )}
+      {accountOf ? (
+        <AccountDialog userId={accountOf} open onClose={() => setAccountOf(null)} />
+      ) : null}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           title="Invite staff"
@@ -153,7 +184,7 @@ export function Staff() {
                 e.preventDefault();
                 setBusy(true);
                 try {
-                  const r = await api.staff.invite(email.trim());
+                  const r = await api.staff.invite(email.trim(), roleId);
                   setLink(r.link);
                   await qc.invalidateQueries({ queryKey: ['staff'] });
                 } catch (err) {
@@ -163,6 +194,19 @@ export function Staff() {
                 }
               }}
             >
+              <Field
+                label="Role"
+                htmlFor="inv-role"
+                hint="What they can do. You can change it later."
+              >
+                <Select
+                  id="inv-role"
+                  value={roleId}
+                  onValueChange={setRoleId}
+                  placeholder="Choose a role"
+                  options={(roles.data?.roles ?? []).map((r) => ({ value: r.id, label: r.name }))}
+                />
+              </Field>
               <Field label="Email" htmlFor="inv">
                 <Input
                   id="inv"
@@ -172,7 +216,7 @@ export function Staff() {
                   autoFocus
                 />
               </Field>
-              <Button type="submit" loading={busy} disabled={busy || !email.trim()}>
+              <Button type="submit" loading={busy} disabled={busy || !email.trim() || !roleId}>
                 Send invitation
               </Button>
             </form>

@@ -75,7 +75,7 @@ describe('company lookup', () => {
     expect(res.body).toEqual({
       slug: 'co-one',
       name: 'Company One',
-      accentColor: '#c4914f',
+      accentColor: '#2a9158',
     });
     await call('get', '/public/company/nope').expect(404);
     await call('get', '/public/company/_platform').expect(404);

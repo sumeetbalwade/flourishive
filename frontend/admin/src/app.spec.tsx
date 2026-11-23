@@ -31,7 +31,11 @@ describe('admin sign in', () => {
     await screen.findByRole('heading', { name: 'Two-step check' });
     await user.type(screen.getByLabelText('Authentication code'), '123456');
     await user.click(screen.getByRole('button', { name: 'Verify' }));
-    expect(client.auth.mfaVerify).toHaveBeenCalledWith({ mfaToken: 'm1', code: '123456' });
+    expect(client.auth.mfaVerify).toHaveBeenCalledWith({
+      mfaToken: 'm1',
+      code: '123456',
+      remember: false,
+    });
     expect(await screen.findByText('Flourisense')).toBeInTheDocument();
     expect(location.hash).toBe('#/tenants');
   });
@@ -161,7 +165,7 @@ describe('staff and defaults', () => {
     await user.click(await screen.findByRole('button', { name: /Invite/ }));
     await user.type(screen.getByLabelText('Email'), 'new@flourishive.test');
     await user.click(screen.getByRole('button', { name: 'Send invitation' }));
-    expect(client.staff.invite).toHaveBeenCalledWith('new@flourishive.test');
+    expect(client.staff.invite).toHaveBeenCalledWith('new@flourishive.test', expect.any(String));
     expect(await screen.findByText(/set-password\?token=zzz/)).toBeInTheDocument();
   });
 

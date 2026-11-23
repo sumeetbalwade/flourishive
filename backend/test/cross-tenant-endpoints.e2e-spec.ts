@@ -362,7 +362,8 @@ function discoverRoutes(): string[] {
     const c = w.metatype as unknown as { prototype: Record<string, unknown> };
     const base = String(Reflect.getMetadata('path', c) ?? '');
     for (const name of Object.getOwnPropertyNames(c.prototype)) {
-      const fn = c.prototype[name];
+      // Read the descriptor: a getter (like canRestart) must not run on the bare prototype.
+      const fn = Object.getOwnPropertyDescriptor(c.prototype, name)?.value;
       if (typeof fn !== 'function') continue;
       const method = Reflect.getMetadata('method', fn) as number | undefined;
       if (method === undefined) continue;
@@ -444,6 +445,42 @@ const NO_TENANT_DATA: Record<string, string> = {
   'POST /auth/recovery/email': 'pre-login',
   'POST /auth/recovery/email/verify': 'pre-login',
   'POST /auth/mfa/verify': 'own challenge token',
+  'GET /mail/sender': 'the signed-in company only (tenantId from the token)',
+  'PUT /mail/sender': 'the signed-in company only (tenantId from the token)',
+  'POST /mail/sender/verify/start': 'the signed-in company only',
+  'POST /mail/sender/verify/confirm': 'the signed-in company only',
+  'POST /mail/sender/test': 'the signed-in company only',
+  'POST /mail/sender/dns': 'the signed-in company only',
+  'POST /mail/sender/activate': 'the signed-in company only',
+  'DELETE /mail/sender': 'the signed-in company only',
+  'GET /mail/deliveries': 'the list is filtered to the signed-in company',
+  'POST /mail/deliveries/:id/resend':
+    'the lookup includes the signed-in company, so another company’s id is a 404',
+  'POST /auth/mfa/passkey/options': 'own challenge token',
+  'POST /auth/mfa/passkey/verify':
+    'own challenge token; the passkey must belong to that person',
+  'POST /auth/passkeys/login/options':
+    'public; names a company, returns only a challenge',
+  'POST /auth/passkeys/login/verify':
+    'the passkey is looked up inside the named company only (tenant-scoped table)',
+  'POST /auth/passkeys/register/options': 'the caller only',
+  'POST /auth/passkeys/register/verify': 'the caller only',
+  'DELETE /auth/passkeys/:id': 'deletes by id and the caller’s own user id',
+  'DELETE /auth/trusted-devices/:id':
+    'deletes by id and the caller’s own user id',
+  'GET /auth/security': 'the caller only',
+  'POST /auth/mfa/disable': 'the caller only',
+  'POST /auth/mfa/email-code': 'own challenge token',
+  'POST /auth/step-up': 'the caller only',
+  'GET /users': 'tenant-scoped query; the signed-in company only',
+  'GET /users/:id/account':
+    'refuses a user from another company (tenantId check)',
+  'POST /users/:id/actions/:action':
+    'refuses a user from another company (tenantId check)',
+  'GET /support/sessions': 'tenant-scoped table; the signed-in company only',
+  'POST /support/sessions/:id/end':
+    'tenant-scoped table; the signed-in company only',
+  'POST /support/sessions/current/end': 'the caller’s own support session',
   'POST /auth/mfa/setup': 'own challenge token',
   'POST /auth/mfa/confirm': 'own challenge token',
   'POST /auth/mfa/recovery/email': 'own challenge token',

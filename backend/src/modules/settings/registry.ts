@@ -12,7 +12,31 @@ export interface SettingDefinition<T = unknown> {
   description: string;
   /** Short name for settings screens. */
   label: string;
-  group: 'Security' | 'Technical' | 'Branding' | 'Platform';
+  group:
+    | 'Security'
+    | 'Technical'
+    | 'Branding'
+    | 'Platform'
+    | 'Brand'
+    | 'Email'
+    | 'Sign-in'
+    | 'Region'
+    | 'Notifications'
+    | 'Integrations'
+    | 'Logs';
+  /** Which control to draw. Left out, it is read from the schema (see shapeOf). */
+  kind?: SettingKind;
+  /** One line on what the setting does, shown under the control. */
+  hint?: string;
+  /** The default for the lock: false means tenants cannot change it unless the super admin allows it. */
+  tenantEditable?: boolean;
+  /** True for a value that must never be shown again after saving (a secret). */
+  sensitive?: boolean;
+  /**
+   * `layered` follows user → entity → tenant → platform; `platform` is one platform-wide value
+   * (see RuntimeConfigService for keys and addresses).
+   */
+  scope?: 'layered' | 'platform';
 }
 
 function def<T>(d: SettingDefinition<T>): SettingDefinition<T> {
@@ -23,7 +47,7 @@ function def<T>(d: SettingDefinition<T>): SettingDefinition<T> {
 export const SETTINGS = {
   'branding.accentColor': def({
     schema: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-    default: '#c4914f',
+    default: '#2a9158',
     levels: ['tenant', 'entity'],
     label: 'Accent colour',
     group: 'Branding',
@@ -104,6 +128,33 @@ export const SETTINGS = {
     group: 'Security',
     description: 'How long a sign-in lasts without activity',
   }),
+  'security.trustedDeviceDays': def({
+    schema: z.number().int().min(0).max(90),
+    default: 30,
+    levels: ['tenant'],
+    label: 'Remember a device after two-step (days)',
+    group: 'Security',
+    description:
+      'After a successful two-step code a person may tick "Remember this device" and skip the code on it for this many days. 0 turns the option off',
+  }),
+  'security.adminSessionDays': def({
+    schema: z.number().int().min(1).max(30),
+    default: 14,
+    levels: ['tenant'],
+    label: 'Stay signed in, for admins (days)',
+    group: 'Security',
+    description:
+      'How long a sign-in lasts for people whose role can manage something (instead of the length for everyone else)',
+  }),
+  'platform.trustedDeviceDays': def({
+    schema: z.number().int().min(0).max(90),
+    default: 30,
+    levels: [],
+    label: 'Remember a device, for platform staff (days)',
+    group: 'Platform',
+    description:
+      'After a two-step code platform staff may skip it on that device for this many days. 0 turns the option off',
+  }),
   'security.loginAttempts': def({
     schema: z.number().int().min(3).max(10),
     default: 5,
@@ -129,7 +180,21 @@ export type SettingValueOf<K extends SettingKey> = z.infer<
 >;
 export const isSettingKey = (k: string): k is SettingKey => k in SETTINGS;
 
-export type SettingKind = 'boolean' | 'number' | 'enum' | 'color' | 'text';
+export type SettingKind =
+  | 'boolean'
+  | 'number'
+  | 'enum'
+  | 'color'
+  | 'font'
+  | 'image'
+  | 'text'
+  | 'longtext'
+  | 'email'
+  | 'url'
+  | 'secret'
+  | 'list'
+  | 'timezone'
+  | 'json';
 export interface SettingShape {
   kind: SettingKind;
   options?: string[];
@@ -139,7 +204,10 @@ export interface SettingShape {
 
 /** What control a settings screen should draw, read from the setting's own schema. */
 export function shapeOf(key: SettingKey): SettingShape {
+  const declared = (SETTINGS[key] as SettingDefinition).kind;
   const schema = SETTINGS[key].schema as z.ZodType;
+  if (declared && !(declared === 'enum' && schema instanceof z.ZodEnum))
+    return { kind: declared };
   if (schema instanceof z.ZodBoolean) return { kind: 'boolean' };
   if (schema instanceof z.ZodNumber)
     return {

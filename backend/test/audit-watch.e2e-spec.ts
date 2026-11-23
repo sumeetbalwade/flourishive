@@ -1,3 +1,4 @@
+import { OWNER_ROLE_ID } from '../src/modules/platform-admin/platform-permissions.js';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module.js';
@@ -51,7 +52,11 @@ beforeAll(async () => {
       where: { email: 'watcher@watch.test' },
     });
     await prisma.db.platformUser.create({
-      data: { email: 'watcher@watch.test', status: 'ACTIVE' },
+      data: {
+        email: 'watcher@watch.test',
+        status: 'ACTIVE',
+        roleId: OWNER_ROLE_ID,
+      },
     });
   });
 });

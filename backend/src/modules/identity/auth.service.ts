@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { RedisService } from '../../platform/cache/redis.service.js';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import {
@@ -17,6 +18,7 @@ import {
 import { AuditService } from '../audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AccessService } from '../access/access.service.js';
+import { supportSessionKey, type OpenSupportSession } from './support-keys.js';
 import { RolePolicyService } from '../access/role-policy.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { MailService } from '../../platform/mail/mail.service.js';
@@ -29,6 +31,12 @@ import {
   type ClientMeta,
   type IssuedTokens,
 } from './session.service.js';
+import { TrustedDeviceService } from './trusted-device.service.js';
+import { PasskeyService, type RelyingParty } from './passkey.service.js';
+import type {
+  AuthenticationResponseJSON,
+  RegistrationResponseJSON,
+} from '@simplewebauthn/server';
 import { ThrottleService } from './throttle.service.js';
 import {
   TokenService,
@@ -38,12 +46,20 @@ import {
 
 export type LoginResult =
   | { status: 'ok'; tokens: IssuedTokens }
-  | { status: 'mfa_required'; mfaToken: string }
+  | {
+      status: 'mfa_required';
+      mfaToken: string;
+      /** Which second steps this person can use. */
+      methods: { code: boolean; passkey: boolean };
+    }
   | { status: 'mfa_setup_required'; mfaToken: string };
 
 export interface Principal {
   tenantId: string;
   userId: string;
+  /** Set for platform staff in a support session (the session id is then in `sessionId`). */
+  support?: { mode: 'READ' | 'WRITE' };
+  sessionId?: string;
 }
 
 interface UserRow {
@@ -76,8 +92,11 @@ export class AuthService {
     private readonly settings: SettingsService,
     private readonly policies: RolePolicyService,
     private readonly otp: OtpService,
+    private readonly devices: TrustedDeviceService,
     private readonly mail: MailService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly runtime: RuntimeConfigService,
+    private readonly passkeys: PasskeyService,
   ) {}
 
   private async tenantIdFor(slug: string): Promise<string | null> {
@@ -122,14 +141,36 @@ export class AuthService {
     user: UserRow,
     meta: ClientMeta,
     via: 'password' | 'google',
+    trustedToken?: string,
   ): Promise<LoginResult> {
-    if (user.mfaEnabledAt) {
+    const scope = { kind: 'tenant' as const, tenantId: user.tenantId };
+    // A passkey is a second factor too, and it satisfies a REQUIRED two-step policy.
+    const hasPasskey = (await this.passkeys.count(scope, user.id)) > 0;
+    if (user.mfaEnabledAt || hasPasskey) {
+      // A remembered device skips the code (D-64).
+      if (
+        user.mfaEnabledAt &&
+        (await this.devices.check(scope, user.id, trustedToken))
+      )
+        return {
+          status: 'ok',
+          tokens: await this.startAudited(
+            user.tenantId,
+            user.id,
+            meta,
+            `${via}+trusted-device`,
+          ),
+        };
       const mfaToken = await this.tokens.signMfaChallenge({
         userId: user.id,
         tenantId: user.tenantId,
         purpose: 'mfa-verify',
       });
-      return { status: 'mfa_required', mfaToken };
+      return {
+        status: 'mfa_required',
+        mfaToken,
+        methods: { code: Boolean(user.mfaEnabledAt), passkey: hasPasskey },
+      };
     }
     if (await this.mfaIsRequired(user)) {
       const mfaToken = await this.tokens.signMfaChallenge({
@@ -188,6 +229,7 @@ export class AuthService {
   async login(
     input: { tenant: string; email: string; password: string },
     meta: ClientMeta,
+    trustedToken?: string,
   ): Promise<LoginResult> {
     const acct = `${input.tenant.toLowerCase()}:${input.email.toLowerCase()}`;
     const ip = meta.ip ?? 'unknown';
@@ -215,12 +257,13 @@ export class AuthService {
       throw new UnauthorizedException(INVALID);
     }
     await this.throttle.clear('login', `acct:${acct}`);
-    return this.afterFirstFactor(user, meta, 'password');
+    return this.afterFirstFactor(user, meta, 'password', trustedToken);
   }
 
   async loginWithGoogle(
     input: { tenant: string; idToken: string },
     meta: ClientMeta,
+    trustedToken?: string,
   ): Promise<LoginResult> {
     await this.throttle.assertNotLocked('login', `ip:${meta.ip ?? 'unknown'}`);
     const identity = await this.google.verify(input.idToken);
@@ -245,13 +288,26 @@ export class AuthService {
         data: { googleSub: identity.sub, status: 'ACTIVE' },
       });
     });
-    return this.afterFirstFactor({ ...user, status: 'ACTIVE' }, meta, 'google');
+    return this.afterFirstFactor(
+      { ...user, status: 'ACTIVE' },
+      meta,
+      'google',
+      trustedToken,
+    );
   }
 
   async verifyMfa(
-    input: { mfaToken: string; code?: string; recoveryCode?: string },
+    input: {
+      mfaToken: string;
+      code?: string;
+      recoveryCode?: string;
+      emailCode?: string;
+      remember?: boolean;
+    },
     meta: ClientMeta,
-  ): Promise<IssuedTokens> {
+  ): Promise<
+    IssuedTokens & { trustedDevice?: { token: string; maxAgeMs: number } }
+  > {
     const claims = await this.tokens.verifyMfaChallenge(input.mfaToken);
     if (claims.purpose !== 'mfa-verify')
       throw new UnauthorizedException('Invalid token');
@@ -260,7 +316,17 @@ export class AuthService {
 
     const user = await this.findUser(claims.tenantId, { id: claims.userId });
     let ok = false;
-    if (user?.status === 'ACTIVE' && user.mfaEnabledAt && user.mfaSecretEnc) {
+    if (user?.status === 'ACTIVE' && user.mfaEnabledAt && input.emailCode) {
+      // "Email me a code instead", where the role's policy allows it.
+      ok =
+        (await this.policies.effectiveFor(claims.tenantId, user.id))
+          .recoveryEmail &&
+        (await this.otp.verify('mfa-signin', user.id, input.emailCode));
+    } else if (
+      user?.status === 'ACTIVE' &&
+      user.mfaEnabledAt &&
+      user.mfaSecretEnc
+    ) {
       if (input.code) {
         ok = await this.mfa.verifyCode(user.mfaSecretEnc, input.code);
         // A code is single-use inside its validity window, so a replayed code fails.
@@ -292,12 +358,242 @@ export class AuthService {
       throw new UnauthorizedException('Invalid code');
     }
     await this.throttle.clear('mfa', key);
-    return this.startAudited(
+    const tokens = await this.startAudited(
       claims.tenantId,
       user.id,
       meta,
-      input.recoveryCode ? 'mfa-recovery-code' : 'mfa',
+      input.recoveryCode
+        ? 'mfa-recovery-code'
+        : input.emailCode
+          ? 'mfa-email'
+          : 'mfa',
     );
+    const days = input.remember
+      ? await this.settings.get('security.trustedDeviceDays', {
+          tenantId: claims.tenantId,
+        })
+      : 0;
+    const trustedDevice = await this.devices.remember(
+      { kind: 'tenant', tenantId: claims.tenantId },
+      user.id,
+      meta.userAgent,
+      days,
+    );
+    return { ...tokens, ...(trustedDevice ? { trustedDevice } : {}) };
+  }
+
+  /** Second step by passkey, after the password: the browser is asked for one of this person's passkeys. */
+  async mfaPasskeyOptions(mfaToken: string, rp: RelyingParty) {
+    const who = await this.challengePrincipal(mfaToken, 'mfa-verify');
+    await this.throttle.assertNotLocked('mfa', `user:${who.userId}`);
+    return this.passkeys.authenticationOptions(
+      { kind: 'tenant', tenantId: who.tenantId },
+      rp,
+      who.userId,
+    );
+  }
+
+  async verifyMfaPasskey(
+    input: { mfaToken: string; response: AuthenticationResponseJSON },
+    rp: RelyingParty,
+    meta: ClientMeta,
+  ): Promise<IssuedTokens> {
+    const who = await this.challengePrincipal(input.mfaToken, 'mfa-verify');
+    const key = `user:${who.userId}`;
+    await this.throttle.assertNotLocked('mfa', key);
+    const user = await this.findUser(who.tenantId, { id: who.userId });
+    try {
+      if (user?.status !== 'ACTIVE') throw new UnauthorizedException();
+      await this.passkeys.authenticationVerify(
+        { kind: 'tenant', tenantId: who.tenantId },
+        input.response,
+        rp,
+        who.userId,
+      );
+    } catch (e) {
+      await this.throttle.recordFailure('mfa', key);
+      await this.auditUser(who.tenantId, who.userId, 'auth.mfa_failed', meta);
+      throw e;
+    }
+    await this.throttle.clear('mfa', key);
+    return this.startAudited(
+      who.tenantId,
+      who.userId,
+      meta,
+      'password+passkey',
+    );
+  }
+
+  /** Sign in with a passkey alone: no email, no password, no code. */
+  async passkeyLoginOptions(tenantSlug: string, rp: RelyingParty) {
+    const tenantId = await this.tenantIdFor(tenantSlug);
+    if (!tenantId) throw new UnauthorizedException(INVALID);
+    return this.passkeys.authenticationOptions(
+      { kind: 'tenant', tenantId },
+      rp,
+    );
+  }
+
+  async passkeyLogin(
+    input: { tenant: string; response: AuthenticationResponseJSON },
+    rp: RelyingParty,
+    meta: ClientMeta,
+  ): Promise<IssuedTokens> {
+    const ipKey = `ip:${meta.ip ?? 'unknown'}`;
+    await this.throttle.assertNotLocked('login', ipKey);
+    const tenantId = await this.tenantIdFor(input.tenant);
+    try {
+      if (!tenantId) throw new UnauthorizedException(INVALID);
+      const { userId } = await this.passkeys.authenticationVerify(
+        { kind: 'tenant', tenantId },
+        input.response,
+        rp,
+      );
+      const user = await this.findUser(tenantId, { id: userId });
+      if (user?.status !== 'ACTIVE') throw new UnauthorizedException(INVALID);
+      await this.throttle.clear('login', ipKey);
+      return await this.startAudited(tenantId, userId, meta, 'passkey');
+    } catch (e) {
+      await this.throttle.recordFailure('login', ipKey);
+      throw e;
+    }
+  }
+
+  /** Adding a passkey from My security (the route needs a fresh step-up). */
+  async passkeyRegisterOptions(who: Principal, rp: RelyingParty) {
+    const user = await this.findUser(who.tenantId, { id: who.userId });
+    if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
+    return this.passkeys.registrationOptions(
+      { kind: 'tenant', tenantId: who.tenantId },
+      { id: user.id, email: user.email },
+      rp,
+    );
+  }
+
+  async passkeyRegisterVerify(
+    who: Principal,
+    input: { response: RegistrationResponseJSON; label?: string },
+    rp: RelyingParty,
+    meta: ClientMeta,
+  ) {
+    const view = await this.passkeys.registrationVerify(
+      { kind: 'tenant', tenantId: who.tenantId },
+      who.userId,
+      input.response,
+      rp,
+      input.label,
+      meta.userAgent,
+    );
+    await this.auditUser(who.tenantId, who.userId, 'auth.passkey_added', meta, {
+      label: view.label,
+    });
+    return view;
+  }
+
+  async removePasskey(who: Principal, id: string, meta: ClientMeta) {
+    await this.passkeys.revoke(
+      { kind: 'tenant', tenantId: who.tenantId },
+      who.userId,
+      id,
+    );
+    await this.auditUser(
+      who.tenantId,
+      who.userId,
+      'auth.passkey_removed',
+      meta,
+    );
+  }
+
+  /** "Email me a code instead": sends a sign-in code to the account, if the role's policy allows it. */
+  async startMfaEmailCode(mfaToken: string, meta: ClientMeta): Promise<void> {
+    const who = await this.challengePrincipal(mfaToken, 'mfa-verify');
+    await this.throttle.assertNotLocked('reset', `user:${who.userId}`);
+    await this.throttle.recordFailure('reset', `user:${who.userId}`);
+    const user = await this.findUser(who.tenantId, { id: who.userId });
+    if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
+    if (
+      !(await this.policies.effectiveFor(who.tenantId, who.userId))
+        .recoveryEmail
+    )
+      throw new ForbiddenException(
+        'Signing in with an emailed code is not allowed for your role.',
+      );
+    await this.emailOtp(user, 'mfa-signin');
+    await this.auditUser(
+      who.tenantId,
+      who.userId,
+      'auth.signin_code_sent',
+      meta,
+    );
+  }
+
+  /** What My security shows, and what it may offer. */
+  async securityInfo(who: Principal) {
+    const user = await this.findUser(who.tenantId, { id: who.userId });
+    if (!user) throw new UnauthorizedException();
+    const policy = await this.policies.effectiveFor(who.tenantId, who.userId);
+    const scope = { kind: 'tenant' as const, tenantId: who.tenantId };
+    return {
+      mfaEnabled: Boolean(user.mfaEnabledAt),
+      canDisableMfa: !user.mfaRequired && policy.mfaLevel !== 'REQUIRED',
+      emailFallback: policy.recoveryEmail,
+      trustedDeviceDays: await this.settings.get('security.trustedDeviceDays', {
+        tenantId: who.tenantId,
+      }),
+      devices: await this.devices.list(scope, who.userId),
+      passkeys: await this.passkeys.list(scope, who.userId),
+    };
+  }
+
+  async revokeDevice(who: Principal, id: string): Promise<void> {
+    await this.devices.revoke(
+      { kind: 'tenant', tenantId: who.tenantId },
+      who.userId,
+      id,
+    );
+    await this.auditUser(who.tenantId, who.userId, 'auth.device_revoked', {});
+  }
+
+  /**
+   * Turns off your own two-step (D-65). Only where the policy is not REQUIRED, and only after typing the
+   * password again. Remembered devices and recovery codes go with it.
+   */
+  async disableMfa(who: Principal, password: string, meta: ClientMeta) {
+    const user = await this.findUser(who.tenantId, { id: who.userId });
+    if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
+    const policy = await this.policies.effectiveFor(who.tenantId, who.userId);
+    if (user.mfaRequired || policy.mfaLevel === 'REQUIRED')
+      throw new ForbiddenException(
+        'Two-step is required for your role, so it cannot be turned off.',
+      );
+    if (!user.mfaEnabledAt)
+      throw new ConflictException('Two-step is already off');
+    const key = `stepup:user:${user.id}`;
+    await this.throttle.assertNotLocked('mfa', key);
+    if (
+      !user.passwordHash ||
+      !(await this.passwords.verify(password, user.passwordHash))
+    ) {
+      await this.throttle.recordFailure('mfa', key);
+      throw new UnauthorizedException('That password is not right');
+    }
+    await this.throttle.clear('mfa', key);
+    await runInTenant(who.tenantId, async () => {
+      await this.prisma.db.recoveryCode.deleteMany({
+        where: { userId: user.id },
+      });
+      await this.prisma.db.user.update({
+        where: { id: user.id },
+        data: { mfaSecretEnc: null, mfaEnabledAt: null },
+      });
+    });
+    await this.devices.revokeAll(
+      { kind: 'tenant', tenantId: who.tenantId },
+      user.id,
+    );
+    await this.auditUser(who.tenantId, user.id, 'auth.mfa_disabled', meta, {
+      by: 'self',
+    });
   }
 
   private useRecoveryCode(
@@ -393,6 +689,31 @@ export class AuthService {
   }
 
   async me(who: Principal) {
+    if (who.support) {
+      // Platform staff in a support session have no company account; show who they are and the limits.
+      const open = await this.redis.getJson<OpenSupportSession>(
+        supportSessionKey(who.sessionId ?? ''),
+      );
+      if (!open)
+        throw new UnauthorizedException('The support session has ended');
+      return {
+        id: who.userId,
+        tenantId: who.tenantId,
+        email: open.staffEmail,
+        mfaEnabled: false,
+        mfaRequired: false,
+        mfaLevel: 'OFF' as const,
+        permissions: Object.keys(
+          await this.access.permissionsFor(who.tenantId, who.userId),
+        ).sort(),
+        support: {
+          sessionId: open.sessionId,
+          mode: open.mode,
+          reason: open.reason,
+          expiresAt: open.expiresAt,
+        },
+      };
+    }
     const user = await this.findUser(who.tenantId, { id: who.userId });
     if (!user) throw new UnauthorizedException();
     return {
@@ -438,7 +759,7 @@ export class AuthService {
       userId,
       kind === 'invite' ? 7 * 24 * 3600 : 3600,
     );
-    const link = `${this.config.WEB_URL}/#/reset-password?token=${token}`;
+    const link = `${await this.runtime.require('WEB_URL')}/#/reset-password?token=${token}`;
     await this.notifications.sendNow(
       tenantId,
       kind === 'invite' ? 'auth.invite' : 'auth.password_reset',
@@ -464,13 +785,15 @@ export class AuthService {
   /** Emails a fresh one-time code. Only a hash is kept; the code is not stored in notifications. */
   private async emailOtp(
     user: UserRow,
-    purpose: 'password' | 'mfa',
+    purpose: 'password' | 'mfa' | 'mfa-signin',
   ): Promise<void> {
     const minutes = await this.settings.get('security.otpExpiryMinutes', {
       tenantId: user.tenantId,
     });
     const code = await this.otp.issue(purpose, user.id, minutes * 60);
     await this.mail.send({
+      event: `auth.otp.${purpose}`,
+      tenantId: user.tenantId,
       to: user.email,
       subject: `Your ${this.config.APP_NAME} code: ${code}`,
       text: `Your one-time code is ${code}. It works once and expires in ${minutes} minutes.\n\nIf you did not ask for it, ignore this email and consider changing your password.`,

@@ -17,6 +17,10 @@ import { useState } from 'react';
 import { useApi } from '../lib/api.tsx';
 import { messageOf } from '../lib/errors.ts';
 import { go } from '../router.ts';
+import { TenantMail } from '../components/TenantMail.tsx';
+import { TenantUsers } from '../components/AccountDialogs.tsx';
+import { OpenAsSupport, SupportHistory } from '../components/SupportAccess.tsx';
+import { useCan } from '../lib/auth.tsx';
 import { Layout } from './Layout.tsx';
 import { fmt } from './Tenants.tsx';
 
@@ -26,6 +30,7 @@ export const parseValue = (raw: string): unknown =>
 
 export function TenantDetail({ id }: { id: string }) {
   const api = useApi();
+  const can = useCan();
   const toast = useToast();
   const qc = useQueryClient();
   const tenant = useQuery({ queryKey: ['tenant', id], queryFn: () => api.tenants.get(id) });
@@ -81,13 +86,18 @@ export function TenantDetail({ id }: { id: string }) {
       active="tenants"
       title={t.name}
       actions={
-        <Button
-          size="sm"
-          variant={active ? 'danger' : 'primary'}
-          onClick={() => setConfirm(active ? 'SUSPENDED' : 'ACTIVE')}
-        >
-          {active ? 'Suspend…' : 'Reactivate'}
-        </Button>
+        <div className="flex gap-2">
+          <OpenAsSupport tenantId={id} />
+          {can('tenants.manage') ? (
+            <Button
+              size="sm"
+              variant={active ? 'danger' : 'primary'}
+              onClick={() => setConfirm(active ? 'SUSPENDED' : 'ACTIVE')}
+            >
+              {active ? 'Suspend…' : 'Reactivate'}
+            </Button>
+          ) : null}
+        </div>
       }
     >
       <p className="mb-5 flex items-center gap-2 text-sm text-muted">
@@ -157,6 +167,9 @@ export function TenantDetail({ id }: { id: string }) {
                 })}
             </ul>
           </Card>
+          <TenantUsers tenantId={id} />
+          <SupportHistory tenantId={id} />
+          {can('email.manage') ? <TenantMail tenantId={id} canManage /> : null}
           <Card>
             <CardTitle>Companies</CardTitle>
             <ul className="mt-3 grid gap-2 text-sm">

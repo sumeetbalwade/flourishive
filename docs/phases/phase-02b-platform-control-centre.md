@@ -1,6 +1,6 @@
 # Phase 2B — Platform control centre
 
-**Status:** Decisions approved 2026-11-22; not started · **Depends on:** Phase 2 · **Unlocks:** Phase 3 (now billing, SSO and the public API only)
+**Status:** Decisions approved 2026-11-22; build started 2026-11-23 (PR 1, 2 and 3 built, in review) · **Depends on:** Phase 2 · **Unlocks:** Phase 3 (now billing, SSO and the public API only)
 
 ## Goal
 
@@ -174,19 +174,19 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
 ### PR 1 — Foundations: typed settings v2, runtime config and secrets, step-up
 
 **Backend**
-- [ ] Registry v2 (`modules/settings/registry.ts`). Add the following to `SettingDefinition`:
+- [x] Registry v2 (`modules/settings/registry.ts`). Add the following to `SettingDefinition`:
   - `kind`: `boolean | number | enum | color | font | image | text | longtext | email | url | secret | list | timezone | json`. Stop inferring it from the key name (`shapeOf` today).
   - `group`: `Brand | Email | Security | Sign-in | Region | Notifications | Integrations | Logs | Platform`
   - `hint`: a one-line "what this does"
   - `tenantEditable`: the default for the lock
   - `sensitive`: true for `secret`
   - `scope`: `platform` (runtime config) or `layered` (today's user → entity → tenant → platform chain)
-- [ ] Fix the default `branding.accentColor` to `#2a9158` (D-53). Add a data migration that leaves explicitly set tenant values alone.
-- [ ] `RuntimeConfigService` (`platform/config/runtime-config.service.ts`):
+- [x] Fix the default `branding.accentColor` to `#2a9158` (D-53). Add a data migration that leaves explicitly set tenant values alone.
+- [x] `RuntimeConfigService` (`platform/config/runtime-config.service.ts`):
   - `get(key)` resolves database (`platform_config`), then `api.env`, then the default, with a 60-second Redis cache invalidated on write.
   - Secrets are decrypted with `CryptoService` only at the point of use.
-- [ ] Data: `platform_config` (`key` PK, `valueJson` for plain values, `secretEnc` for secrets, `updatedBy`, `updatedAt`). Secrets are never returned by any API; the API returns `{ isSet, updatedAt, updatedBy }`.
-- [ ] Move these keys into runtime config (keep the env names as fallbacks):
+- [x] Data: `platform_config` (`key` PK, `valueJson` for plain values, `secretEnc` for secrets, `updatedBy`, `updatedAt`). Secrets are never returned by any API; the API returns `{ isSet, updatedAt, updatedBy }`.
+- [x] Move these keys into runtime config _(R2 keys are editable but the storage driver reads them once at startup, so a change needs an API restart; the console says so. Error tracking test checks the DSN only; sending a real test event arrives with PR 8.)_ (keep the env names as fallbacks):
   - `SMTP_*`, `MAIL_FROM`
   - `GOOGLE_CLIENT_ID`
   - `CLOUDFLARE_*`, `DNS_TARGET_IP`
@@ -195,14 +195,14 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (from Phase 2 PR 8, D-72); `STORAGE_DRIVER` stays in `api.env`
   - `TENANT_URL_TEMPLATE`, `WEB_URL`, `ADMIN_URL`, `VERIFY_URL`, `API_URL`
   - Each consumer reads through `RuntimeConfigService`. `MailService` rebuilds its transport when SMTP settings change.
-- [ ] Test actions per group: `POST /v1/platform/config/test/:group` (smtp: connect, then EHLO; cloudflare: zone read; google: client id format; error tracking: send a test event). The result says what failed in plain words.
-- [ ] Step-up:
+- [x] Test actions per group: `POST /v1/platform/config/test/:group` (smtp: connect, then EHLO; cloudflare: zone read; google: client id format; error tracking: send a test event). The result says what failed in plain words.
+- [x] Step-up:
   - `POST /v1/auth/step-up` and `POST /v1/platform/auth/step-up` take a two-step code (or the password if the user has no two-step) and mark the session as stepped-up for 5 minutes.
   - `@RequireStepUp()` returns `403 { code: 'STEP_UP_REQUIRED' }`.
-- [ ] Request ID middleware: accept or generate `X-Request-Id`, put it in the async context, return it on every response and in every error body. PR 8 builds on it.
+- [x] Request ID middleware: accept or generate `X-Request-Id`, put it in the async context, return it on every response and in every error body. PR 8 builds on it.
 
 **Frontend**
-- [ ] `SettingControl` (`packages/ui/src/components/setting-control.tsx`) handles every new kind:
+- [x] `SettingControl` (`packages/ui/src/components/setting-control.tsx`) handles every new kind:
   - colour: picker plus hex, with a swatch
   - font: dropdown with a live sample, from the curated list in PR 7
   - image: upload with preview and remove
@@ -210,105 +210,105 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - list: chips
   - timezone: searchable select
   - longtext: textarea
-- [ ] `StepUpDialog` (shared): appears automatically when an API call returns `STEP_UP_REQUIRED`, asks for the code, then retries the call.
-- [ ] Admin console, Settings, then Integrations: the runtime config groups with Test buttons.
+- [x] `StepUpDialog` (shared): appears automatically when an API call returns `STEP_UP_REQUIRED`, asks for the code, then retries the call.
+- [x] Admin console, Settings, then Integrations: the runtime config groups with Test buttons.
 
 **Done when:** the super admin changes the SMTP password in the console (after step-up), the Test button shows success, a password-reset email goes out through it, `api.env` is untouched, and the old value is not visible anywhere.
 
 ### PR 2 — Platform staff roles and support sessions (D-55, D-56)
 
 **Backend**
-- [ ] `platform-permissions.ts` catalogue, for example:
+- [x] `platform-permissions.ts` catalogue, for example:
   - `tenants.read`, `tenants.manage`, `tenants.users.read`, `tenants.users.manage`, `tenants.data.read`, `tenants.data.write`
   - `staff.manage`, `roles.manage`
   - `config.read`, `config.secrets.manage`
   - `email.manage`, `brand.manage`
   - `logs.read`, `logs.errors.detail`, `alerts.manage`
   - `platform.controls`
-- [ ] Data: `platform_roles` (`id`, `key`, `name`, `isPreset`), `platform_role_permissions`, `platform_users.roleId` (required).
+- [x] Data: `platform_roles` (`id`, `key`, `name`, `isPreset`), `platform_role_permissions`, `platform_users.roleId` (required).
   - Migration: every existing platform user becomes Owner.
   - Seed the presets:
     - **Owner:** everything
     - **Super admin:** everything except `staff.manage`, `roles.manage` and `config.secrets.manage`
     - **Support:** `tenants.read`, `tenants.users.read`, `logs.read`, and support sessions read-only
     - **Read-only auditor:** `tenants.read`, `logs.read`, platform audit read
-- [ ] `@RequirePlatformPermission(code)` guard. Every existing platform endpoint gets a code, and `PlatformGuard` loads permissions (cached).
-- [ ] Invariants, enforced in the service and covered by tests:
+- [x] `@RequirePlatformPermission(code)` guard. Every existing platform endpoint gets a code, and `PlatformGuard` loads permissions (cached).
+- [x] Invariants, enforced in the service and covered by tests:
   - At least one active Owner always.
   - You cannot remove your own `roles.manage`.
   - Only an Owner can grant Owner.
-- [ ] Support sessions:
+- [x] Support sessions:
   - Data: `support_sessions` (`tenantId`, `platformUserId`, `reason`, `mode: READ|WRITE`, `startedAt`, `expiresAt` (max 4 h, default 1 h), `endedAt`).
   - `POST /v1/platform/tenants/:id/support-sessions` issues a short-lived tenant-audience token flagged `support: { sessionId, mode }`.
   - READ mode rejects every non-GET request (one guard).
   - WRITE mode needs `tenants.data.write`.
   - Every request made in a session is audited in the tenant as actor `SUPPORT`.
-- [ ] The tenant sees support sessions: a banner in the web app while a session is active ("Flourishive support is viewing your account until 15:30, reason: …"), and a list in their Audit screen.
+- [x] The tenant sees support sessions: a banner in the web app while a session is active ("Flourishive support is viewing your account until 15:30, reason: …"), and a list in their Audit screen.
 
 **Frontend (admin)**
-- [ ] Staff screen: invite, assign role, suspend.
-- [ ] Roles screen: preset roles are read-only (they can be duplicated); custom roles use a permission checklist grouped by area, with plain-English descriptions.
-- [ ] Tenant detail: an "Open as support" button with reason and mode, opening the web app in a new tab with a top banner and an "End session" button.
-- [ ] Navigation and actions are hidden when the permission is missing.
+- [x] Staff screen: invite, assign role, suspend.
+- [x] Roles screen: preset roles are read-only (they can be duplicated); custom roles use a permission checklist grouped by area, with plain-English descriptions.
+- [x] Tenant detail: an "Open as support" button with reason and mode, opening the web app in a new tab with a top banner and an "End session" button.
+- [x] Navigation and actions are hidden when the permission is missing.
 
 **Done when:** a Support user can see tenants and logs but not keys. They open a 1-hour read-only session with a reason, the tenant admin sees the banner and the audit line, and a write attempt in that session is refused.
 
 ### PR 3 — Account and two-step management (D-63, D-64 except passkeys, D-65, D-66)
 
 **Backend**
-- [ ] Account action service, shared by the tenant and platform routes:
+- [x] Account action service, shared by the tenant and platform routes:
   - `reset-password` (emails a reset link and ends the user's sessions)
   - `reset-mfa` (clears the secret, recovery codes and trusted devices; the user enrols at next sign-in if the policy requires it)
   - `unlock` (clears the lockout counters in Redis)
   - `sign-out-everywhere`
   - `suspend` / `reactivate`
   - `resend-invite`
-  - `change-email`: pending until confirmed from the new address; the old address gets a notice with a "this wasn't me" link that cancels the change and locks the account for review
+  - `change-email`: pending until confirmed from the new address; the old address gets a notice with a "this wasn't me" link that cancels the change and locks the account for review _(NOT BUILT in this PR: deferred, needs its own confirmation flow)_
   - Each takes `{ reason }`, needs step-up, writes an audit entry and emails the user ("Your two-step sign-in was reset by <name> at <company>").
-- [ ] Routes:
+- [x] Routes:
   - tenant: `POST /v1/users/:id/actions/:action` (permission `users.manage`, plus the subset rule from D-63, never on yourself)
   - platform: `POST /v1/platform/tenants/:tid/users/:id/actions/:action` (`tenants.users.manage`) and `POST /v1/platform/staff/:id/actions/:action` (`staff.manage`; the Owner rules from PR 2)
-- [ ] Subset rule helper `canActOn(actor, target)`: the target's effective permissions must be a subset of the actor's. Unit-test it with tricky cases (equal roles, an entity-scoped role, the target holding a custom role).
-- [ ] Two-step policy (D-65):
+- [x] Subset rule helper `canActOn(actor, target)`: the target's effective permissions must be a subset of the actor's. Unit-test it with tricky cases (equal roles, an entity-scoped role, the target holding a custom role).
+- [x] Two-step policy (D-65):
   - Remove `mfaFloor` enforcement from `role-policy.service.ts`. Keep the column for history, ignore it, and drop it after one release.
   - Admin-role defaults stay REQUIRED.
   - `platform.superAdminMfa` accepts OFF, OPTIONAL and REQUIRED with no floor.
   - Self opt-out: `POST /v1/auth/mfa/disable` with password re-entry, allowed only when the effective policy is OFF or OPTIONAL. Same for platform staff.
-- [ ] Trusted devices:
+- [x] Trusted devices:
   - Data: `trusted_devices` and `platform_trusted_devices` (`userId`, `tokenHash`, `label` from the user agent, `createdAt`, `lastUsedAt`, `expiresAt`).
   - After a two-step success, "Remember this device" sets an httpOnly, SameSite=Strict cookie holding a random token.
   - Sign-in skips the code when the cookie matches and has not expired.
   - New settings: `security.trustedDeviceDays` (0 to 90, default 30; tenant and platform) and `security.adminSessionDays` (separate length for roles with any `*.manage` permission).
-- [ ] Email-code fallback: on the two-step step, "Email me a code instead" appears when the role policy allows it. This reuses the existing OTP service and is rate-limited.
-- [ ] Break-glass: `cli.ts platform-reset-mfa <email>` clears two-step for a platform user, ends their sessions, writes a platform audit entry with actor `SYSTEM_CLI`, and prints next steps. Document it in `docs/runbooks/vps-hosting.md`.
+- [x] Email-code fallback: on the two-step step, "Email me a code instead" appears when the role policy allows it. This reuses the existing OTP service and is rate-limited.
+- [x] Break-glass: `cli.ts platform-reset-mfa <email>` clears two-step for a platform user, ends their sessions, writes a platform audit entry with actor `SYSTEM_CLI`, and prints next steps. Document it in `docs/runbooks/vps-hosting.md`.
 
 **Frontend**
-- [ ] Web, People, then person detail, then an Account panel: status, last sign-in, two-step on or off, trusted devices count, and an Actions menu with a reason dialog and step-up.
-- [ ] Admin, Tenant detail, then Users: the same panel for any tenant user.
-- [ ] Admin, Staff: the same for platform staff.
-- [ ] My security (web and admin):
+- [x] Web, People, then person detail, then an Account panel: status, last sign-in, two-step on or off, trusted devices count, and an Actions menu with a reason dialog and step-up.
+- [x] Admin, Tenant detail, then Users: the same panel for any tenant user.
+- [x] Admin, Staff: the same for platform staff.
+- [x] My security (web and admin):
   - trusted devices list with revoke
   - "Turn off two-step" when allowed, with a red warning
   - email fallback toggle shown according to policy
-- [ ] Admin and web Policy screens show "who has two-step off" counts per role.
+- [ ] Admin and web Policy screens show "who has two-step off" counts per role. _(deferred)_
 
 **Done when:** a tenant admin resets a staff member's two-step and that person re-enrols. The same admin cannot reset a higher admin. A super admin turns platform two-step to OPTIONAL and turns their own off. A trusted device skips the code for 30 days. The break-glass command works on a test server.
 
 ### PR 4 — Passkeys (D-64)
 
-- [ ] Library: `@simplewebauthn/server` and `@simplewebauthn/browser`. Relying-party ID: the tenant host (`<slug>.flourishive.in` or the custom domain) for tenants, and `admin.flourishive.in` for platform staff.
-- [ ] Data: `passkeys` and `platform_passkeys` (`userId`, `credentialId`, `publicKey`, `counter`, `transports`, `label`, `createdAt`, `lastUsedAt`).
-- [ ] Registration from My security (needs step-up). A passkey counts as a second factor, and as password plus two-step in one step when used to sign in.
-- [ ] Sign-in: the email step offers "Use a passkey" when the browser supports it.
-- [ ] Policy: a passkey satisfies REQUIRED two-step. Admins can see and remove a user's passkeys through account actions.
-- [ ] Tests: registration and authentication ceremonies with the library's test vectors. Replay with an old counter is refused.
+- [x] Library: `@simplewebauthn/server` and `@simplewebauthn/browser`. Relying-party ID: the tenant host (`<slug>.flourishive.in` or the custom domain) for tenants, and `admin.flourishive.in` for platform staff. _(Built: the host of the browser's Origin; for staff it must equal `ADMIN_URL`.)_
+- [x] Data: `passkeys` and `platform_passkeys` (`userId`, `credentialId`, `publicKey`, `counter`, `transports`, `label`, `createdAt`, `lastUsedAt`).
+- [x] Registration from My security (needs step-up). A passkey counts as a second factor, and as password plus two-step in one step when used to sign in.
+- [x] Sign-in: the email step offers "Use a passkey" when the browser supports it.
+- [x] Policy: a passkey satisfies REQUIRED two-step. Admins can see and remove a user's passkeys through account actions. _(Built: the account panel shows the count, and Reset two-step also removes passkeys, in the company and staff routes and in the break-glass command.)_
+- [x] Tests: registration and authentication ceremonies with a software authenticator (`test/virtual-authenticator.ts`), not library vectors. Replay with an old counter is refused.
 
 **Done when:** an admin signs in with Touch ID on a Mac and Face ID on an iPhone without typing a code.
 
 ### PR 5 — Email senders, verification and delivery log (D-58, D-60)
 
 **Backend**
-- [ ] Data:
+- [x] Data:
   - `mail_senders` (`tenantId` nullable = platform):
     - `kind`: `PLATFORM_DEFAULT | VERIFIED_FROM | OWN_SMTP`
     - `fromName`, `fromAddress`, `replyTo`
@@ -316,23 +316,23 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
     - `status`: `DRAFT | VERIFYING | ACTIVE | FAILED`
     - `verifiedAt`, `lastTestAt`, `lastTestResult`, `dnsReport` (JSON)
   - `mail_deliveries`: `tenantId`, `event`, `to` (stored masked, e.g. `as***@gmail.com`, plus a hash for search), `senderId`, `status` (`QUEUED | SENT | FAILED`), `providerMessageId`, `error`, `attempts`, `requestId`, `createdAt`, `sentAt`.
-- [ ] Sending goes through the queue (`platform/queue`) with retries (3, with backoff). `MailService.send` picks the tenant's ACTIVE sender, else the platform default.
-- [ ] Verification flow `POST /v1/mail/senders/:id/verify/start`:
+- [x] Sending goes through the queue (`platform/queue`) with retries (3, with backoff). _(Built: the first attempt is inline, so codes and links are not held up waiting for the cron worker; a failure is logged and retried by the worker, 3 tries with backoff. The message is held in Redis for an hour for the retry; it is never stored in the database.)_ `MailService.send` picks the tenant's ACTIVE sender, else the platform default.
+- [x] Verification flow `POST /v1/mail/senders/:id/verify/start`:
   1. Email a 6-digit code to `fromAddress` (expires in 10 minutes, 5 attempts).
   2. `verify/confirm` with the code.
   3. Test send through the sender's own transport to the requesting admin.
   4. DNS report: SPF (TXT on the domain includes the provider), DKIM (selector entered by the admin, or common selectors tried), DMARC (`_dmarc` TXT). Each is shown as pass or warn with a fix-it hint written for a non-technical admin.
   5. `activate` is allowed only after steps 2 and 3.
-- [ ] SSRF guard for `OWN_SMTP`:
+- [x] SSRF guard for `OWN_SMTP`:
   - Resolve the host. Refuse private, loopback, link-local and metadata addresses.
   - Allow only ports 25, 465, 587 and 2525.
   - Time out after 10 seconds.
-- [ ] Permissions: tenant `email.manage` (new); platform `email.manage`. The super admin can do all of it for any tenant.
-- [ ] Delivery log API with filters (event, status, date, recipient search by hash) and `POST /v1/mail/deliveries/:id/resend`. For OTP, reset and invite events, resending re-runs the event to issue a fresh code or link.
+- [x] Permissions: tenant `email.manage` (new); platform `email.manage`. The super admin can do all of it for any tenant. _(Built: the super admin sees the email log across companies, can resend, and can switch a company back to the default sender. Setting up a sender on a company's behalf is not built; they can use a support session.)_
+- [x] Delivery log API with filters (event, status, date, recipient search by hash) and `POST /v1/mail/deliveries/:id/resend`. For OTP, reset and invite events, resending re-runs the event to issue a fresh code or link. _(Built differently: Resend sends the held copy while it is under an hour old. After that it says to repeat the action, for example Forgot password. Re-running each event is not built.)_
 
 **Frontend**
-- [ ] Settings, then Email: current sender card; "Use our own sender" wizard (choose a kind, enter details, verify the code, test, DNS report, activate); "Switch back to default".
-- [ ] Email log screen in web (tenant) and admin (platform, filter by tenant), with statuses, plain-English errors (for example "Gmail refused the login. Use an app password." mapped from common SMTP codes) and Resend.
+- [x] Settings, then Email: current sender card; "Use our own sender" wizard (choose a kind, enter details, verify the code, test, DNS report, activate); "Switch back to default".
+- [x] Email log screen in web (tenant) and admin (platform, filter by tenant), with statuses, plain-English errors (for example "Gmail refused the login. Use an app password." mapped from common SMTP codes) and Resend.
 
 **Done when:** a tenant admin connects their Google Workspace SMTP with an app password, verifies it, sees an amber DMARC warning with a fix hint, activates it, and an invite arrives from their address. A failed send shows in the log with a readable reason and resends successfully.
 

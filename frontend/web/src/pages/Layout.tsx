@@ -5,6 +5,8 @@ import {
   FileText,
   Home,
   KeyRound,
+  Mail,
+  MailCheck,
   Settings,
   LayoutTemplate,
   Stamp,
@@ -15,6 +17,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
+import { SupportBanner } from '../components/SupportBanner.tsx';
 import { useAuth } from '../lib/auth.tsx';
 import { go } from '../router.ts';
 
@@ -60,6 +63,13 @@ const NAV: Item[] = [
   },
   { id: 'audit', label: 'Audit log', icon: ClipboardList, group: 'Insights', needs: 'audit.read' },
   {
+    id: 'email-log',
+    label: 'Email log',
+    icon: MailCheck,
+    group: 'Insights',
+    needs: 'email.manage',
+  },
+  {
     id: 'roles',
     label: 'Roles & access',
     icon: KeyRound,
@@ -72,6 +82,13 @@ const NAV: Item[] = [
     icon: ShieldCheck,
     group: 'Administration',
     needs: 'roles.read',
+  },
+  {
+    id: 'email',
+    label: 'Email sender',
+    icon: Mail,
+    group: 'Administration',
+    needs: 'email.manage',
   },
   {
     id: 'company',
@@ -118,6 +135,7 @@ export function Layout({
   const section = group ?? undefined;
   return (
     <AppShell
+      banner={me?.support ? <SupportBanner support={me.support} staff={me.email} /> : undefined}
       brand={
         <span className="flex items-center gap-3" title={brand.appName}>
           <BrandMark />

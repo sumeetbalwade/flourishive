@@ -130,14 +130,15 @@ afterAll(async () => {
 });
 
 describe('two-step policy per role', () => {
-  it('lists each role with its floor, and refuses to go below it', async () => {
+  it('lists each role, and lets any level be chosen (floors are gone)', async () => {
     const res = await call('get', '/access/policies', adminToken).expect(200);
     const byKey = Object.fromEntries(
       res.body.map((r: { roleKey: string }) => [r.roleKey, r]),
     );
+    // D-65: floors are gone, so every role may be set to any level. Defaults still differ.
     expect(byKey.hr_lead).toMatchObject({
       mfaLevel: 'REQUIRED',
-      mfaFloor: 'REQUIRED',
+      mfaFloor: 'OFF',
     });
     expect(byKey.employee).toMatchObject({
       mfaLevel: 'OPTIONAL',
@@ -145,7 +146,10 @@ describe('two-step policy per role', () => {
     });
     await call('put', '/access/policies/hr_lead', adminToken)
       .send({ mfaLevel: 'OPTIONAL' })
-      .expect(400);
+      .expect(204);
+    await call('put', '/access/policies/hr_lead', adminToken)
+      .send({ mfaLevel: 'REQUIRED' })
+      .expect(204);
     await call('put', '/access/policies/manager', adminToken)
       .send({ mfaLevel: 'OFF', recoveryEmail: false })
       .expect(204);
@@ -165,21 +169,16 @@ describe('two-step policy per role', () => {
     ).toMatchObject({ isSystem: false, mfaLevel: 'REQUIRED', mfaFloor: 'OFF' });
   });
 
-  it('raising the platform floor lifts a company that was below it', async () => {
+  it('a platform floor no longer lifts a company (D-65)', async () => {
     await policies.setPlatformPolicy('manager', { mfaFloor: 'OPTIONAL' });
     const mgr = (await policies.tenantPolicies(tenantId)).find(
       (p) => p.roleKey === 'manager',
     );
-    expect(mgr).toMatchObject({ mfaLevel: 'OPTIONAL', mfaFloor: 'OPTIONAL' });
+    // D-65: the floor is ignored, so nothing is lifted.
+    expect(mgr).toMatchObject({ mfaLevel: 'OFF', mfaFloor: 'OFF' });
     await call('put', '/access/policies/manager', adminToken)
       .send({ mfaLevel: 'OFF' })
-      .expect(400);
-    await expect(
-      policies.setPlatformPolicy('manager', {
-        mfaLevel: 'OFF',
-        mfaFloor: 'OPTIONAL',
-      }),
-    ).rejects.toThrow();
+      .expect(204);
   });
 
   it('is enforced at sign-in by the strictest role', async () => {

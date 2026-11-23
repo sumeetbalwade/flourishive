@@ -41,6 +41,7 @@
     "@signpdf/placeholder-pdf-lib": "^4.0.0",
     "@signpdf/signpdf": "^4.0.0",
     "@signpdf/utils": "^4.0.0",
+    "@simplewebauthn/server": "^14.1.0",
     "bullmq": "^6.7.7",
     "cookie-parser": "^1.4.7",
     "csv-parse": "^7.0.3",

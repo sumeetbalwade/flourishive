@@ -1,4 +1,21 @@
 import {
+  accountActionResult,
+  accountListItem,
+  accountView,
+  securityInfo,
+  passkeyView,
+  senderState,
+  deliveriesResponse,
+  type DeliveryQuery,
+  type AccountAction,
+  platformRolesResponse,
+  platformRoleView,
+  supportSessionStarted,
+  supportSessionView,
+  type StartSupportBody,
+  systemInfo,
+  configTestResult,
+  runtimeConfigEntry,
   createTenantResponse,
   mfaSetupResponse,
   platformMe,
@@ -21,6 +38,7 @@ type Opts = Omit<HttpOptions, 'refreshPath'>;
 const platformLogin = z.object({
   status: z.enum(['ok', 'mfa_required', 'mfa_setup_required']),
   mfaToken: z.string().optional(),
+  methods: z.object({ code: z.boolean(), passkey: z.boolean() }).optional(),
   accessToken: z.string().optional(),
   expiresIn: z.number().optional(),
   refreshToken: z.string().optional(),
@@ -51,7 +69,55 @@ export function createPlatformClient(opts: Opts) {
             auth: false,
           }),
         ),
-      mfaVerify: async (body: { mfaToken: string; code?: string; recoveryCode?: string }) =>
+      passkeyRegisterOptions: () =>
+        http.request('POST', '/platform/auth/passkeys/register/options', { schema: z.any() }),
+      passkeyRegister: (response: unknown, label?: string) =>
+        http.request('POST', '/platform/auth/passkeys/register/verify', {
+          json: { response, label },
+          schema: passkeyView,
+        }),
+      passkeyRemove: (id: string) => http.request('DELETE', `/platform/auth/passkeys/${id}`),
+      /** Sign in with a passkey alone (no email or password). */
+      passkeyLoginOptions: () =>
+        http.request('POST', '/platform/auth/passkeys/login/options', {
+          schema: z.any(),
+          auth: false,
+        }),
+      passkeyLogin: async (response: unknown) =>
+        adopt(
+          await http.request('POST', '/platform/auth/passkeys/login/verify', {
+            json: { response },
+            schema: tokensResponse,
+            auth: false,
+          }),
+        ),
+      mfaPasskeyOptions: (mfaToken: string) =>
+        http.request('POST', '/platform/auth/mfa/passkey/options', {
+          json: { mfaToken },
+          schema: z.any(),
+          auth: false,
+        }),
+      mfaPasskeyVerify: async (mfaToken: string, response: unknown) =>
+        adopt(
+          await http.request('POST', '/platform/auth/mfa/passkey/verify', {
+            json: { mfaToken, response },
+            schema: tokensResponse,
+            auth: false,
+          }),
+        ),
+      mfaEmailCode: (mfaToken: string) =>
+        http.request('POST', '/platform/auth/mfa/email-code', { json: { mfaToken }, auth: false }),
+      security: () => http.request('GET', '/platform/auth/security', { schema: securityInfo }),
+      revokeDevice: (id: string) => http.request('DELETE', `/platform/auth/trusted-devices/${id}`),
+      mfaDisable: (password: string) =>
+        http.request('POST', '/platform/auth/mfa/disable', { json: { password } }),
+      mfaVerify: async (body: {
+        mfaToken: string;
+        code?: string;
+        recoveryCode?: string;
+        emailCode?: string;
+        remember?: boolean;
+      }) =>
         adopt(
           await http.request('POST', '/platform/auth/mfa/verify', {
             json: body,
@@ -92,10 +158,81 @@ export function createPlatformClient(opts: Opts) {
           auth: false,
         }),
       me: () => http.request('GET', '/platform/auth/me', { schema: platformMe }),
+      /** Confirm it is you (authenticator code, or the password if there is no two-step). Lasts five minutes. */
+      stepUp: (body: { code?: string; password?: string }) =>
+        http.request('POST', '/platform/auth/step-up', { json: body }),
       logout: async () => {
         await http.request('POST', '/platform/auth/logout');
         http.setAccessToken(null);
       },
+    },
+
+    /** The email log across companies, and a company's sender (D-58, D-60). */
+    mail: {
+      deliveries: (query: Partial<DeliveryQuery> = {}) =>
+        http.request('GET', '/platform/mail/deliveries', { query, schema: deliveriesResponse }),
+      resend: (id: string) => http.request('POST', `/platform/mail/deliveries/${id}/resend`),
+      tenantSender: (tenantId: string) =>
+        http.request('GET', `/platform/mail/tenants/${tenantId}/sender`, { schema: senderState }),
+      removeTenantSender: (tenantId: string) =>
+        http.request('DELETE', `/platform/mail/tenants/${tenantId}/sender`),
+    },
+
+    /** Account actions on a company's users and on other staff (D-63). */
+    accounts: {
+      users: (tenantId: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/users`, {
+          schema: z.array(accountListItem),
+        }),
+      account: (tenantId: string, id: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/users/${id}/account`, {
+          schema: accountView,
+        }),
+      act: (tenantId: string, id: string, action: AccountAction, reason: string) =>
+        http.request('POST', `/platform/tenants/${tenantId}/users/${id}/actions/${action}`, {
+          json: { reason },
+          schema: accountActionResult,
+        }),
+      staff: (id: string) =>
+        http.request('GET', `/platform/staff/${id}/account`, { schema: accountView }),
+      staffAct: (id: string, action: AccountAction, reason: string) =>
+        http.request('POST', `/platform/staff/${id}/actions/${action}`, {
+          json: { reason },
+          schema: accountActionResult,
+        }),
+    },
+
+    roles: {
+      /** The roles with what each may do, and the permission catalogue with plain-English labels. */
+      list: () => http.request('GET', '/platform/roles', { schema: platformRolesResponse }),
+      create: (body: { name: string; description?: string; permissions: string[] }) =>
+        http.request('POST', '/platform/roles', { json: body, schema: platformRoleView }),
+      update: (id: string, body: { name?: string; description?: string; permissions?: string[] }) =>
+        http.request('PATCH', `/platform/roles/${id}`, { json: body }),
+      remove: (id: string) => http.request('DELETE', `/platform/roles/${id}`),
+      assign: (userId: string, roleId: string) =>
+        http.request('PUT', `/platform/users/${userId}/role`, { json: { roleId } }),
+    },
+
+    support: {
+      /** Opens a company with a reason. The result has the address to open (the token is in it). */
+      start: (tenantId: string, body: StartSupportBody) =>
+        http.request('POST', `/platform/tenants/${tenantId}/support-sessions`, {
+          json: body,
+          schema: supportSessionStarted,
+        }),
+      list: (tenantId: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/support-sessions`, {
+          schema: z.array(supportSessionView),
+        }),
+      end: (sessionId: string) =>
+        http.request('POST', `/platform/support-sessions/${sessionId}/end`),
+    },
+
+    system: {
+      info: () => http.request('GET', '/platform/system', { schema: systemInfo }),
+      /** Stops the API; the server starts it again within seconds. Needs a fresh confirmation. */
+      restart: () => http.request('POST', '/platform/system/restart'),
     },
 
     diagnostics: {
@@ -126,8 +263,11 @@ export function createPlatformClient(opts: Opts) {
 
     staff: {
       list: () => http.request('GET', '/platform/users', { schema: z.array(staffItem) }),
-      invite: (email: string) =>
-        http.request('POST', '/platform/users', { json: { email }, schema: staffInviteResponse }),
+      invite: (email: string, roleId: string) =>
+        http.request('POST', '/platform/users', {
+          json: { email, roleId },
+          schema: staffInviteResponse,
+        }),
       setStatus: (id: string, status: 'ACTIVE' | 'DISABLED') =>
         http.request('PATCH', `/platform/users/${id}`, { json: { status } }),
     },
@@ -139,6 +279,18 @@ export function createPlatformClient(opts: Opts) {
       set: (key: string, change: { value?: unknown; locked?: boolean }) =>
         http.request('PUT', `/platform/settings/${key}`, { json: change }),
       clear: (key: string) => http.request('DELETE', `/platform/settings/${key}`),
+    },
+
+    /** Keys, mail server and addresses (D-57). Secrets are write-only: only whether they are set comes back. */
+    config: {
+      list: () => http.request('GET', '/platform/config', { schema: z.array(runtimeConfigEntry) }),
+      set: (key: string, value: string | number | boolean) =>
+        http.request('PUT', `/platform/config/${key}`, { json: { value } }),
+      clear: (key: string) => http.request('DELETE', `/platform/config/${key}`),
+      test: (group: string) =>
+        http.request('POST', `/platform/config/test/${group.toLowerCase().replace(/\s+/g, '-')}`, {
+          schema: configTestResult,
+        }),
     },
 
     policies: {

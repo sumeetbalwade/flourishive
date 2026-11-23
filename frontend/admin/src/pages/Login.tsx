@@ -6,11 +6,12 @@ import { RecoveryCodes } from '../components/RecoveryCodes.tsx';
 import { useApi } from '../lib/api.tsx';
 import { useAuth } from '../lib/auth.tsx';
 import { messageOf } from '../lib/errors.ts';
+import { passkeysSupported, answerPasskey } from '../lib/passkeys.ts';
 import { go } from '../router.ts';
 
 type Step =
   | { kind: 'credentials' }
-  | { kind: 'mfa'; token: string }
+  | { kind: 'mfa'; token: string; methods: { code: boolean; passkey: boolean } }
   | { kind: 'enrol'; token: string }
   | { kind: 'email'; token: string }
   | { kind: 'codes'; codes: string[] };
@@ -22,6 +23,8 @@ export function Login() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [recovery, setRecovery] = useState(false);
+  const [emailMode, setEmailMode] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [code, setCode] = useState('');
 
   const finish = async () => {
@@ -106,7 +109,9 @@ export function Login() {
             <button
               type="button"
               className="text-sm text-muted underline"
-              onClick={() => setStep({ kind: 'mfa', token })}
+              onClick={() =>
+                setStep({ kind: 'mfa', token, methods: { code: true, passkey: false } })
+              }
             >
               Back
             </button>
@@ -117,15 +122,61 @@ export function Login() {
   }
   if (step.kind === 'mfa') {
     const token = step.token;
-    const ready = recovery ? code.trim().length >= 8 : code.length === 6;
+    const methods = step.methods;
+    const viaPasskey = async () => {
+      setBusy(true);
+      setError('');
+      try {
+        const options = await api.auth.mfaPasskeyOptions(token);
+        await api.auth.mfaPasskeyVerify(token, await answerPasskey(options));
+        await finish();
+      } catch (err) {
+        setError(messageOf(err));
+        setBusy(false);
+      }
+    };
+    if (methods.passkey && !methods.code)
+      return (
+        <Frame>
+          <Card className="p-8">
+            <h1 className="font-display text-3xl">Confirm with your passkey</h1>
+            <p className="mt-2 text-sm text-muted">
+              Use your fingerprint, face or screen lock to finish signing in.
+            </p>
+            {error ? (
+              <p role="alert" className="mt-3 text-sm text-danger">
+                {error}
+              </p>
+            ) : null}
+            <Button
+              className="mt-6 w-full"
+              size="lg"
+              loading={busy}
+              onClick={() => void viaPasskey()}
+            >
+              Use my passkey
+            </Button>
+            <button
+              type="button"
+              className="mt-4 text-sm text-faint underline"
+              onClick={() => setStep({ kind: 'credentials' })}
+            >
+              Back to sign in
+            </button>
+          </Card>
+        </Frame>
+      );
+    const ready = recovery && !emailMode ? code.trim().length >= 8 : code.length === 6;
     return (
       <Frame>
         <Card className="p-8">
           <h1 className="font-display text-3xl">Two-step check</h1>
           <p className="mt-2 text-sm text-muted">
-            {recovery
-              ? 'Enter one of your recovery codes.'
-              : 'Enter the 6-digit code from your authenticator app.'}
+            {emailMode
+              ? 'We emailed a 6-digit code to your account. Enter it here.'
+              : recovery
+                ? 'Enter one of your recovery codes.'
+                : 'Enter the 6-digit code from your authenticator app.'}
           </p>
           <form
             className="mt-6 grid gap-4"
@@ -135,9 +186,11 @@ export function Login() {
               setError('');
               try {
                 await api.auth.mfaVerify(
-                  recovery
-                    ? { mfaToken: token, recoveryCode: code.trim() }
-                    : { mfaToken: token, code },
+                  emailMode
+                    ? { mfaToken: token, emailCode: code, remember }
+                    : recovery
+                      ? { mfaToken: token, recoveryCode: code.trim(), remember }
+                      : { mfaToken: token, code, remember },
                 );
                 await finish();
               } catch (err) {
@@ -167,9 +220,41 @@ export function Login() {
                 placeholder={recovery ? 'xxxxx-xxxxx' : '000000'}
               />
             </Field>
+            <label className="flex items-center gap-2 text-sm text-muted">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="h-4 w-4 accent-[var(--accent)]"
+              />
+              Remember this device (skip the code here for a while)
+            </label>
             <Button type="submit" size="lg" disabled={!ready || busy}>
               {busy ? 'Checking…' : 'Verify'}
             </Button>
+            {!emailMode ? (
+              <button
+                type="button"
+                className="text-sm text-muted underline"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  setError('');
+                  try {
+                    await api.auth.mfaEmailCode(token);
+                    setEmailMode(true);
+                    setRecovery(false);
+                    setCode('');
+                  } catch (err) {
+                    setError(messageOf(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Email me a sign-in code instead
+              </button>
+            ) : null}
             <button
               type="button"
               className="text-sm text-muted underline"
@@ -181,6 +266,16 @@ export function Login() {
             >
               {recovery ? 'Use my authenticator app' : 'Lost your phone? Use a recovery code'}
             </button>
+            {methods.passkey ? (
+              <button
+                type="button"
+                className="text-sm text-muted underline"
+                disabled={busy}
+                onClick={() => void viaPasskey()}
+              >
+                Use a passkey instead
+              </button>
+            ) : null}
             <button
               type="button"
               className="text-sm text-muted underline"
@@ -199,7 +294,7 @@ export function Login() {
                 }
               }}
             >
-              No phone or codes? Email me a code
+              No phone or codes? Email me a code to reset my authenticator
             </button>
           </form>
         </Card>
@@ -231,7 +326,11 @@ export function Login() {
               }
               setStep(
                 r.status === 'mfa_required'
-                  ? { kind: 'mfa', token: r.mfaToken }
+                  ? {
+                      kind: 'mfa',
+                      token: r.mfaToken,
+                      methods: r.methods ?? { code: true, passkey: false },
+                    }
                   : { kind: 'enrol', token: r.mfaToken },
               );
               setBusy(false);
@@ -250,6 +349,28 @@ export function Login() {
           <Button type="submit" size="lg" loading={busy} disabled={busy}>
             {busy ? 'Signing in…' : 'Continue'}
           </Button>
+          {passkeysSupported() ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError('');
+                try {
+                  const options = await api.auth.passkeyLoginOptions();
+                  await api.auth.passkeyLogin(await answerPasskey(options));
+                  await finish();
+                } catch (err) {
+                  setError(messageOf(err));
+                  setBusy(false);
+                }
+              }}
+            >
+              Sign in with a passkey
+            </Button>
+          ) : null}
         </form>
       </Card>
     </Frame>

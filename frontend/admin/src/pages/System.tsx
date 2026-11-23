@@ -2,6 +2,7 @@ import { Badge, Button, Card, CardTitle } from '@flourishive/ui';
 import { useMutation } from '@tanstack/react-query';
 import { useApi } from '../lib/api.tsx';
 import { messageOf } from '../lib/errors.ts';
+import { RestartApi } from '../components/RestartApi.tsx';
 import { Layout } from './Layout.tsx';
 
 /** Checks that run on demand. For now: is file storage working? */
@@ -51,6 +52,16 @@ export function System() {
             {messageOf(storage.error)}
           </p>
         ) : null}
+      </Card>
+      <Card className="mt-5 grid max-w-xl gap-3 p-5">
+        <CardTitle>API</CardTitle>
+        <p className="text-sm text-muted">
+          Restarting applies settings that are read once at startup, such as the file storage keys.
+          It is only available on the server, where the service starts the API again by itself.
+        </p>
+        <div>
+          <RestartApi size="md" />
+        </div>
       </Card>
     </Layout>
   );

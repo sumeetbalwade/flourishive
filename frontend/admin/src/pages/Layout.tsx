@@ -1,15 +1,67 @@
 import { AppShell, BrandMark, brand, type NavItem } from '@flourishive/ui';
-import { Activity, Building2, Settings, ShieldCheck, Users } from 'lucide-react';
+import {
+  Activity,
+  Building2,
+  KeyRound,
+  MailCheck,
+  Settings,
+  ShieldCheck,
+  UserCog,
+  Users,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useAuth } from '../lib/auth.tsx';
+import { useAuth, useCan } from '../lib/auth.tsx';
+import { INTEGRATION_SECTIONS } from '../lib/integration-sections.ts';
 import { go } from '../router.ts';
 
-const NAV: NavItem[] = [
-  { id: 'tenants', label: 'Tenants', icon: Building2, group: 'Overview' },
-  { id: 'settings', label: 'Platform defaults', icon: Settings, group: 'Platform' },
-  { id: 'policy', label: 'Security policy', icon: ShieldCheck, group: 'Platform' },
-  { id: 'users', label: 'Platform staff', icon: Users, group: 'Platform' },
-  { id: 'system', label: 'System checks', icon: Activity, group: 'Platform' },
+type Item = NavItem & { needs?: string[] };
+const NAV: Item[] = [
+  { id: 'tenants', label: 'Tenants', icon: Building2, group: 'Overview', needs: ['tenants.read'] },
+  {
+    id: 'settings',
+    label: 'Platform defaults',
+    icon: Settings,
+    group: 'Platform',
+    needs: ['config.read'],
+  },
+  {
+    id: 'policy',
+    label: 'Security policy',
+    icon: ShieldCheck,
+    group: 'Platform',
+    needs: ['config.read'],
+  },
+  {
+    id: 'integrations',
+    label: 'Integrations',
+    icon: KeyRound,
+    group: 'Platform',
+    children: INTEGRATION_SECTIONS,
+    needs: ['config.read'],
+  },
+  {
+    id: 'email-log',
+    label: 'Email log',
+    icon: MailCheck,
+    group: 'Platform',
+    needs: ['email.manage'],
+  },
+  { id: 'users', label: 'Platform staff', icon: Users, group: 'Platform', needs: ['staff.manage'] },
+  {
+    id: 'roles',
+    label: 'Staff roles',
+    icon: UserCog,
+    group: 'Platform',
+    needs: ['roles.manage', 'staff.manage'],
+  },
+  {
+    id: 'system',
+    label: 'System checks',
+    icon: Activity,
+    group: 'Platform',
+    needs: ['config.read'],
+  },
+  { id: 'security', label: 'My security', icon: ShieldCheck, group: 'Account' },
 ];
 
 export function Layout({
@@ -24,6 +76,8 @@ export function Layout({
   children: ReactNode;
 }) {
   const auth = useAuth();
+  const can = useCan();
+  const nav = NAV.filter((n) => !n.needs || can(...n.needs));
   return (
     <AppShell
       brand={
@@ -34,12 +88,15 @@ export function Layout({
           </span>
         </span>
       }
-      nav={NAV}
+      nav={nav}
       active={active}
       onNavigate={(id) => go(`/${id}`)}
-      user={{ name: auth.state.status === 'authed' ? auth.state.email : '…', role: 'Super admin' }}
+      user={{
+        name: auth.state.status === 'authed' ? auth.state.email : '…',
+        role: auth.state.status === 'authed' ? (auth.state.role?.name ?? 'Staff') : '',
+      }}
       onSignOut={() => void auth.signOut()}
-      crumbs={['Console', NAV.find((n) => n.id === active)?.group ?? '']}
+      crumbs={['Console', NAV.find((n) => n.id === active.split('/')[0])?.group ?? '']}
       title={title}
       actions={actions}
     >

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  NotFoundException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -8,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { RedisService } from '../../platform/cache/redis.service.js';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
@@ -18,11 +20,26 @@ import { PasswordService } from '../identity/password.service.js';
 import { ThrottleService } from '../identity/throttle.service.js';
 import { TokenService, sha256 } from '../identity/token.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { TrustedDeviceService } from '../identity/trusted-device.service.js';
+import {
+  PasskeyService,
+  type RelyingParty,
+} from '../identity/passkey.service.js';
+import type {
+  AuthenticationResponseJSON,
+  RegistrationResponseJSON,
+} from '@simplewebauthn/server';
+import { PlatformRolesService } from './platform-roles.service.js';
+import { OWNER_ROLE_ID } from './platform-permissions.js';
 import { PlatformAuditService } from './platform-audit.service.js';
 
 export type PlatformLogin =
   | { status: 'ok'; tokens: PlatformTokens }
-  | { status: 'mfa_required'; mfaToken: string }
+  | {
+      status: 'mfa_required';
+      mfaToken: string;
+      methods: { code: boolean; passkey: boolean };
+    }
   | { status: 'mfa_setup_required'; mfaToken: string };
 
 export interface PlatformTokens {
@@ -52,6 +69,10 @@ export class PlatformAuthService {
     private readonly settings: SettingsService,
     private readonly otp: OtpService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly roles: PlatformRolesService,
+    private readonly runtime: RuntimeConfigService,
+    private readonly devices: TrustedDeviceService,
+    private readonly passkeys: PasskeyService,
   ) {}
 
   private db() {
@@ -67,6 +88,7 @@ export class PlatformAuthService {
   async login(
     input: { email: string; password: string },
     meta: { ip?: string; userAgent?: string },
+    trustedToken?: string,
   ): Promise<PlatformLogin> {
     const ip = meta.ip;
     const email = input.email.toLowerCase();
@@ -85,27 +107,53 @@ export class PlatformAuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
     await this.throttle.clear('login', keys[0]!);
+    const scope = { kind: 'platform' as const };
+    const hasPasskey = (await this.passkeys.count(scope, user.id)) > 0;
     // Someone who already enrolled is always asked for a code; otherwise the platform policy decides.
     if (
       !user.mfaEnabledAt &&
+      !hasPasskey &&
       (await this.settings.getPlatform('platform.superAdminMfa')) !== 'REQUIRED'
     )
       return { status: 'ok', tokens: await this.startSession(user.id, meta) };
-    const purpose = user.mfaEnabledAt ? 'mfa-verify' : 'mfa-setup';
-    const mfaToken = await this.tokens.signPlatformMfa({
-      platformUserId: user.id,
-      purpose,
-    });
+    // A remembered device skips the code (D-64).
+    if (
+      user.mfaEnabledAt &&
+      (await this.devices.check(scope, user.id, trustedToken))
+    )
+      return { status: 'ok', tokens: await this.startSession(user.id, meta) };
+    // A passkey is a second factor too, and it satisfies a REQUIRED policy.
+    if (!user.mfaEnabledAt && !hasPasskey) {
+      return {
+        status: 'mfa_setup_required',
+        mfaToken: await this.tokens.signPlatformMfa({
+          platformUserId: user.id,
+          purpose: 'mfa-setup',
+        }),
+      };
+    }
     return {
-      status: user.mfaEnabledAt ? 'mfa_required' : 'mfa_setup_required',
-      mfaToken,
+      status: 'mfa_required',
+      mfaToken: await this.tokens.signPlatformMfa({
+        platformUserId: user.id,
+        purpose: 'mfa-verify',
+      }),
+      methods: { code: Boolean(user.mfaEnabledAt), passkey: hasPasskey },
     };
   }
 
   async verifyMfa(
-    input: { mfaToken: string; code?: string; recoveryCode?: string },
+    input: {
+      mfaToken: string;
+      code?: string;
+      recoveryCode?: string;
+      emailCode?: string;
+      remember?: boolean;
+    },
     meta: { ip?: string; userAgent?: string },
-  ): Promise<PlatformTokens> {
+  ): Promise<
+    PlatformTokens & { trustedDevice?: { token: string; maxAgeMs: number } }
+  > {
     const c = await this.tokens.verifyPlatformMfa(input.mfaToken);
     if (c.purpose !== 'mfa-verify')
       throw new UnauthorizedException('Invalid token');
@@ -113,7 +161,16 @@ export class PlatformAuthService {
     await this.throttle.assertNotLocked('mfa', key);
     const user = await this.user(c.platformUserId);
     let ok = false;
-    if (user?.status === 'ACTIVE' && user.mfaSecretEnc) {
+    if (user?.status === 'ACTIVE' && user.mfaEnabledAt && input.emailCode) {
+      // "Email me a code instead", where platform recovery by email is allowed.
+      ok =
+        (await this.settings.getPlatform('platform.superAdminRecoveryEmail')) &&
+        (await this.otp.verify(
+          'platform-mfa-signin',
+          user.id,
+          input.emailCode,
+        ));
+    } else if (user?.status === 'ACTIVE' && user.mfaSecretEnc) {
       if (input.code) {
         ok = await this.mfa.verifyCode(user.mfaSecretEnc, input.code);
         if (ok)
@@ -146,7 +203,236 @@ export class PlatformAuthService {
       throw new UnauthorizedException('Invalid code');
     }
     await this.throttle.clear('mfa', key);
-    return this.startSession(user.id, meta);
+    const tokens = await this.startSession(user.id, meta);
+    const days = input.remember
+      ? await this.settings.getPlatform('platform.trustedDeviceDays')
+      : 0;
+    const trustedDevice = await this.devices.remember(
+      { kind: 'platform' },
+      user.id,
+      meta.userAgent,
+      days,
+    );
+    return { ...tokens, ...(trustedDevice ? { trustedDevice } : {}) };
+  }
+
+  async startMfaEmailCode(mfaToken: string): Promise<void> {
+    const c = await this.tokens.verifyPlatformMfa(mfaToken);
+    if (c.purpose !== 'mfa-verify')
+      throw new UnauthorizedException('Invalid token');
+    const key = `platform:user:${c.platformUserId}`;
+    await this.throttle.assertNotLocked('reset', key);
+    await this.throttle.recordFailure('reset', key);
+    if (!(await this.settings.getPlatform('platform.superAdminRecoveryEmail')))
+      throw new ForbiddenException(
+        'Signing in with an emailed code is turned off for platform staff',
+      );
+    const user = await this.user(c.platformUserId);
+    if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
+    const code = await this.otp.issue('platform-mfa-signin', user.id, 600);
+    await this.mail.send({
+      event: 'platform.signin_code',
+      to: user.email,
+      subject: `Your ${this.config.APP_NAME} admin code: ${code}`,
+      text: `Your one-time sign-in code is ${code}. It works once and expires in 10 minutes.\n\nIf you did not ask for it, change your password now.`,
+    });
+  }
+
+  private static readonly SCOPE = { kind: 'platform' as const };
+
+  /** Second step by passkey, after the password. */
+  async mfaPasskeyOptions(mfaToken: string, rp: RelyingParty) {
+    const c = await this.tokens.verifyPlatformMfa(mfaToken);
+    if (c.purpose !== 'mfa-verify')
+      throw new UnauthorizedException('Invalid token');
+    await this.throttle.assertNotLocked(
+      'mfa',
+      `platform:user:${c.platformUserId}`,
+    );
+    return this.passkeys.authenticationOptions(
+      PlatformAuthService.SCOPE,
+      rp,
+      c.platformUserId,
+    );
+  }
+
+  async verifyMfaPasskey(
+    input: { mfaToken: string; response: AuthenticationResponseJSON },
+    rp: RelyingParty,
+    meta: { ip?: string; userAgent?: string },
+  ): Promise<PlatformTokens> {
+    const c = await this.tokens.verifyPlatformMfa(input.mfaToken);
+    if (c.purpose !== 'mfa-verify')
+      throw new UnauthorizedException('Invalid token');
+    const key = `platform:user:${c.platformUserId}`;
+    await this.throttle.assertNotLocked('mfa', key);
+    try {
+      const user = await this.user(c.platformUserId);
+      if (user?.status !== 'ACTIVE') throw new UnauthorizedException();
+      await this.passkeys.authenticationVerify(
+        PlatformAuthService.SCOPE,
+        input.response,
+        rp,
+        c.platformUserId,
+      );
+    } catch (e) {
+      await this.throttle.recordFailure('mfa', key);
+      throw e;
+    }
+    await this.throttle.clear('mfa', key);
+    return this.startSession(c.platformUserId, meta);
+  }
+
+  /** Sign in with a passkey alone. */
+  passkeyLoginOptions(rp: RelyingParty) {
+    return this.passkeys.authenticationOptions(PlatformAuthService.SCOPE, rp);
+  }
+
+  async passkeyLogin(
+    response: AuthenticationResponseJSON,
+    rp: RelyingParty,
+    meta: { ip?: string; userAgent?: string },
+  ): Promise<PlatformTokens> {
+    const key = `platform:ip:${meta.ip ?? 'unknown'}`;
+    await this.throttle.assertNotLocked('login', key);
+    try {
+      const { userId } = await this.passkeys.authenticationVerify(
+        PlatformAuthService.SCOPE,
+        response,
+        rp,
+      );
+      const user = await this.user(userId);
+      if (user?.status !== 'ACTIVE')
+        throw new UnauthorizedException('Passkey sign-in failed');
+      await this.throttle.clear('login', key);
+      await this.audit.record({
+        actorId: userId,
+        action: 'platform.login_passkey',
+        entityType: 'platform_users',
+        entityId: userId,
+        ip: meta.ip,
+      });
+      return await this.startSession(userId, meta);
+    } catch (e) {
+      await this.throttle.recordFailure('login', key);
+      throw e;
+    }
+  }
+
+  async passkeyRegisterOptions(userId: string, rp: RelyingParty) {
+    const user = await this.user(userId);
+    if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
+    return this.passkeys.registrationOptions(
+      PlatformAuthService.SCOPE,
+      { id: user.id, email: user.email },
+      rp,
+    );
+  }
+
+  async passkeyRegisterVerify(
+    userId: string,
+    input: { response: RegistrationResponseJSON; label?: string },
+    rp: RelyingParty,
+    meta: { ip?: string; userAgent?: string },
+  ) {
+    const view = await this.passkeys.registrationVerify(
+      PlatformAuthService.SCOPE,
+      userId,
+      input.response,
+      rp,
+      input.label,
+      meta.userAgent,
+    );
+    await this.audit.record({
+      actorId: userId,
+      action: 'platform.passkey_added',
+      entityType: 'platform_users',
+      entityId: userId,
+      meta: { label: view.label },
+      ip: meta.ip,
+    });
+    return view;
+  }
+
+  async removePasskey(userId: string, id: string, ip?: string) {
+    await this.passkeys.revoke(PlatformAuthService.SCOPE, userId, id);
+    await this.audit.record({
+      actorId: userId,
+      action: 'platform.passkey_removed',
+      entityType: 'platform_users',
+      entityId: userId,
+      ip,
+    });
+  }
+
+  /** What My security shows for platform staff. */
+  async securityInfo(userId: string) {
+    const user = await this.user(userId);
+    if (!user) throw new UnauthorizedException();
+    return {
+      mfaEnabled: Boolean(user.mfaEnabledAt),
+      canDisableMfa:
+        (await this.settings.getPlatform('platform.superAdminMfa')) !==
+        'REQUIRED',
+      emailFallback: await this.settings.getPlatform(
+        'platform.superAdminRecoveryEmail',
+      ),
+      trustedDeviceDays: await this.settings.getPlatform(
+        'platform.trustedDeviceDays',
+      ),
+      devices: await this.devices.list({ kind: 'platform' }, userId),
+      passkeys: await this.passkeys.list({ kind: 'platform' }, userId),
+    };
+  }
+
+  async revokeDevice(userId: string, id: string): Promise<void> {
+    await this.devices.revoke({ kind: 'platform' }, userId, id);
+    await this.audit.record({
+      actorId: userId,
+      action: 'platform.device_revoked',
+      entityType: 'platform_users',
+      entityId: userId,
+    });
+  }
+
+  /** Turns off your own two-step (D-65): only where the platform policy is not REQUIRED, after the password. */
+  async disableMfa(userId: string, password: string, ip?: string) {
+    const user = await this.user(userId);
+    if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
+    if (
+      (await this.settings.getPlatform('platform.superAdminMfa')) === 'REQUIRED'
+    )
+      throw new ForbiddenException(
+        'Two-step is required for platform staff right now, so it cannot be turned off.',
+      );
+    if (!user.mfaEnabledAt)
+      throw new ConflictException('Two-step is already off');
+    const key = `stepup:platform:user:${user.id}`;
+    await this.throttle.assertNotLocked('mfa', key);
+    if (
+      !user.passwordHash ||
+      !(await this.passwords.verify(password, user.passwordHash))
+    ) {
+      await this.throttle.recordFailure('mfa', key);
+      throw new UnauthorizedException('That password is not right');
+    }
+    await this.throttle.clear('mfa', key);
+    await runAsSystem(async () => {
+      await this.db().platformRecoveryCode.deleteMany({ where: { userId } });
+      await this.db().platformUser.update({
+        where: { id: userId },
+        data: { mfaSecretEnc: null, mfaEnabledAt: null },
+      });
+    });
+    await this.devices.revokeAll({ kind: 'platform' }, userId);
+    await this.audit.record({
+      actorId: userId,
+      action: 'platform.mfa_disabled',
+      entityType: 'platform_users',
+      entityId: userId,
+      meta: { by: 'self' },
+      ip,
+    });
   }
 
   /**
@@ -168,6 +454,7 @@ export class PlatformAuthService {
     if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
     const code = await this.otp.issue('platform-mfa', user.id, 600);
     await this.mail.send({
+      event: 'platform.recovery_code',
       to: user.email,
       subject: `Your ${this.config.APP_NAME} admin code: ${code}`,
       text: `Your one-time code is ${code}. It works once and expires in 10 minutes.\n\nIf you did not ask for it, change your password now.`,
@@ -412,13 +699,21 @@ export class PlatformAuthService {
   async me(userId: string) {
     const u = await this.user(userId);
     if (!u) throw new UnauthorizedException();
-    return { id: u.id, email: u.email, mfaEnabled: Boolean(u.mfaEnabledAt) };
+    return {
+      id: u.id,
+      email: u.email,
+      mfaEnabled: Boolean(u.mfaEnabledAt),
+      role: await this.roles.roleOf(u.id),
+      permissions: [...(await this.roles.permissionsOf(u.id))].sort(),
+    };
   }
 
   /** Creates or re-issues an invite. Returns the link so a CLI operator can hand it over. */
   async invite(
     email: string,
     actorId: string | null,
+    /** Defaults to Owner, so the very first member of staff (set up from the command line) can do everything. */
+    roleId: string = OWNER_ROLE_ID,
   ): Promise<{ id: string; link: string; emailed: boolean }> {
     const address = email.toLowerCase();
     const existing = await runAsSystem(
@@ -431,7 +726,9 @@ export class PlatformAuthService {
       existing ??
       (await runAsSystem(
         async () =>
-          await this.db().platformUser.create({ data: { email: address } }),
+          await this.db().platformUser.create({
+            data: { email: address, roleId },
+          }),
       ));
     const token = randomBytes(32).toString('base64url');
     await this.redis.setJson(
@@ -439,10 +736,11 @@ export class PlatformAuthService {
       { userId: user.id },
       7 * 24 * 3600,
     );
-    const link = `${this.config.ADMIN_URL}/#/set-password?token=${token}`;
+    const link = `${await this.runtime.require('ADMIN_URL')}/#/set-password?token=${token}`;
     let emailed = true;
     try {
       await this.mail.send({
+        event: 'platform.invite',
         to: address,
         subject: `You have been invited to the ${this.config.APP_NAME} admin console`,
         text: `Choose a password (link valid for 7 days):\n\n${link}`,
@@ -458,6 +756,63 @@ export class PlatformAuthService {
       meta: { emailed },
     });
     return { id: user.id, link, emailed };
+  }
+
+  /** Emails a link to choose a password (reset: one hour, invite: seven days). Returns the link for the console. */
+  async sendPasswordLink(
+    userId: string,
+    kind: 'reset' | 'invite',
+  ): Promise<{ link: string; emailed: boolean }> {
+    const user = await this.user(userId);
+    if (!user) throw new NotFoundException();
+    const token = randomBytes(32).toString('base64url');
+    await this.redis.setJson(
+      resetKey(token),
+      { userId },
+      kind === 'invite' ? 7 * 24 * 3600 : 3600,
+    );
+    const link = `${await this.runtime.require('ADMIN_URL')}/#/set-password?token=${token}`;
+    let emailed = true;
+    try {
+      await this.mail.send({
+        event:
+          kind === 'invite' ? 'platform.invite' : 'platform.password_reset',
+        to: user.email,
+        subject:
+          kind === 'invite'
+            ? `You have been invited to the ${this.config.APP_NAME} admin console`
+            : `Reset your ${this.config.APP_NAME} admin password`,
+        text: `Choose a password (link valid for ${kind === 'invite' ? '7 days' : 'one hour'}):\n\n${link}\n\nIf you did not expect this, tell another administrator.`,
+      });
+    } catch {
+      emailed = false;
+    }
+    return { link, emailed };
+  }
+
+  /** Ends every sign-in of a member of staff. */
+  async revokeAllSessions(userId: string): Promise<void> {
+    const ids = await runAsSystem(async () => {
+      const open = await this.db().platformSession.findMany({
+        where: { userId, revokedAt: null },
+        select: { id: true },
+      });
+      await this.db().platformSession.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      return open.map((s) => s.id);
+    });
+    await Promise.all(
+      ids.map((id) =>
+        this.redis.client.set(
+          revokedKey(id),
+          '1',
+          'EX',
+          this.config.ACCESS_TOKEN_TTL_SECONDS + 5,
+        ),
+      ),
+    );
   }
 
   async setPassword(token: string, password: string): Promise<void> {

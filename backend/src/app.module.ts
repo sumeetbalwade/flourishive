@@ -15,6 +15,7 @@ import { CompanyModule } from './modules/company/company.module.js';
 import { AccessModule } from './modules/access/access.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
+import { MailAdminModule } from './modules/mail/mail-admin.module.js';
 import { DatabaseModule } from './platform/database/database.module.js';
 import { CryptoModule } from './platform/crypto/crypto.module.js';
 import { HealthController } from './platform/health/health.controller.js';
@@ -32,6 +33,7 @@ import { StorageModule } from './platform/storage/storage.module.js';
     StorageModule,
     MailModule,
     IdentityModule,
+    MailAdminModule,
     CompanyModule,
     AccessModule,
     SettingsModule,

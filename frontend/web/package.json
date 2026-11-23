@@ -17,6 +17,7 @@
     "@flourishive/design-tokens": "workspace:*",
     "@flourishive/schemas": "workspace:*",
     "@flourishive/ui": "workspace:*",
+    "@simplewebauthn/browser": "^14.0.0",
     "@tanstack/react-query": "^5.108.0",
     "@tiptap/core": "^3.35.0",
     "@tiptap/extension-table": "^3.35.0",

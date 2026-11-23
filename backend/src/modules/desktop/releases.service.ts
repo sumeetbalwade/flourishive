@@ -4,13 +4,19 @@ import { StorageService } from '../../platform/storage/storage.service.js';
 
 export const MANIFEST_KEY = 'releases/desktop/manifest.json';
 
-const file = z.object({ key: z.string().min(1), sha256: z.string().length(64) });
+const file = z.object({
+  key: z.string().min(1),
+  sha256: z.string().length(64),
+});
 /** Written by `desktop/packaging/publish.py` when a new Flourishive Desktop is released. */
 export const manifestSchema = z.object({
   version: z.string().regex(/^\d+\.\d+\.\d+$/),
   notes: z.string().max(2000).optional(),
   /** Computers older than this must update before they can sign. */
-  minVersion: z.string().regex(/^\d+\.\d+\.\d+$/).optional(),
+  minVersion: z
+    .string()
+    .regex(/^\d+\.\d+\.\d+$/)
+    .optional(),
   /** Where the desktop app reports crashes; left out to report nowhere. */
   sentryDsn: z.string().url().optional(),
   files: z.object({ windows: file.optional(), macos: file.optional() }),
@@ -45,7 +51,10 @@ export class ReleasesService {
     const m = await this.manifest();
     const f = m?.files[platform];
     if (!m || !f)
-      return { updateAvailable: false as const, sentryDsn: m?.sentryDsn ?? null };
+      return {
+        updateAvailable: false as const,
+        sentryDsn: m?.sentryDsn ?? null,
+      };
     const newer = isOlder(current, m.version);
     const url = newer
       ? await this.storage.downloadUrl(f.key, {
@@ -62,7 +71,10 @@ export class ReleasesService {
       sha256: f.sha256,
       url,
       // Local storage has no direct link, so the app downloads through the API.
-      downloadPath: newer && !url ? `/v1/desktop/update/download?platform=${platform}` : null,
+      downloadPath:
+        newer && !url
+          ? `/v1/desktop/update/download?platform=${platform}`
+          : null,
       sentryDsn: m.sentryDsn ?? null,
     };
   }

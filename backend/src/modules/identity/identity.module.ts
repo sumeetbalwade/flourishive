@@ -11,6 +11,10 @@ import { GoogleService } from './google.service.js';
 import { MfaService } from './mfa.service.js';
 import { OtpService } from './otp.service.js';
 import { PasswordService } from './password.service.js';
+import { StepUpGuard, StepUpService } from './step-up.service.js';
+import { PasskeyService } from './passkey.service.js';
+import { TrustedDeviceService } from './trusted-device.service.js';
+import { AccountActionsService } from './account-actions.service.js';
 import { SessionService } from './session.service.js';
 import { TenantInterceptor } from './tenant.interceptor.js';
 import { ThrottleService } from './throttle.service.js';
@@ -26,6 +30,11 @@ import { TokenService } from './token.service.js';
     OtpService,
     PasswordService,
     SessionService,
+    TrustedDeviceService,
+    PasskeyService,
+    AccountActionsService,
+    StepUpService,
+    StepUpGuard,
     ThrottleService,
     TokenService,
     { provide: APP_GUARD, useClass: AuthGuard },
@@ -41,6 +50,11 @@ import { TokenService } from './token.service.js';
     SessionService,
     MfaService,
     OtpService,
+    TrustedDeviceService,
+    PasskeyService,
+    AccountActionsService,
+    StepUpService,
+    StepUpGuard,
     ThrottleService,
   ],
 })

@@ -23,6 +23,19 @@ If any is missing the API leaves DNS alone.
 ## Moving the server (new IP)
 Change `DNS_TARGET_IP`, restart the API, then call the endpoint above for each company; also update `@`, `app`, `admin`, `api`, `verify`, `www` by hand.
 
+## A staff member is locked out of two-step (break-glass)
+
+Another Owner can reset it in the console (Platform staff, then the person, then Actions, then Reset two-step). If no
+other Owner can, run this on the server, as the deploy user, from the app folder:
+
+```
+node dist/cli.js platform-reset-mfa --email=person@example.com
+```
+
+It clears their two-step, ends their sessions and writes `platform.mfa_reset_break_glass` (by `SYSTEM_CLI`) to the
+platform audit. They sign in with their password and set up two-step again. Check the audit line afterwards, and do not
+leave the command in shell history on a shared machine.
+
 ## Updating the app
 Merging to `main` deploys by itself: when CI passes on a push to `main`, `.github/workflows/deploy.yml` connects to the server
 and runs `04-deploy.sh`, then checks that `https://api.flourishive.in/v1/health` reports the new commit.

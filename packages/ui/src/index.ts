@@ -17,6 +17,22 @@ export {
   DialogContent,
   SheetContent,
 } from './components/dialog.tsx';
+export {
+  AccountPanel,
+  type AccountInfo,
+  type AccountActionName,
+} from './components/account-panel.tsx';
+export { SecurityExtras, type SecurityData } from './components/security-extras.tsx';
+export {
+  EmailLog,
+  describeMailEvent,
+  type EmailLogFilters,
+  type DeliveryItem,
+  type DeliveriesResponse,
+} from './components/email-log.tsx';
+export { PasskeysCard, type PasskeyItem } from './components/passkeys-card.tsx';
+export { CollapsibleSection } from './components/collapsible-section.tsx';
+export { SearchBox } from './components/search-box.tsx';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './components/tabs.tsx';
 export { Select } from './components/select.tsx';
 export { Table, THead, TBody, TR, TH, TD } from './components/table.tsx';
@@ -25,7 +41,12 @@ export { ToastProvider, useToast } from './components/toast.tsx';
 export { BarChart, LineChart, chartColors } from './components/chart.tsx';
 export { Switch } from './components/switch.tsx';
 export { Segmented, type SegmentOption } from './components/segmented.tsx';
-export { SettingControl, type SettingKind } from './components/setting-control.tsx';
+export { StepUpDialog } from './components/step-up-dialog.tsx';
+export {
+  SettingControl,
+  type SettingKind,
+  type SecretInfo,
+} from './components/setting-control.tsx';
 export {
   SettingsEditor,
   type SettingItem,

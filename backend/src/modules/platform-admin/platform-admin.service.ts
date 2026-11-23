@@ -3,6 +3,7 @@ import {
   BadGatewayException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -29,6 +30,7 @@ import {
   PLATFORM_TENANT_SLUG,
 } from './platform-audit.service.js';
 import { CompanyDnsService, type DnsResult } from './company-dns.service.js';
+import { PlatformRolesService } from './platform-roles.service.js';
 import { PlatformAuthService } from './platform-auth.service.js';
 
 export const suspendedKey = (tenantId: string) =>
@@ -47,6 +49,7 @@ export class PlatformAdminService {
     private readonly tenantAudit: AuditService,
     private readonly platformAuth: PlatformAuthService,
     private readonly dns: CompanyDnsService,
+    private readonly roles: PlatformRolesService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -274,13 +277,32 @@ export class PlatformAdminService {
           mfaEnabledAt: true,
           lastLoginAt: true,
           createdAt: true,
+          role: { select: { id: true, key: true, name: true } },
         },
       }),
     );
   }
 
-  inviteUser(actorId: string, email: string) {
-    return this.platformAuth.invite(email, actorId);
+  async inviteUser(actorId: string, email: string, roleId: string) {
+    const role = await runAsSystem(() =>
+      this.db.platformRole.findUnique({
+        where: { id: roleId },
+        include: { permissions: true },
+      }),
+    );
+    if (!role) throw new BadRequestException('Choose a role for them');
+    // Only an Owner invites an Owner, and nobody invites someone with powers they lack.
+    const [mine, actorRole] = await Promise.all([
+      this.roles.permissionsOf(actorId),
+      this.roles.roleOf(actorId),
+    ]);
+    if (role.key === 'owner' && actorRole?.key !== 'owner')
+      throw new ForbiddenException('Only an Owner can invite an Owner');
+    if (role.permissions.some((p) => !mine.has(p.permissionCode)))
+      throw new ForbiddenException(
+        'You cannot invite someone with powers you do not have yourself',
+      );
+    return this.platformAuth.invite(email, actorId, roleId);
   }
 
   async setUserStatus(
@@ -296,6 +318,8 @@ export class PlatformAdminService {
     if (!user) throw new NotFoundException();
     if (user.status === 'INVITED')
       throw new BadRequestException('They have not accepted the invite yet');
+    if (status === 'DISABLED')
+      await this.roles.assertOwnerRemains(id, 'disable');
     await runAsSystem(async () => {
       await this.db.platformUser.update({ where: { id }, data: { status } });
       if (status === 'DISABLED')

@@ -15,6 +15,8 @@ export const PERMISSIONS = {
   'settings.read': 'View tenant settings',
   'settings.manage': 'Change tenant settings',
   'audit.read': 'View the audit log',
+  'email.manage':
+    'Choose who company email is sent from, and see and resend the email log',
   'files.read': 'Download files',
   'files.write': 'Upload and delete files',
   'documents.read': 'View issued documents and templates',

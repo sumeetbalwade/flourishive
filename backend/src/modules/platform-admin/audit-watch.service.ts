@@ -82,6 +82,7 @@ export class AuditWatchService {
         `- ${b.slug}: ${b.reason ?? 'broken'}${b.seq ? ` (row ${b.seq})` : ''}`,
     );
     await this.mail.send({
+      event: 'platform.alert',
       to: admins.map((a) => a.email),
       subject: `${this.config.APP_NAME}: audit log integrity check FAILED`,
       text: `The nightly check found a problem in the audit log of ${result.broken.length} compan${

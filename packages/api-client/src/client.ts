@@ -1,4 +1,17 @@
 import {
+  accountActionResult,
+  accountListItem,
+  accountView,
+  securityInfo,
+  passkeyView,
+  senderState,
+  senderView,
+  testResult,
+  deliveriesResponse,
+  type SaveSenderBody,
+  type DeliveryQuery,
+  type AccountAction,
+  supportSessionView,
   auditListResponse,
   chainCheck,
   fileResponse,
@@ -226,7 +239,61 @@ export function createApiClient(opts: Opts) {
             auth: false,
           }),
         ),
-      mfaVerify: async (body: { mfaToken: string; code?: string; recoveryCode?: string }) =>
+      /** Passkeys. The browser half (`startRegistration`, `startAuthentication`) lives in the apps. */
+      passkeyRegisterOptions: () =>
+        http.request('POST', '/auth/passkeys/register/options', { schema: z.any() }),
+      passkeyRegister: (response: unknown, label?: string) =>
+        http.request('POST', '/auth/passkeys/register/verify', {
+          json: { response, label },
+          schema: passkeyView,
+        }),
+      passkeyRemove: (id: string) => http.request('DELETE', `/auth/passkeys/${id}`),
+      /** Sign in with a passkey alone (no email or password). */
+      passkeyLoginOptions: (tenant: string) =>
+        http.request('POST', '/auth/passkeys/login/options', {
+          json: { tenant },
+          schema: z.any(),
+          auth: false,
+        }),
+      passkeyLogin: async (tenant: string, response: unknown) =>
+        adopt(
+          await http.request('POST', '/auth/passkeys/login/verify', {
+            json: { tenant, response },
+            schema: tokensResponse,
+            auth: false,
+          }),
+        ),
+      /** The second step by passkey, after the password. */
+      mfaPasskeyOptions: (mfaToken: string) =>
+        http.request('POST', '/auth/mfa/passkey/options', {
+          json: { mfaToken },
+          schema: z.any(),
+          auth: false,
+        }),
+      mfaPasskeyVerify: async (mfaToken: string, response: unknown) =>
+        adopt(
+          await http.request('POST', '/auth/mfa/passkey/verify', {
+            json: { mfaToken, response },
+            schema: tokensResponse,
+            auth: false,
+          }),
+        ),
+      /** Emails a sign-in code (where the role's policy allows it), after the password step. */
+      mfaEmailCode: (mfaToken: string) =>
+        http.request('POST', '/auth/mfa/email-code', { json: { mfaToken }, auth: false }),
+      /** What My security shows: two-step state, what may be turned off, remembered devices. */
+      security: () => http.request('GET', '/auth/security', { schema: securityInfo }),
+      revokeDevice: (id: string) => http.request('DELETE', `/auth/trusted-devices/${id}`),
+      /** Turns off your own two-step (where the policy is not REQUIRED). Needs the password again. */
+      mfaDisable: (password: string) =>
+        http.request('POST', '/auth/mfa/disable', { json: { password } }),
+      mfaVerify: async (body: {
+        mfaToken: string;
+        code?: string;
+        recoveryCode?: string;
+        emailCode?: string;
+        remember?: boolean;
+      }) =>
         adopt(
           await http.request('POST', '/auth/mfa/verify', {
             json: body,
@@ -250,6 +317,9 @@ export function createApiClient(opts: Opts) {
           }),
         ),
       me: () => http.request('GET', '/auth/me', { schema: meResponse }),
+      /** Confirm it is you (authenticator code, or the password if there is no two-step). Lasts five minutes. */
+      stepUp: (body: { code?: string; password?: string }) =>
+        http.request('POST', '/auth/step-up', { json: body }),
       logout: async () => {
         await http.request('POST', '/auth/logout');
         http.setAccessToken(null);
@@ -360,6 +430,47 @@ export function createApiClient(opts: Opts) {
         http.request('POST', '/access/user-roles', { json: { userId, roleKey, entityId } }),
       remove: (userId: string, roleKey: string, entityId?: string) =>
         http.request('DELETE', '/access/user-roles', { json: { userId, roleKey, entityId } }),
+    },
+
+    /** Company admin: look after the accounts in this company (D-63). */
+    users: {
+      list: () => http.request('GET', '/users', { schema: z.array(accountListItem) }),
+      account: (id: string) => http.request('GET', `/users/${id}/account`, { schema: accountView }),
+      act: (id: string, action: AccountAction, reason: string) =>
+        http.request('POST', `/users/${id}/actions/${action}`, {
+          json: { reason },
+          schema: accountActionResult,
+        }),
+    },
+
+    /** Platform staff looking at this company (D-56). */
+    support: {
+      sessions: () =>
+        http.request('GET', '/support/sessions', { schema: z.array(supportSessionView) }),
+      /** The banner's End session: ends the support session this tab is using. */
+      endCurrent: () => http.request('POST', '/support/sessions/current/end'),
+      end: (id: string) => http.request('POST', `/support/sessions/${id}/end`),
+    },
+
+    /** Who company email comes from, and the email log (D-58, D-60). */
+    mail: {
+      sender: () => http.request('GET', '/mail/sender', { schema: senderState }),
+      saveSender: (body: SaveSenderBody) =>
+        http.request('PUT', '/mail/sender', { json: body, schema: senderView }),
+      startVerify: () => http.request('POST', '/mail/sender/verify/start'),
+      confirmCode: (code: string) =>
+        http.request('POST', '/mail/sender/verify/confirm', { json: { code }, schema: senderView }),
+      test: () =>
+        http.request('POST', '/mail/sender/test', {
+          schema: testResult.extend({ sender: senderView }),
+        }),
+      dns: (dkimSelector?: string) =>
+        http.request('POST', '/mail/sender/dns', { json: { dkimSelector }, schema: senderView }),
+      activate: () => http.request('POST', '/mail/sender/activate', { schema: senderView }),
+      removeSender: () => http.request('DELETE', '/mail/sender'),
+      deliveries: (query: Partial<DeliveryQuery> = {}) =>
+        http.request('GET', '/mail/deliveries', { query, schema: deliveriesResponse }),
+      resend: (id: string) => http.request('POST', `/mail/deliveries/${id}/resend`),
     },
 
     audit: {

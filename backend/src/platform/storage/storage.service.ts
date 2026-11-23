@@ -1,9 +1,16 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { RedisService } from '../cache/redis.service.js';
 import { APP_CONFIG, type AppConfig } from '../config/config.js';
 import { CryptoService } from '../crypto/crypto.service.js';
+import { RuntimeConfigService } from '../config/runtime-config.service.js';
 import { LocalDriver } from './local.driver.js';
 import { R2Driver } from './r2.driver.js';
 import type { DownloadUrlOptions, StorageDriver } from './storage-driver.js';
@@ -15,50 +22,77 @@ export const FALLBACK_COUNTER_KEY = 'storage:fallback_local';
  * R2 bucket (STORAGE_DRIVER); callers do not care which.
  */
 @Injectable()
-export class StorageService {
+export class StorageService implements OnModuleInit {
   private readonly log = new Logger('Storage');
-  private readonly driver: StorageDriver;
+  private driver: StorageDriver;
   /** Set when STORAGE_DRIVER=r2; the migration command uses it directly. */
-  readonly r2: R2Driver | null;
+  r2: R2Driver | null;
   readonly local: LocalDriver;
 
+  private readonly useR2: boolean;
+  private readonly localFallback: boolean;
+
   constructor(
-    @Inject(APP_CONFIG) config: AppConfig,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly crypto: CryptoService,
     @Optional() private readonly redis?: RedisService,
+    @Optional() private readonly runtime?: RuntimeConfigService,
   ) {
     this.local = new LocalDriver(config.STORAGE_DIR);
-    if (config.STORAGE_DRIVER === 'r2') {
-      const {
-        R2_ACCOUNT_ID,
-        R2_ACCESS_KEY_ID,
-        R2_SECRET_ACCESS_KEY,
-        R2_BUCKET,
-      } = config;
-      if (
-        !R2_ACCOUNT_ID ||
-        !R2_ACCESS_KEY_ID ||
-        !R2_SECRET_ACCESS_KEY ||
-        !R2_BUCKET
-      )
-        throw new Error(
-          'STORAGE_DRIVER=r2 needs R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET',
-        );
-      this.r2 = new R2Driver(
-        {
-          accountId: R2_ACCOUNT_ID,
-          accessKeyId: R2_ACCESS_KEY_ID,
-          secretAccessKey: R2_SECRET_ACCESS_KEY,
-          bucket: R2_BUCKET,
-        },
-        config.STORAGE_LOCAL_FALLBACK ? this.local : null,
-        (key) => this.countFallback(key),
+    this.useR2 = config.STORAGE_DRIVER === 'r2';
+    this.localFallback = config.STORAGE_LOCAL_FALLBACK;
+    this.r2 = null;
+    this.driver = this.local;
+    // With no runtime config (unit tests) the keys come from the environment straight away.
+    if (this.useR2 && !runtime) this.buildR2(this.fromEnv());
+  }
+
+  private fromEnv() {
+    const c = this.config;
+    return {
+      accountId: c.R2_ACCOUNT_ID,
+      accessKeyId: c.R2_ACCESS_KEY_ID,
+      secretAccessKey: c.R2_SECRET_ACCESS_KEY,
+      bucket: c.R2_BUCKET,
+    };
+  }
+
+  /** The R2 keys saved in the console win over the environment. Read once, so a change needs a restart. */
+  async onModuleInit(): Promise<void> {
+    if (!this.useR2 || !this.runtime) return;
+    const [accountId, accessKeyId, secretAccessKey, bucket] = await Promise.all(
+      [
+        this.runtime.get('R2_ACCOUNT_ID'),
+        this.runtime.get('R2_ACCESS_KEY_ID'),
+        this.runtime.get('R2_SECRET_ACCESS_KEY'),
+        this.runtime.get('R2_BUCKET'),
+      ],
+    );
+    this.buildR2({ accountId, accessKeyId, secretAccessKey, bucket });
+  }
+
+  private buildR2(k: {
+    accountId?: string;
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    bucket?: string;
+  }) {
+    if (!k.accountId || !k.accessKeyId || !k.secretAccessKey || !k.bucket)
+      throw new Error(
+        'STORAGE_DRIVER=r2 needs the R2 account ID, access key ID, secret access key and bucket (set in the console or api.env)',
       );
-      this.driver = this.r2;
-    } else {
-      this.r2 = null;
-      this.driver = this.local;
-    }
+    const r2 = new R2Driver(
+      {
+        accountId: k.accountId,
+        accessKeyId: k.accessKeyId,
+        secretAccessKey: k.secretAccessKey,
+        bucket: k.bucket,
+      },
+      this.localFallback ? this.local : null,
+      (key) => this.countFallback(key),
+    );
+    this.r2 = r2;
+    this.driver = r2;
   }
 
   /** The key is logged; it holds ids, never names or other personal data. */

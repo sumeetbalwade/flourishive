@@ -4,9 +4,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { ApiProvider, makeClient } from './lib/api.tsx';
 import { AuthProvider, useAuth } from './lib/auth.tsx';
+import { Integrations } from './pages/Integrations.tsx';
+import { requestStepUp, StepUpHost } from './lib/step-up.tsx';
 import { Defaults } from './pages/Defaults.tsx';
 import { Policy } from './pages/Policy.tsx';
 import { Login, SetPassword } from './pages/Login.tsx';
+import { EmailLog } from './pages/EmailLog.tsx';
+import { Roles } from './pages/Roles.tsx';
+import { Security } from './pages/Security.tsx';
 import { Staff } from './pages/Staff.tsx';
 import { TenantDetail } from './pages/TenantDetail.tsx';
 import { System } from './pages/System.tsx';
@@ -38,8 +43,13 @@ function Routes() {
   if (path === '/tenants') page = <Tenants />;
   else if (path.startsWith('/tenants/')) page = <TenantDetail id={path.split('/').pop()!} />;
   else if (path === '/users') page = <Staff />;
+  else if (path === '/roles') page = <Roles />;
+  else if (path === '/email-log') page = <EmailLog />;
+  else if (path === '/security') page = <Security />;
   else if (path === '/settings') page = <Defaults />;
   else if (path === '/policy') page = <Policy />;
+  else if (path === '/integrations' || path.startsWith('/integrations/'))
+    page = <Integrations section={path.split('/')[2]} />;
   else if (path === '/system') page = <System />;
   else return <Login />;
   return <Private>{page}</Private>;
@@ -50,7 +60,10 @@ export default function App({
   client: injected,
   retryDelay,
 }: { client?: PlatformClient; retryDelay?: number } = {}) {
-  const client = useMemo(() => injected ?? makeClient(() => go('/login')), [injected]);
+  const client = useMemo(
+    () => injected ?? makeClient(() => go('/login'), requestStepUp),
+    [injected],
+  );
   const queryClient = useMemo(
     () =>
       new QueryClient({
@@ -68,9 +81,11 @@ export default function App({
     <ApiProvider client={client}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <AuthProvider>
-            <Routes />
-          </AuthProvider>
+          <StepUpHost>
+            <AuthProvider>
+              <Routes />
+            </AuthProvider>
+          </StepUpHost>
         </ToastProvider>
       </QueryClientProvider>
     </ApiProvider>

@@ -10,6 +10,7 @@ import { randomBytes } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { StorageService } from '../../platform/storage/storage.service.js';
 import { AccessService } from '../access/access.service.js';
@@ -39,6 +40,7 @@ export class DocumentsService {
     private readonly access: AccessService,
     private readonly workflow: WorkflowService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly runtime: RuntimeConfigService,
   ) {}
 
   async generate(
@@ -213,7 +215,7 @@ export class DocumentsService {
       body,
       letterhead: lhBytes,
       reference,
-      verifyUrl: `${this.config.VERIFY_URL.replace(/\/$/, '')}/d/${verifyToken}`,
+      verifyUrl: `${(await this.runtime.require('VERIFY_URL')).replace(/\/$/, '')}/d/${verifyToken}`,
       margins,
       stamp: { left: lh.stampLeft, bottom: lh.stampBottom },
     });

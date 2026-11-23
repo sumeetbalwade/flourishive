@@ -1,0 +1,72 @@
+enum MailSenderKind {
+  PLATFORM_DEFAULT
+  VERIFIED_FROM
+  OWN_SMTP
+}
+
+enum MailSenderStatus {
+  DRAFT
+  VERIFYING
+  ACTIVE
+  FAILED
+}
+
+enum MailDeliveryStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+/// Who a company's email comes from (D-58). A company has at most one of these; without an ACTIVE one it
+/// uses the platform's default sender. `tenantId` is null for the platform's own row (not used yet).
+/// The SMTP password is encrypted and never returned. Read through MailSenderService, which filters by company.
+model MailSender {
+  id              String           @id @default(uuid(7)) @db.Char(36)
+  tenantId        String?          @unique @db.Char(36)
+  kind            MailSenderKind
+  fromName        String           @db.VarChar(120)
+  fromAddress     String           @db.VarChar(191)
+  replyTo         String?          @db.VarChar(191)
+  smtpHost        String?          @db.VarChar(255)
+  smtpPort        Int?
+  smtpSecure      Boolean          @default(false)
+  smtpUser        String?          @db.VarChar(255)
+  smtpPassEnc     String?          @db.Text
+  status          MailSenderStatus @default(DRAFT)
+  /// When the admin typed the emailed code correctly (proves they control the address).
+  codeConfirmedAt DateTime?        @db.DateTime(3)
+  verifiedAt      DateTime?        @db.DateTime(3)
+  lastTestAt      DateTime?        @db.DateTime(3)
+  /// "OK" or the plain-words reason the test send failed.
+  lastTestResult  String?          @db.VarChar(500)
+  dnsReport       Json?
+  createdAt       DateTime         @default(now()) @db.DateTime(3)
+  updatedAt       DateTime         @updatedAt @db.DateTime(3)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("mail_senders")
+}
+
+/// One row per email the system tried to send. Never holds the message itself (it can carry a code or a
+/// link): the address is masked, with a hash so support can search for an exact address.
+model MailDelivery {
+  id                String             @id @default(uuid(7)) @db.Char(36)
+  tenantId          String?            @db.Char(36)
+  event             String             @db.VarChar(60)
+  toMasked          String             @db.VarChar(191)
+  toHash            String             @db.Char(64)
+  senderId          String?            @db.Char(36)
+  status            MailDeliveryStatus @default(QUEUED)
+  providerMessageId String?            @db.VarChar(255)
+  error             String?            @db.VarChar(500)
+  attempts          Int                @default(0)
+  requestId         String?            @db.VarChar(64)
+  createdAt         DateTime           @default(now()) @db.DateTime(3)
+  sentAt            DateTime?          @db.DateTime(3)
+
+  @@index([tenantId, createdAt])
+  @@index([status, createdAt])
+  @@index([toHash])
+  @@map("mail_deliveries")
+}

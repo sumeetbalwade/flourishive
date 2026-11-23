@@ -66,16 +66,17 @@ export class RolePolicyService {
         roleKey: d.key,
         name: d.name,
         mfaLevel: r?.mfaLevel ?? d.mfaLevel,
-        mfaFloor: r?.mfaFloor ?? d.mfaFloor,
+        // Floors are retired (D-65): the policy decides. The column stays for history.
+        mfaFloor: 'OFF' as MfaLevelName,
         recoveryEmail: r?.recoveryEmail ?? true,
         recoveryCodes: r?.recoveryCodes ?? true,
       };
     });
   }
 
-  async floorFor(roleKey: string): Promise<MfaLevelName> {
-    const all = await this.platformPolicies();
-    return all.find((p) => p.roleKey === roleKey)?.mfaFloor ?? 'OFF';
+  /** No role has a floor any more (D-65). Kept so older callers keep working. */
+  floorFor(_roleKey: string): Promise<MfaLevelName> {
+    return Promise.resolve('OFF');
   }
 
   async setPlatformPolicy(roleKey: string, patch: PolicyPatch): Promise<void> {
@@ -83,39 +84,24 @@ export class RolePolicyService {
       (p) => p.roleKey === roleKey,
     );
     if (!current) throw new NotFoundException('Unknown system role');
-    const next = { ...current, ...patch };
-    if (LEVEL_RANK[next.mfaLevel] < LEVEL_RANK[next.mfaFloor])
-      throw new BadRequestException(
-        'The default level cannot be below the floor',
-      );
+    const next = { ...current, ...patch, mfaFloor: 'OFF' as MfaLevelName };
     await runAsSystem(async () => {
       await this.prisma.db.platformRolePolicy.upsert({
         where: { roleKey },
         update: {
           mfaLevel: next.mfaLevel,
-          mfaFloor: next.mfaFloor,
+          mfaFloor: 'OFF',
           recoveryEmail: next.recoveryEmail,
           recoveryCodes: next.recoveryCodes,
         },
         create: {
           roleKey,
           mfaLevel: next.mfaLevel,
-          mfaFloor: next.mfaFloor,
+          mfaFloor: 'OFF',
           recoveryEmail: next.recoveryEmail,
           recoveryCodes: next.recoveryCodes,
         },
       });
-      // Raising the floor lifts any tenant that was below it.
-      if (next.mfaFloor === 'REQUIRED')
-        await this.prisma.db.role.updateMany({
-          where: { key: roleKey, mfaLevel: { not: 'REQUIRED' } },
-          data: { mfaLevel: 'REQUIRED' },
-        });
-      else if (next.mfaFloor === 'OPTIONAL')
-        await this.prisma.db.role.updateMany({
-          where: { key: roleKey, mfaLevel: 'OFF' },
-          data: { mfaLevel: 'OPTIONAL' },
-        });
     });
   }
 
@@ -157,11 +143,6 @@ export class RolePolicyService {
     roleKey: string,
     patch: Omit<PolicyPatch, 'mfaFloor'>,
   ): Promise<void> {
-    const floor = await this.floorFor(roleKey);
-    if (patch.mfaLevel && LEVEL_RANK[patch.mfaLevel] < LEVEL_RANK[floor])
-      throw new BadRequestException(
-        `Two-step for this role cannot be lower than ${floor.toLowerCase()}`,
-      );
     await runInTenant(tenantId, async () => {
       const role = await this.prisma.db.role.findUnique({
         where: { tenantId_key: { tenantId, key: roleKey } },

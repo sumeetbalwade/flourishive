@@ -1,6 +1,17 @@
 # Phase 2 — Documents and digital signing
 
-**Status:** Decisions approved 2026-11-21; build starting · **Depends on:** Phase 1 (and the Phase 0 signing spike) · **Unlocks:** first production go-live for Flourisense; Phase 3
+**Status:** Feature-complete for development (2026-11-23); open items below are deferred, not dropped, while Phase 2B is built · **Depends on:** Phase 1 (and the Phase 0 signing spike) · **Unlocks:** first production go-live for Flourisense; Phase 3
+
+## Deferred items (recorded 2026-11-23, Phase 2B started first)
+
+Revisit before go-live or when Phase 2B is done. Nothing here blocks Phase 2B.
+
+- Build: DOCX → PDF in the desktop app (Word on Windows, LibreOffice on macOS)
+- Build: code-signed Windows installer and notarised macOS app (needs certificates, D-51)
+- Build: one external DOCX conversion adapter, enabled per tenant (D-14)
+- Run: offer letter end to end with a real candidate (needs the renewed DSC)
+- Run: the whole **Go-live gate** below (renewed DSC, remove `ALLOW_EXPIRED_SIGNER_CERT`, full validation, CCA roots, seal key secret, R2 cut-over)
+- Run: the phase-end full test suite and CI check for Phase 2 (batched per the testing-at-phase-end rule)
 
 ## Goal
 

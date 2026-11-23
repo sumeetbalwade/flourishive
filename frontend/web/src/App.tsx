@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './lib/auth.tsx';
 import type { ApiClient } from '@flourishive/api-client';
 const Desktop = lazy(() => import('./pages/Desktop.tsx'));
 const Gallery = lazy(() => import('./pages/Gallery.tsx'));
+import { SupportEntry } from './pages/SupportEntry.tsx';
 import { Audit } from './pages/Audit.tsx';
 import { ForgotPassword, ResetPassword } from './pages/auth/Password.tsx';
 import { FindCompany } from './pages/auth/FindCompany.tsx';
@@ -22,6 +23,8 @@ import { Templates } from './pages/letters/Templates.tsx';
 import { Company } from './pages/admin/Company.tsx';
 import { Policy } from './pages/admin/Policy.tsx';
 import { Roles } from './pages/admin/Roles.tsx';
+import { EmailSender } from './pages/admin/EmailSender.tsx';
+import { EmailLog } from './pages/admin/EmailLog.tsx';
 import { Org } from './pages/org/Org.tsx';
 import { ImportPeople } from './pages/people/Import.tsx';
 import { PersonDetail } from './pages/people/PersonDetail.tsx';
@@ -39,6 +42,8 @@ const NEEDS: Record<string, string | undefined> = {
   '/app/roles': 'roles.read',
   '/app/policy': 'roles.read',
   '/app/company': 'settings.read',
+  '/app/email': 'email.manage',
+  '/app/email-log': 'email.manage',
   '/app/letters': 'documents.read',
   '/app/templates': 'documents.read',
   '/app/letter-setup': 'documents.read',
@@ -74,6 +79,7 @@ function Routes() {
 
   if (path === '/login' || path === '/')
     return auth.state.status === 'loading' ? <PageLoader fullscreen /> : <Login />;
+  if (path === '/support') return <SupportEntry token={query.get('token') ?? ''} />;
   if (path === '/find-company') return <FindCompany />;
   if (path === '/forgot-password') return <ForgotPassword />;
   if (path === '/reset-password') return <ResetPassword token={query.get('token') ?? ''} />;
@@ -90,6 +96,8 @@ function Routes() {
   else if (path === '/app/roles') page = <Roles />;
   else if (path === '/app/policy') page = <Policy />;
   else if (path === '/app/company') page = <Company />;
+  else if (path === '/app/email') page = <EmailSender />;
+  else if (path === '/app/email-log') page = <EmailLog />;
   else if (path === '/app/security') page = <Security />;
   else if (path === '/app/signing') page = <Signing />;
   else if (path === '/app/templates') page = <Templates />;
