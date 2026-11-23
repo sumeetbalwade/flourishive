@@ -4,6 +4,7 @@ import { ApiError } from '@flourishive/api-client';
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import { ApiProvider, makeClient } from './lib/api.tsx';
 import { AuthProvider, useAuth } from './lib/auth.tsx';
+import { requestStepUp, StepUpHost } from './lib/step-up.tsx';
 import type { ApiClient } from '@flourishive/api-client';
 const Desktop = lazy(() => import('./pages/Desktop.tsx'));
 const Gallery = lazy(() => import('./pages/Gallery.tsx'));
@@ -118,7 +119,10 @@ export default function App({
   client: injected,
   retryDelay,
 }: { client?: ApiClient; retryDelay?: number } = {}) {
-  const client = useMemo(() => injected ?? makeClient(() => go('/login')), [injected]);
+  const client = useMemo(
+    () => injected ?? makeClient(() => go('/login'), requestStepUp),
+    [injected],
+  );
   const queryClient = useMemo(
     () =>
       new QueryClient({
@@ -137,11 +141,13 @@ export default function App({
     <ApiProvider client={client}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <AuthProvider>
-            <Suspense fallback={<PageLoader fullscreen />}>
-              <Routes />
-            </Suspense>
-          </AuthProvider>
+          <StepUpHost>
+            <AuthProvider>
+              <Suspense fallback={<PageLoader fullscreen />}>
+                <Routes />
+              </Suspense>
+            </AuthProvider>
+          </StepUpHost>
         </ToastProvider>
       </QueryClientProvider>
     </ApiProvider>

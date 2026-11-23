@@ -14,8 +14,11 @@ export function useApi(): ApiClient {
   return c;
 }
 
-export function makeClient(onSessionExpired: () => void): ApiClient {
-  return createApiClient({ baseUrl: brand.apiUrl, onSessionExpired });
+export function makeClient(
+  onSessionExpired: () => void,
+  onStepUp?: () => Promise<boolean>,
+): ApiClient {
+  return createApiClient({ baseUrl: brand.apiUrl, onSessionExpired, onStepUp });
 }
 
 /** Remembers non-secret preferences (company code). Storage can be blocked, so never rely on it. */
