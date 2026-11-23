@@ -448,6 +448,13 @@ export class DscJobsService {
     a: { tenantId: string; userId: string },
     documentId: string,
   ) {
+    const doc = await runInTenant(a.tenantId, async () =>
+      this.prisma.db.generatedDocument.findUnique({
+        where: { id: documentId },
+        select: { id: true },
+      }),
+    );
+    if (!doc) throw new NotFoundException();
     const allowed = await this.settings.get('signing.allowWithoutDsc', {
       tenantId: a.tenantId,
     });
