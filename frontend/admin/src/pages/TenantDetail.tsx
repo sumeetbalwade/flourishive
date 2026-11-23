@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { useApi } from '../lib/api.tsx';
 import { messageOf } from '../lib/errors.ts';
 import { go } from '../router.ts';
+import { TenantUsers } from '../components/AccountDialogs.tsx';
 import { OpenAsSupport, SupportHistory } from '../components/SupportAccess.tsx';
 import { useCan } from '../lib/auth.tsx';
 import { Layout } from './Layout.tsx';
@@ -165,6 +166,7 @@ export function TenantDetail({ id }: { id: string }) {
                 })}
             </ul>
           </Card>
+          <TenantUsers tenantId={id} />
           <SupportHistory tenantId={id} />
           <Card>
             <CardTitle>Companies</CardTitle>

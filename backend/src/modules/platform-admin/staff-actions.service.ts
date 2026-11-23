@@ -16,8 +16,10 @@ import { OWNER_ROLE_ID } from './platform-permissions.js';
 import type { AccountAction } from '../identity/account-actions.service.js';
 
 const SENTENCE: Record<AccountAction, string> = {
-  'reset-password': 'Your admin password was reset. Check your email for a link to choose a new one',
-  'reset-mfa': 'Your two-step sign-in was reset. You will set it up again the next time you sign in',
+  'reset-password':
+    'Your admin password was reset. Check your email for a link to choose a new one',
+  'reset-mfa':
+    'Your two-step sign-in was reset. You will set it up again the next time you sign in',
   unlock: 'Your account was unlocked',
   'sign-out-everywhere': 'You were signed out of every device',
   suspend: 'Your admin account was suspended',
@@ -50,9 +52,13 @@ export class StaffActionsService {
     return u;
   }
 
-  private allowedFor(status: 'INVITED' | 'ACTIVE' | 'DISABLED', mfa: boolean): AccountAction[] {
+  private allowedFor(
+    status: 'INVITED' | 'ACTIVE' | 'DISABLED',
+    mfa: boolean,
+  ): AccountAction[] {
     const out: AccountAction[] = [];
-    if (status === 'ACTIVE') out.push('reset-password', 'sign-out-everywhere', 'suspend');
+    if (status === 'ACTIVE')
+      out.push('reset-password', 'sign-out-everywhere', 'suspend');
     if (status === 'ACTIVE' && mfa) out.push('reset-mfa');
     if (status !== 'DISABLED') out.push('unlock');
     if (status === 'INVITED') out.push('resend-invite');
@@ -61,10 +67,17 @@ export class StaffActionsService {
   }
 
   /** Why this actor may not act on this person, or null. */
-  private async blockedFor(actorId: string, targetId: string, targetRoleId: string) {
+  private async blockedFor(
+    actorId: string,
+    targetId: string,
+    targetRoleId: string,
+  ) {
     if (actorId === targetId)
       return 'You cannot do this to your own account from here. Use My security.';
-    if (targetRoleId === OWNER_ROLE_ID && (await this.roles.roleOf(actorId))?.id !== OWNER_ROLE_ID)
+    if (
+      targetRoleId === OWNER_ROLE_ID &&
+      (await this.roles.roleOf(actorId))?.id !== OWNER_ROLE_ID
+    )
       return 'Only an Owner can do this to an Owner.';
     return null;
   }
@@ -82,7 +95,9 @@ export class StaffActionsService {
       mfaRequired: false,
       trustedDevices: await this.devices.count({ kind: 'platform' }, id),
       roles: [(await this.roles.roleOf(id))?.name ?? ''].filter(Boolean),
-      allowed: blocked ? [] : this.allowedFor(u.status, Boolean(u.mfaEnabledAt)),
+      allowed: blocked
+        ? []
+        : this.allowedFor(u.status, Boolean(u.mfaEnabledAt)),
     };
   }
 
@@ -110,7 +125,9 @@ export class StaffActionsService {
         break;
       case 'reset-mfa':
         await runAsSystem(async () => {
-          await this.db.platformRecoveryCode.deleteMany({ where: { userId: targetId } });
+          await this.db.platformRecoveryCode.deleteMany({
+            where: { userId: targetId },
+          });
           await this.db.platformUser.update({
             where: { id: targetId },
             data: { mfaSecretEnc: null, mfaEnabledAt: null },
@@ -133,7 +150,10 @@ export class StaffActionsService {
       case 'suspend':
         await this.roles.assertOwnerRemains(targetId, 'disable');
         await runAsSystem(async () => {
-          await this.db.platformUser.update({ where: { id: targetId }, data: { status: 'DISABLED' } });
+          await this.db.platformUser.update({
+            where: { id: targetId },
+            data: { status: 'DISABLED' },
+          });
         });
         await this.auth.revokeAllSessions(targetId);
         break;
@@ -183,7 +203,9 @@ export class StaffActionsService {
     );
     if (!u) throw new NotFoundException('No platform user with that email');
     await runAsSystem(async () => {
-      await this.db.platformRecoveryCode.deleteMany({ where: { userId: u.id } });
+      await this.db.platformRecoveryCode.deleteMany({
+        where: { userId: u.id },
+      });
       await this.db.platformUser.update({
         where: { id: u.id },
         data: { mfaSecretEnc: null, mfaEnabledAt: null },

@@ -9,7 +9,10 @@ export const platformMfaVerifyBody = z
     mfaToken: z.string(),
     code: z.string().optional(),
     recoveryCode: z.string().optional(),
-    emailCode: z.string().regex(/^\d{6}$/).optional(),
+    emailCode: z
+      .string()
+      .regex(/^\d{6}$/)
+      .optional(),
     remember: z.boolean().optional(),
   })
   .refine((b) => b.code || b.recoveryCode || b.emailCode, 'a code is required');
@@ -302,3 +305,14 @@ export const accountActionResult = z.object({
   link: z.string().optional(),
   emailed: z.boolean().optional(),
 });
+
+export const accountListItem = z.object({
+  id: z.string(),
+  email: z.string(),
+  name: z.string().nullable(),
+  status: z.enum(['INVITED', 'ACTIVE', 'DISABLED']),
+  lastLoginAt: z.string().nullable(),
+  mfaEnabled: z.boolean(),
+  roles: z.array(z.string()),
+});
+export type AccountListItem = z.infer<typeof accountListItem>;

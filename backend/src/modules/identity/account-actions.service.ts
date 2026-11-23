@@ -35,8 +35,10 @@ export type Actor =
   | { kind: 'platform'; staffId: string; label: string };
 
 const SENTENCE: Record<AccountAction, string> = {
-  'reset-password': 'Your password was reset. Check your email for a link to choose a new one',
-  'reset-mfa': 'Your two-step sign-in was reset. You will set it up again the next time you sign in',
+  'reset-password':
+    'Your password was reset. Check your email for a link to choose a new one',
+  'reset-mfa':
+    'Your two-step sign-in was reset. You will set it up again the next time you sign in',
   unlock: 'Your account was unlocked after too many failed sign-ins',
   'sign-out-everywhere': 'You were signed out of every device',
   suspend: 'Your account was suspended, so you cannot sign in for now',
@@ -79,14 +81,19 @@ export class AccountActionsService {
           },
         }),
     );
-    if (!u || u.tenantId !== tenantId) throw new NotFoundException('No such account');
+    if (!u || u.tenantId !== tenantId)
+      throw new NotFoundException('No such account');
     return u;
   }
 
   /** What an admin may do to this account, given its state. */
-  private allowedFor(status: 'INVITED' | 'ACTIVE' | 'DISABLED', mfaEnabled: boolean): AccountAction[] {
+  private allowedFor(
+    status: 'INVITED' | 'ACTIVE' | 'DISABLED',
+    mfaEnabled: boolean,
+  ): AccountAction[] {
     const out: AccountAction[] = [];
-    if (status === 'ACTIVE') out.push('reset-password', 'sign-out-everywhere', 'suspend');
+    if (status === 'ACTIVE')
+      out.push('reset-password', 'sign-out-everywhere', 'suspend');
     if (status === 'ACTIVE' && mfaEnabled) out.push('reset-mfa');
     if (status !== 'DISABLED') out.push('unlock');
     if (status === 'INVITED') out.push('resend-invite', 'suspend');
@@ -98,23 +105,36 @@ export class AccountActionsService {
     const u = await this.user(tenantId, id);
     const policy = await this.policies.effectiveFor(tenantId, id);
     const blocked =
-      actor?.kind === 'tenant' ? await this.blockedFor(tenantId, actor.userId, id) : null;
+      actor?.kind === 'tenant'
+        ? await this.blockedFor(tenantId, actor.userId, id)
+        : null;
     return {
       id: u.id,
       email: u.email,
-      name: u.person ? `${u.person.firstName} ${u.person.lastName}`.trim() : null,
+      name: u.person
+        ? `${u.person.firstName} ${u.person.lastName}`.trim()
+        : null,
       status: u.status,
       lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
       mfaEnabled: Boolean(u.mfaEnabledAt),
       mfaRequired: u.mfaRequired || policy.mfaLevel === 'REQUIRED',
-      trustedDevices: await this.devices.count({ kind: 'tenant', tenantId }, id),
+      trustedDevices: await this.devices.count(
+        { kind: 'tenant', tenantId },
+        id,
+      ),
       roles: u.userRoles.map((r) => r.role.name),
-      allowed: blocked ? [] : this.allowedFor(u.status, Boolean(u.mfaEnabledAt)),
+      allowed: blocked
+        ? []
+        : this.allowedFor(u.status, Boolean(u.mfaEnabledAt)),
     };
   }
 
   /** Why a company admin may not act on this person, or null. */
-  private async blockedFor(tenantId: string, actorId: string, targetId: string) {
+  private async blockedFor(
+    tenantId: string,
+    actorId: string,
+    targetId: string,
+  ) {
     if (actorId === targetId)
       return 'You cannot do this to your own account from here. Use My security.';
     const [mine, theirs] = await Promise.all([
@@ -152,7 +172,9 @@ export class AccountActionsService {
         break;
       case 'reset-mfa':
         await runInTenant(tenantId, async () => {
-          await this.db.recoveryCode.deleteMany({ where: { userId: targetId } });
+          await this.db.recoveryCode.deleteMany({
+            where: { userId: targetId },
+          });
           await this.db.user.update({
             where: { id: targetId },
             data: { mfaSecretEnc: null, mfaEnabledAt: null },
@@ -164,7 +186,8 @@ export class AccountActionsService {
       case 'unlock': {
         const slug = (
           await runAsSystem(
-            async () => await this.db.tenant.findUnique({ where: { id: tenantId } }),
+            async () =>
+              await this.db.tenant.findUnique({ where: { id: tenantId } }),
           )
         )?.slug;
         await this.redis.del(
@@ -180,7 +203,10 @@ export class AccountActionsService {
         break;
       case 'suspend':
         await runInTenant(tenantId, async () => {
-          await this.db.user.update({ where: { id: targetId }, data: { status: 'DISABLED' } });
+          await this.db.user.update({
+            where: { id: targetId },
+            data: { status: 'DISABLED' },
+          });
         });
         await this.sessions.revokeAll(tenantId, targetId);
         break;
@@ -212,10 +238,16 @@ export class AccountActionsService {
   }
 
   /** The person is told what was done and by whom, so a surprise reset is noticed. */
-  private async tellPerson(tenantId: string, email: string, action: AccountAction, by: string) {
+  private async tellPerson(
+    tenantId: string,
+    email: string,
+    action: AccountAction,
+    by: string,
+  ) {
     try {
       const tenant = await runAsSystem(
-        async () => await this.db.tenant.findUnique({ where: { id: tenantId } }),
+        async () =>
+          await this.db.tenant.findUnique({ where: { id: tenantId } }),
       );
       await this.notifications.enqueue(tenantId, 'general.notice', email, {
         subject: 'A change to your account',
@@ -252,7 +284,9 @@ export class AccountActionsService {
     return rows.map((u) => ({
       id: u.id,
       email: u.email,
-      name: u.person ? `${u.person.firstName} ${u.person.lastName}`.trim() : null,
+      name: u.person
+        ? `${u.person.firstName} ${u.person.lastName}`.trim()
+        : null,
       status: u.status,
       lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
       mfaEnabled: Boolean(u.mfaEnabledAt),

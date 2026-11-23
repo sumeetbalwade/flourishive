@@ -18,21 +18,32 @@ describe('the subset rule', () => {
 
   it('refuses someone with a power the actor lacks', () => {
     expect(
-      canActOn({ 'people.read': ['*'] }, { 'people.read': ['*'], 'roles.assign': ['*'] }),
+      canActOn(
+        { 'people.read': ['*'] },
+        { 'people.read': ['*'], 'roles.assign': ['*'] },
+      ),
     ).toBe(false);
   });
 
   it('a power held for one company does not cover everywhere', () => {
-    expect(canActOn({ 'people.write': ['e1'] }, { 'people.write': ['*'] })).toBe(false);
+    expect(
+      canActOn({ 'people.write': ['e1'] }, { 'people.write': ['*'] }),
+    ).toBe(false);
   });
 
   it('a power held for one company covers that company only', () => {
-    expect(canActOn({ 'people.write': ['e1', 'e2'] }, { 'people.write': ['e1'] })).toBe(true);
-    expect(canActOn({ 'people.write': ['e1'] }, { 'people.write': ['e1', 'e2'] })).toBe(false);
+    expect(
+      canActOn({ 'people.write': ['e1', 'e2'] }, { 'people.write': ['e1'] }),
+    ).toBe(true);
+    expect(
+      canActOn({ 'people.write': ['e1'] }, { 'people.write': ['e1', 'e2'] }),
+    ).toBe(false);
   });
 
   it('everywhere covers any single company', () => {
-    expect(canActOn({ 'people.write': ['*'] }, { 'people.write': ['e9'] })).toBe(true);
+    expect(
+      canActOn({ 'people.write': ['*'] }, { 'people.write': ['e9'] }),
+    ).toBe(true);
   });
 
   it('someone with no powers can be acted on by anyone', () => {

@@ -45,6 +45,7 @@ const NAV: Item[] = [
     group: 'Platform',
     needs: ['config.read'],
   },
+  { id: 'security', label: 'My security', icon: ShieldCheck, group: 'Account' },
 ];
 
 export function Layout({

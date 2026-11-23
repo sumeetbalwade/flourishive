@@ -22,6 +22,8 @@ export function Login() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [recovery, setRecovery] = useState(false);
+  const [emailMode, setEmailMode] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [code, setCode] = useState('');
 
   const finish = async () => {
@@ -117,15 +119,17 @@ export function Login() {
   }
   if (step.kind === 'mfa') {
     const token = step.token;
-    const ready = recovery ? code.trim().length >= 8 : code.length === 6;
+    const ready = recovery && !emailMode ? code.trim().length >= 8 : code.length === 6;
     return (
       <Frame>
         <Card className="p-8">
           <h1 className="font-display text-3xl">Two-step check</h1>
           <p className="mt-2 text-sm text-muted">
-            {recovery
-              ? 'Enter one of your recovery codes.'
-              : 'Enter the 6-digit code from your authenticator app.'}
+            {emailMode
+              ? 'We emailed a 6-digit code to your account. Enter it here.'
+              : recovery
+                ? 'Enter one of your recovery codes.'
+                : 'Enter the 6-digit code from your authenticator app.'}
           </p>
           <form
             className="mt-6 grid gap-4"
@@ -135,9 +139,11 @@ export function Login() {
               setError('');
               try {
                 await api.auth.mfaVerify(
-                  recovery
-                    ? { mfaToken: token, recoveryCode: code.trim() }
-                    : { mfaToken: token, code },
+                  emailMode
+                    ? { mfaToken: token, emailCode: code, remember }
+                    : recovery
+                      ? { mfaToken: token, recoveryCode: code.trim(), remember }
+                      : { mfaToken: token, code, remember },
                 );
                 await finish();
               } catch (err) {
@@ -167,9 +173,41 @@ export function Login() {
                 placeholder={recovery ? 'xxxxx-xxxxx' : '000000'}
               />
             </Field>
+            <label className="flex items-center gap-2 text-sm text-muted">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="h-4 w-4 accent-[var(--accent)]"
+              />
+              Remember this device (skip the code here for a while)
+            </label>
             <Button type="submit" size="lg" disabled={!ready || busy}>
               {busy ? 'Checking…' : 'Verify'}
             </Button>
+            {!emailMode ? (
+              <button
+                type="button"
+                className="text-sm text-muted underline"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  setError('');
+                  try {
+                    await api.auth.mfaEmailCode(token);
+                    setEmailMode(true);
+                    setRecovery(false);
+                    setCode('');
+                  } catch (err) {
+                    setError(messageOf(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Email me a sign-in code instead
+              </button>
+            ) : null}
             <button
               type="button"
               className="text-sm text-muted underline"
@@ -199,7 +237,7 @@ export function Login() {
                 }
               }}
             >
-              No phone or codes? Email me a code
+              No phone or codes? Email me a code to reset my authenticator
             </button>
           </form>
         </Card>

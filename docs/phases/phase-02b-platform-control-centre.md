@@ -1,6 +1,6 @@
 # Phase 2B — Platform control centre
 
-**Status:** Decisions approved 2026-11-22; build started 2026-11-23 (PR 1 and PR 2 built, in review) · **Depends on:** Phase 2 · **Unlocks:** Phase 3 (now billing, SSO and the public API only)
+**Status:** Decisions approved 2026-11-22; build started 2026-11-23 (PR 1, 2 and 3 built, in review) · **Depends on:** Phase 2 · **Unlocks:** Phase 3 (now billing, SSO and the public API only)
 
 ## Goal
 
@@ -256,41 +256,41 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
 ### PR 3 — Account and two-step management (D-63, D-64 except passkeys, D-65, D-66)
 
 **Backend**
-- [ ] Account action service, shared by the tenant and platform routes:
+- [x] Account action service, shared by the tenant and platform routes:
   - `reset-password` (emails a reset link and ends the user's sessions)
   - `reset-mfa` (clears the secret, recovery codes and trusted devices; the user enrols at next sign-in if the policy requires it)
   - `unlock` (clears the lockout counters in Redis)
   - `sign-out-everywhere`
   - `suspend` / `reactivate`
   - `resend-invite`
-  - `change-email`: pending until confirmed from the new address; the old address gets a notice with a "this wasn't me" link that cancels the change and locks the account for review
+  - `change-email`: pending until confirmed from the new address; the old address gets a notice with a "this wasn't me" link that cancels the change and locks the account for review _(NOT BUILT in this PR: deferred, needs its own confirmation flow)_
   - Each takes `{ reason }`, needs step-up, writes an audit entry and emails the user ("Your two-step sign-in was reset by <name> at <company>").
-- [ ] Routes:
+- [x] Routes:
   - tenant: `POST /v1/users/:id/actions/:action` (permission `users.manage`, plus the subset rule from D-63, never on yourself)
   - platform: `POST /v1/platform/tenants/:tid/users/:id/actions/:action` (`tenants.users.manage`) and `POST /v1/platform/staff/:id/actions/:action` (`staff.manage`; the Owner rules from PR 2)
-- [ ] Subset rule helper `canActOn(actor, target)`: the target's effective permissions must be a subset of the actor's. Unit-test it with tricky cases (equal roles, an entity-scoped role, the target holding a custom role).
-- [ ] Two-step policy (D-65):
+- [x] Subset rule helper `canActOn(actor, target)`: the target's effective permissions must be a subset of the actor's. Unit-test it with tricky cases (equal roles, an entity-scoped role, the target holding a custom role).
+- [x] Two-step policy (D-65):
   - Remove `mfaFloor` enforcement from `role-policy.service.ts`. Keep the column for history, ignore it, and drop it after one release.
   - Admin-role defaults stay REQUIRED.
   - `platform.superAdminMfa` accepts OFF, OPTIONAL and REQUIRED with no floor.
   - Self opt-out: `POST /v1/auth/mfa/disable` with password re-entry, allowed only when the effective policy is OFF or OPTIONAL. Same for platform staff.
-- [ ] Trusted devices:
+- [x] Trusted devices:
   - Data: `trusted_devices` and `platform_trusted_devices` (`userId`, `tokenHash`, `label` from the user agent, `createdAt`, `lastUsedAt`, `expiresAt`).
   - After a two-step success, "Remember this device" sets an httpOnly, SameSite=Strict cookie holding a random token.
   - Sign-in skips the code when the cookie matches and has not expired.
   - New settings: `security.trustedDeviceDays` (0 to 90, default 30; tenant and platform) and `security.adminSessionDays` (separate length for roles with any `*.manage` permission).
-- [ ] Email-code fallback: on the two-step step, "Email me a code instead" appears when the role policy allows it. This reuses the existing OTP service and is rate-limited.
-- [ ] Break-glass: `cli.ts platform-reset-mfa <email>` clears two-step for a platform user, ends their sessions, writes a platform audit entry with actor `SYSTEM_CLI`, and prints next steps. Document it in `docs/runbooks/vps-hosting.md`.
+- [x] Email-code fallback: on the two-step step, "Email me a code instead" appears when the role policy allows it. This reuses the existing OTP service and is rate-limited.
+- [x] Break-glass: `cli.ts platform-reset-mfa <email>` clears two-step for a platform user, ends their sessions, writes a platform audit entry with actor `SYSTEM_CLI`, and prints next steps. Document it in `docs/runbooks/vps-hosting.md`.
 
 **Frontend**
-- [ ] Web, People, then person detail, then an Account panel: status, last sign-in, two-step on or off, trusted devices count, and an Actions menu with a reason dialog and step-up.
-- [ ] Admin, Tenant detail, then Users: the same panel for any tenant user.
-- [ ] Admin, Staff: the same for platform staff.
-- [ ] My security (web and admin):
+- [x] Web, People, then person detail, then an Account panel: status, last sign-in, two-step on or off, trusted devices count, and an Actions menu with a reason dialog and step-up.
+- [x] Admin, Tenant detail, then Users: the same panel for any tenant user.
+- [x] Admin, Staff: the same for platform staff.
+- [x] My security (web and admin):
   - trusted devices list with revoke
   - "Turn off two-step" when allowed, with a red warning
   - email fallback toggle shown according to policy
-- [ ] Admin and web Policy screens show "who has two-step off" counts per role.
+- [ ] Admin and web Policy screens show "who has two-step off" counts per role. _(deferred)_
 
 **Done when:** a tenant admin resets a staff member's two-step and that person re-enrols. The same admin cannot reset a higher admin. A super admin turns platform two-step to OPTIONAL and turns their own off. A trusted device skips the code for 30 days. The break-glass command works on a test server.
 

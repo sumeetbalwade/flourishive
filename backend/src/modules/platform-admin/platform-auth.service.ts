@@ -140,7 +140,11 @@ export class PlatformAuthService {
       // "Email me a code instead", where platform recovery by email is allowed.
       ok =
         (await this.settings.getPlatform('platform.superAdminRecoveryEmail')) &&
-        (await this.otp.verify('platform-mfa-signin', user.id, input.emailCode));
+        (await this.otp.verify(
+          'platform-mfa-signin',
+          user.id,
+          input.emailCode,
+        ));
     } else if (user?.status === 'ACTIVE' && user.mfaSecretEnc) {
       if (input.code) {
         ok = await this.mfa.verifyCode(user.mfaSecretEnc, input.code);
@@ -241,14 +245,20 @@ export class PlatformAuthService {
   async disableMfa(userId: string, password: string, ip?: string) {
     const user = await this.user(userId);
     if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
-    if ((await this.settings.getPlatform('platform.superAdminMfa')) === 'REQUIRED')
+    if (
+      (await this.settings.getPlatform('platform.superAdminMfa')) === 'REQUIRED'
+    )
       throw new ForbiddenException(
         'Two-step is required for platform staff right now, so it cannot be turned off.',
       );
-    if (!user.mfaEnabledAt) throw new ConflictException('Two-step is already off');
+    if (!user.mfaEnabledAt)
+      throw new ConflictException('Two-step is already off');
     const key = `stepup:platform:user:${user.id}`;
     await this.throttle.assertNotLocked('mfa', key);
-    if (!user.passwordHash || !(await this.passwords.verify(password, user.passwordHash))) {
+    if (
+      !user.passwordHash ||
+      !(await this.passwords.verify(password, user.passwordHash))
+    ) {
       await this.throttle.recordFailure('mfa', key);
       throw new UnauthorizedException('That password is not right');
     }

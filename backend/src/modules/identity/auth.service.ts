@@ -347,7 +347,11 @@ export class AuthService {
       claims.tenantId,
       user.id,
       meta,
-      input.recoveryCode ? 'mfa-recovery-code' : input.emailCode ? 'mfa-email' : 'mfa',
+      input.recoveryCode
+        ? 'mfa-recovery-code'
+        : input.emailCode
+          ? 'mfa-email'
+          : 'mfa',
     );
     const days = input.remember
       ? await this.settings.get('security.trustedDeviceDays', {
@@ -371,13 +375,19 @@ export class AuthService {
     const user = await this.findUser(who.tenantId, { id: who.userId });
     if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
     if (
-      !(await this.policies.effectiveFor(who.tenantId, who.userId)).recoveryEmail
+      !(await this.policies.effectiveFor(who.tenantId, who.userId))
+        .recoveryEmail
     )
       throw new ForbiddenException(
         'Signing in with an emailed code is not allowed for your role.',
       );
     await this.emailOtp(user, 'mfa-signin');
-    await this.auditUser(who.tenantId, who.userId, 'auth.signin_code_sent', meta);
+    await this.auditUser(
+      who.tenantId,
+      who.userId,
+      'auth.signin_code_sent',
+      meta,
+    );
   }
 
   /** What My security shows, and what it may offer. */
@@ -418,7 +428,8 @@ export class AuthService {
       throw new ForbiddenException(
         'Two-step is required for your role, so it cannot be turned off.',
       );
-    if (!user.mfaEnabledAt) throw new ConflictException('Two-step is already off');
+    if (!user.mfaEnabledAt)
+      throw new ConflictException('Two-step is already off');
     const key = `stepup:user:${user.id}`;
     await this.throttle.assertNotLocked('mfa', key);
     if (
@@ -430,13 +441,18 @@ export class AuthService {
     }
     await this.throttle.clear('mfa', key);
     await runInTenant(who.tenantId, async () => {
-      await this.prisma.db.recoveryCode.deleteMany({ where: { userId: user.id } });
+      await this.prisma.db.recoveryCode.deleteMany({
+        where: { userId: user.id },
+      });
       await this.prisma.db.user.update({
         where: { id: user.id },
         data: { mfaSecretEnc: null, mfaEnabledAt: null },
       });
     });
-    await this.devices.revokeAll({ kind: 'tenant', tenantId: who.tenantId }, user.id);
+    await this.devices.revokeAll(
+      { kind: 'tenant', tenantId: who.tenantId },
+      user.id,
+    );
     await this.auditUser(who.tenantId, user.id, 'auth.mfa_disabled', meta, {
       by: 'self',
     });

@@ -104,7 +104,11 @@ export class PlatformAccountsController {
 
   @RequirePlatformPermission('tenants.users.read')
   @Get('tenants/:tid/users/:id/account')
-  async account(@Param('tid') tid: string, @Param('id') id: string, @Req() req: PlatformRequest) {
+  async account(
+    @Param('tid') tid: string,
+    @Param('id') id: string,
+    @Req() req: PlatformRequest,
+  ) {
     const view = await this.accounts.account(tid, id);
     // Platform staff are not bound by the subset rule, but need the manage permission to act.
     return {
@@ -128,7 +132,9 @@ export class PlatformAccountsController {
   ) {
     const me = await runAsSystem(
       async () =>
-        await this.prisma.db.platformUser.findUnique({ where: { id: this.actor(req) } }),
+        await this.prisma.db.platformUser.findUnique({
+          where: { id: this.actor(req) },
+        }),
     );
     return this.accounts.perform(
       tid,
@@ -160,6 +166,12 @@ export class PlatformAccountsController {
     @Param('action') action: string,
     @Body(new ZodPipe(accountActionBody)) b: z.infer<typeof accountActionBody>,
   ) {
-    return this.staff.perform(this.actor(req), id, parseAction(action), b.reason, req.ip);
+    return this.staff.perform(
+      this.actor(req),
+      id,
+      parseAction(action),
+      b.reason,
+      req.ip,
+    );
   }
 }

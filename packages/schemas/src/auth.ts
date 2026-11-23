@@ -17,7 +17,10 @@ export const mfaVerifyBody = z
     code: z.string().optional(),
     recoveryCode: z.string().optional(),
     /** A code emailed to the person (where the role's policy allows it). */
-    emailCode: z.string().regex(/^\d{6}$/).optional(),
+    emailCode: z
+      .string()
+      .regex(/^\d{6}$/)
+      .optional(),
     /** Skip the code on this browser for the company's remember-device period. */
     remember: z.boolean().optional(),
   })

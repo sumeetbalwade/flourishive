@@ -8,8 +8,7 @@ import {
 import { sha256 } from './token.service.js';
 
 export type DeviceScope =
-  | { kind: 'tenant'; tenantId: string }
-  | { kind: 'platform' };
+  { kind: 'tenant'; tenantId: string } | { kind: 'platform' };
 
 export interface DeviceView {
   id: string;
@@ -151,7 +150,9 @@ export class TrustedDeviceService {
       });
     else
       await runAsSystem(async () => {
-        await this.db.platformTrustedDevice.deleteMany({ where: { id, userId } });
+        await this.db.platformTrustedDevice.deleteMany({
+          where: { id, userId },
+        });
       });
   }
 

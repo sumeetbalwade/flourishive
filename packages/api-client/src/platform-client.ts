@@ -1,4 +1,9 @@
 import {
+  accountActionResult,
+  accountListItem,
+  accountView,
+  securityInfo,
+  type AccountAction,
   platformRolesResponse,
   platformRoleView,
   supportSessionStarted,
@@ -59,7 +64,19 @@ export function createPlatformClient(opts: Opts) {
             auth: false,
           }),
         ),
-      mfaVerify: async (body: { mfaToken: string; code?: string; recoveryCode?: string }) =>
+      mfaEmailCode: (mfaToken: string) =>
+        http.request('POST', '/platform/auth/mfa/email-code', { json: { mfaToken }, auth: false }),
+      security: () => http.request('GET', '/platform/auth/security', { schema: securityInfo }),
+      revokeDevice: (id: string) => http.request('DELETE', `/platform/auth/trusted-devices/${id}`),
+      mfaDisable: (password: string) =>
+        http.request('POST', '/platform/auth/mfa/disable', { json: { password } }),
+      mfaVerify: async (body: {
+        mfaToken: string;
+        code?: string;
+        recoveryCode?: string;
+        emailCode?: string;
+        remember?: boolean;
+      }) =>
         adopt(
           await http.request('POST', '/platform/auth/mfa/verify', {
             json: body,
@@ -107,6 +124,30 @@ export function createPlatformClient(opts: Opts) {
         await http.request('POST', '/platform/auth/logout');
         http.setAccessToken(null);
       },
+    },
+
+    /** Account actions on a company's users and on other staff (D-63). */
+    accounts: {
+      users: (tenantId: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/users`, {
+          schema: z.array(accountListItem),
+        }),
+      account: (tenantId: string, id: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/users/${id}/account`, {
+          schema: accountView,
+        }),
+      act: (tenantId: string, id: string, action: AccountAction, reason: string) =>
+        http.request('POST', `/platform/tenants/${tenantId}/users/${id}/actions/${action}`, {
+          json: { reason },
+          schema: accountActionResult,
+        }),
+      staff: (id: string) =>
+        http.request('GET', `/platform/staff/${id}/account`, { schema: accountView }),
+      staffAct: (id: string, action: AccountAction, reason: string) =>
+        http.request('POST', `/platform/staff/${id}/actions/${action}`, {
+          json: { reason },
+          schema: accountActionResult,
+        }),
     },
 
     roles: {

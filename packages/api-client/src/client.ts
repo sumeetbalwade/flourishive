@@ -1,4 +1,9 @@
 import {
+  accountActionResult,
+  accountListItem,
+  accountView,
+  securityInfo,
+  type AccountAction,
   supportSessionView,
   auditListResponse,
   chainCheck,
@@ -227,7 +232,22 @@ export function createApiClient(opts: Opts) {
             auth: false,
           }),
         ),
-      mfaVerify: async (body: { mfaToken: string; code?: string; recoveryCode?: string }) =>
+      /** Emails a sign-in code (where the role's policy allows it), after the password step. */
+      mfaEmailCode: (mfaToken: string) =>
+        http.request('POST', '/auth/mfa/email-code', { json: { mfaToken }, auth: false }),
+      /** What My security shows: two-step state, what may be turned off, remembered devices. */
+      security: () => http.request('GET', '/auth/security', { schema: securityInfo }),
+      revokeDevice: (id: string) => http.request('DELETE', `/auth/trusted-devices/${id}`),
+      /** Turns off your own two-step (where the policy is not REQUIRED). Needs the password again. */
+      mfaDisable: (password: string) =>
+        http.request('POST', '/auth/mfa/disable', { json: { password } }),
+      mfaVerify: async (body: {
+        mfaToken: string;
+        code?: string;
+        recoveryCode?: string;
+        emailCode?: string;
+        remember?: boolean;
+      }) =>
         adopt(
           await http.request('POST', '/auth/mfa/verify', {
             json: body,
@@ -364,6 +384,17 @@ export function createApiClient(opts: Opts) {
         http.request('POST', '/access/user-roles', { json: { userId, roleKey, entityId } }),
       remove: (userId: string, roleKey: string, entityId?: string) =>
         http.request('DELETE', '/access/user-roles', { json: { userId, roleKey, entityId } }),
+    },
+
+    /** Company admin: look after the accounts in this company (D-63). */
+    users: {
+      list: () => http.request('GET', '/users', { schema: z.array(accountListItem) }),
+      account: (id: string) => http.request('GET', `/users/${id}/account`, { schema: accountView }),
+      act: (id: string, action: AccountAction, reason: string) =>
+        http.request('POST', `/users/${id}/actions/${action}`, {
+          json: { reason },
+          schema: accountActionResult,
+        }),
     },
 
     /** Platform staff looking at this company (D-56). */

@@ -3,11 +3,13 @@ import {
   Button,
   Card,
   CardTitle,
+  SecurityExtras,
   Dialog,
   DialogClose,
   DialogContent,
   useToast,
 } from '@flourishive/ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { MfaEnrol } from '../components/MfaEnrol.tsx';
 import { RecoveryCodes } from '../components/RecoveryCodes.tsx';
@@ -26,6 +28,8 @@ export function Security() {
   const [codes, setCodes] = useState<string[] | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
   const [busy, setBusy] = useState(false);
+  const qc = useQueryClient();
+  const info = useQuery({ queryKey: ['security'], queryFn: () => api.auth.security() });
 
   return (
     <Layout active="security" title="My security">
@@ -67,6 +71,30 @@ export function Security() {
             </p>
           )}
         </Card>
+
+        {info.data ? (
+          <SecurityExtras
+            info={info.data}
+            onRevoke={async (id) => {
+              try {
+                await api.auth.revokeDevice(id);
+                await qc.invalidateQueries({ queryKey: ['security'] });
+              } catch (e) {
+                toast({ title: messageOf(e), tone: 'danger' });
+              }
+            }}
+            onDisable={async (password) => {
+              try {
+                await api.auth.mfaDisable(password);
+              } catch (e) {
+                throw new Error(messageOf(e));
+              }
+              toast({ title: 'Two-step is off', tone: 'success' });
+              await qc.invalidateQueries({ queryKey: ['security'] });
+              await auth.reloadMe();
+            }}
+          />
+        ) : null}
 
         <Card>
           <CardTitle>Your devices</CardTitle>

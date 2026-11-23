@@ -12,6 +12,7 @@ import {
 } from '@flourishive/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
+import { AccountCard } from '../../components/AccountCard.tsx';
 import { useApi } from '../../lib/api.tsx';
 import { useAuth } from '../../lib/auth.tsx';
 import { describeAction } from '../../lib/audit-labels.ts';
@@ -151,6 +152,9 @@ export function PersonDetail({ id }: { id: string }) {
           ) : null}
         </Card>
         {p.person.userId && auth.can('roles.read') ? <AccessCard userId={p.person.userId} /> : null}
+        {p.person.userId && auth.can('users.manage') ? (
+          <AccountCard userId={p.person.userId} />
+        ) : null}
         {p.type === 'INTERN' ? (
           <Card>
             <CardTitle>Internship</CardTitle>

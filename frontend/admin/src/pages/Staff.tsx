@@ -19,6 +19,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
+import { AccountDialog } from '../components/AccountDialogs.tsx';
 import { useApi } from '../lib/api.tsx';
 import { useAuth } from '../lib/auth.tsx';
 import { messageOf } from '../lib/errors.ts';
@@ -37,6 +38,7 @@ export function Staff() {
   const roles = useQuery({ queryKey: ['platform-roles'], queryFn: () => api.roles.list() });
   const [email, setEmail] = useState('');
   const [roleId, setRoleId] = useState('');
+  const [accountOf, setAccountOf] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const me = auth.state.status === 'authed' ? auth.state.email : '';
@@ -119,6 +121,11 @@ export function Staff() {
                 <TD>{u.mfaEnabledAt ? 'On' : '—'}</TD>
                 <TD className="text-muted">{when(u.lastLoginAt)}</TD>
                 <TD className="text-right">
+                  {u.email !== me ? (
+                    <Button size="sm" variant="secondary" onClick={() => setAccountOf(u.id)}>
+                      Account
+                    </Button>
+                  ) : null}
                   {u.status === 'ACTIVE' && u.email !== me ? (
                     <Button
                       size="sm"
@@ -149,6 +156,9 @@ export function Staff() {
           </TBody>
         </Table>
       )}
+      {accountOf ? (
+        <AccountDialog userId={accountOf} open onClose={() => setAccountOf(null)} />
+      ) : null}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           title="Invite staff"

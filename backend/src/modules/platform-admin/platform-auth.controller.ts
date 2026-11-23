@@ -111,7 +111,9 @@ export class PlatformAuthController {
   /** "Email me a code instead" (after the password step). */
   @Post('mfa/email-code')
   @HttpCode(204)
-  async emailCode(@Body(body(mfaEmailCodeBody)) b: z.infer<typeof mfaEmailCodeBody>) {
+  async emailCode(
+    @Body(body(mfaEmailCodeBody)) b: z.infer<typeof mfaEmailCodeBody>,
+  ) {
     await this.auth.startMfaEmailCode(b.mfaToken);
   }
 
@@ -137,7 +139,11 @@ export class PlatformAuthController {
     @Req() req: PlatformRequest,
     @Body(body(mfaDisableBody)) b: z.infer<typeof mfaDisableBody>,
   ) {
-    await this.auth.disableMfa(req.platformAuth!.platformUserId, b.password, req.ip);
+    await this.auth.disableMfa(
+      req.platformAuth!.platformUserId,
+      b.password,
+      req.ip,
+    );
   }
 
   /** Lost authenticator: emails a code (after the password step). */
