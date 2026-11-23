@@ -41,3 +41,6 @@ docs/private/
 
 # PyInstaller writes these next to the build
 desktop/*.spec
+
+# graphify knowledge graph (local; rebuild with /graphify)
+graphify-out/
