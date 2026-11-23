@@ -136,6 +136,8 @@ export class DeliveryService {
     const held = await this.held(a.tenantId, doc);
     const name = person ? `${person.firstName} ${person.lastName}` : 'there';
     await this.mail.send({
+      event: 'letter.delivery',
+      tenantId: a.tenantId,
       to,
       subject: `Your letter: ${doc.reference}`,
       text: `Hello ${name},\n\nYour letter (${doc.reference}) is ready. Open this private link to see it${

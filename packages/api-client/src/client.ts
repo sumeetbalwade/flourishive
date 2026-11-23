@@ -4,6 +4,12 @@ import {
   accountView,
   securityInfo,
   passkeyView,
+  senderState,
+  senderView,
+  testResult,
+  deliveriesResponse,
+  type SaveSenderBody,
+  type DeliveryQuery,
   type AccountAction,
   supportSessionView,
   auditListResponse,
@@ -444,6 +450,27 @@ export function createApiClient(opts: Opts) {
       /** The banner's End session: ends the support session this tab is using. */
       endCurrent: () => http.request('POST', '/support/sessions/current/end'),
       end: (id: string) => http.request('POST', `/support/sessions/${id}/end`),
+    },
+
+    /** Who company email comes from, and the email log (D-58, D-60). */
+    mail: {
+      sender: () => http.request('GET', '/mail/sender', { schema: senderState }),
+      saveSender: (body: SaveSenderBody) =>
+        http.request('PUT', '/mail/sender', { json: body, schema: senderView }),
+      startVerify: () => http.request('POST', '/mail/sender/verify/start'),
+      confirmCode: (code: string) =>
+        http.request('POST', '/mail/sender/verify/confirm', { json: { code }, schema: senderView }),
+      test: () =>
+        http.request('POST', '/mail/sender/test', {
+          schema: testResult.extend({ sender: senderView }),
+        }),
+      dns: (dkimSelector?: string) =>
+        http.request('POST', '/mail/sender/dns', { json: { dkimSelector }, schema: senderView }),
+      activate: () => http.request('POST', '/mail/sender/activate', { schema: senderView }),
+      removeSender: () => http.request('DELETE', '/mail/sender'),
+      deliveries: (query: Partial<DeliveryQuery> = {}) =>
+        http.request('GET', '/mail/deliveries', { query, schema: deliveriesResponse }),
+      resend: (id: string) => http.request('POST', `/mail/deliveries/${id}/resend`),
     },
 
     audit: {

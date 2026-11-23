@@ -231,6 +231,7 @@ export class PlatformAuthService {
     if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
     const code = await this.otp.issue('platform-mfa-signin', user.id, 600);
     await this.mail.send({
+      event: 'platform.signin_code',
       to: user.email,
       subject: `Your ${this.config.APP_NAME} admin code: ${code}`,
       text: `Your one-time sign-in code is ${code}. It works once and expires in 10 minutes.\n\nIf you did not ask for it, change your password now.`,
@@ -453,6 +454,7 @@ export class PlatformAuthService {
     if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
     const code = await this.otp.issue('platform-mfa', user.id, 600);
     await this.mail.send({
+      event: 'platform.recovery_code',
       to: user.email,
       subject: `Your ${this.config.APP_NAME} admin code: ${code}`,
       text: `Your one-time code is ${code}. It works once and expires in 10 minutes.\n\nIf you did not ask for it, change your password now.`,
@@ -738,6 +740,7 @@ export class PlatformAuthService {
     let emailed = true;
     try {
       await this.mail.send({
+        event: 'platform.invite',
         to: address,
         subject: `You have been invited to the ${this.config.APP_NAME} admin console`,
         text: `Choose a password (link valid for 7 days):\n\n${link}`,
@@ -772,6 +775,8 @@ export class PlatformAuthService {
     let emailed = true;
     try {
       await this.mail.send({
+        event:
+          kind === 'invite' ? 'platform.invite' : 'platform.password_reset',
         to: user.email,
         subject:
           kind === 'invite'

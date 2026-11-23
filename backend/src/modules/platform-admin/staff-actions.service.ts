@@ -192,6 +192,7 @@ export class StaffActionsService {
     });
     try {
       await this.mail.send({
+        event: 'platform.account_notice',
         to: u.email,
         subject: 'A change to your admin account',
         text: `${SENTENCE[action]}.\n\nDone by ${actor.email}.\n\nIf you did not expect this, tell another administrator.`,

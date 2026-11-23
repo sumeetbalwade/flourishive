@@ -46,6 +46,8 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'SupportSession',
   'TrustedDevice',
   'Passkey',
+  'MailSender',
+  'MailDelivery',
 ]);
 
 /** The tenants table itself is scoped by its own id. */

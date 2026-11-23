@@ -4,6 +4,9 @@ import {
   accountView,
   securityInfo,
   passkeyView,
+  senderState,
+  deliveriesResponse,
+  type DeliveryQuery,
   type AccountAction,
   platformRolesResponse,
   platformRoleView,
@@ -162,6 +165,17 @@ export function createPlatformClient(opts: Opts) {
         await http.request('POST', '/platform/auth/logout');
         http.setAccessToken(null);
       },
+    },
+
+    /** The email log across companies, and a company's sender (D-58, D-60). */
+    mail: {
+      deliveries: (query: Partial<DeliveryQuery> = {}) =>
+        http.request('GET', '/platform/mail/deliveries', { query, schema: deliveriesResponse }),
+      resend: (id: string) => http.request('POST', `/platform/mail/deliveries/${id}/resend`),
+      tenantSender: (tenantId: string) =>
+        http.request('GET', `/platform/mail/tenants/${tenantId}/sender`, { schema: senderState }),
+      removeTenantSender: (tenantId: string) =>
+        http.request('DELETE', `/platform/mail/tenants/${tenantId}/sender`),
     },
 
     /** Account actions on a company's users and on other staff (D-63). */

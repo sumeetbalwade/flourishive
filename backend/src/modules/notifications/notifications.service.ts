@@ -119,6 +119,8 @@ export class NotificationsService implements OnModuleInit {
         tenantId,
       });
       await this.mail.send({
+        event: n.event,
+        tenantId,
         to: n.toEmail,
         subject: n.subject,
         text: text ?? n.body,

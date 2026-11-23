@@ -31,12 +31,12 @@ export class QueueService implements OnModuleDestroy {
   async enqueue(
     name: string,
     data: unknown,
-    options: { jobId?: string; delayMs?: number } = {},
+    options: { jobId?: string; delayMs?: number; attempts?: number } = {},
   ): Promise<void> {
     await this.queue(DEFAULT_QUEUE).add(name, data, {
       jobId: options.jobId,
       delay: options.delayMs,
-      attempts: 5,
+      attempts: options.attempts ?? 5,
       backoff: { type: 'exponential', delay: 5000 },
       removeOnComplete: 1000,
       removeOnFail: 5000,

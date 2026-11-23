@@ -10,3 +10,4 @@ export * from './platform.js';
 export * from './policy.js';
 export * from './settings.js';
 export * from './documents.js';
+export * from './mail.js';

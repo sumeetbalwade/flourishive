@@ -231,6 +231,8 @@ export class SigningService {
     });
     const link = `${(await this.runtime.require('VERIFY_URL')).replace(/\/$/, '')}/accept/${token}`;
     await this.mail.send({
+      event: 'signing.request',
+      tenantId: a.tenantId,
       to: b.email,
       subject: `Please review and accept: ${doc.reference}`,
       text: `Hello ${b.name},\n\nYou have a document to review and accept: ${doc.reference}.\n\nOpen this private link, read the document and ${
@@ -464,6 +466,8 @@ export class SigningService {
     });
     const code = await this.otp.issue('accept', party.id, minutes * 60);
     await this.mail.send({
+      event: 'signing.otp',
+      tenantId,
       to: party.email,
       subject: `Your ${this.config.APP_NAME} code: ${code}`,
       text: `Your one-time code to accept the document is ${code}. It works once and expires in ${minutes} minutes.\n\nIf you did not ask for it, ignore this email.`,

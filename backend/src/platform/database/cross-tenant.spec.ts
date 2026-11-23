@@ -678,6 +678,30 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { label: 'hacked' },
   },
+  MailSender: {
+    delegate: 'mailSender',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        kind: 'VERIFIED_FROM',
+        fromName: 'Acme HR',
+        fromAddress: 'hr@acme.test',
+      },
+    }),
+    change: { fromName: 'hacked' },
+  },
+  MailDelivery: {
+    delegate: 'mailDelivery',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        event: 'test',
+        toMasked: 'a***@b.test',
+        toHash: 'a'.repeat(64),
+      },
+    }),
+    change: { event: 'hacked' },
+  },
   Notification: {
     delegate: 'notification',
     create: async (tenantId) => ({

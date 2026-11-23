@@ -23,6 +23,13 @@ export {
   type AccountActionName,
 } from './components/account-panel.tsx';
 export { SecurityExtras, type SecurityData } from './components/security-extras.tsx';
+export {
+  EmailLog,
+  describeMailEvent,
+  type EmailLogFilters,
+  type DeliveryItem,
+  type DeliveriesResponse,
+} from './components/email-log.tsx';
 export { PasskeysCard, type PasskeyItem } from './components/passkeys-card.tsx';
 export { CollapsibleSection } from './components/collapsible-section.tsx';
 export { SearchBox } from './components/search-box.tsx';

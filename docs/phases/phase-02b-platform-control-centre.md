@@ -308,7 +308,7 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
 ### PR 5 — Email senders, verification and delivery log (D-58, D-60)
 
 **Backend**
-- [ ] Data:
+- [x] Data:
   - `mail_senders` (`tenantId` nullable = platform):
     - `kind`: `PLATFORM_DEFAULT | VERIFIED_FROM | OWN_SMTP`
     - `fromName`, `fromAddress`, `replyTo`
@@ -316,23 +316,23 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
     - `status`: `DRAFT | VERIFYING | ACTIVE | FAILED`
     - `verifiedAt`, `lastTestAt`, `lastTestResult`, `dnsReport` (JSON)
   - `mail_deliveries`: `tenantId`, `event`, `to` (stored masked, e.g. `as***@gmail.com`, plus a hash for search), `senderId`, `status` (`QUEUED | SENT | FAILED`), `providerMessageId`, `error`, `attempts`, `requestId`, `createdAt`, `sentAt`.
-- [ ] Sending goes through the queue (`platform/queue`) with retries (3, with backoff). `MailService.send` picks the tenant's ACTIVE sender, else the platform default.
-- [ ] Verification flow `POST /v1/mail/senders/:id/verify/start`:
+- [x] Sending goes through the queue (`platform/queue`) with retries (3, with backoff). _(Built: the first attempt is inline, so codes and links are not held up waiting for the cron worker; a failure is logged and retried by the worker, 3 tries with backoff. The message is held in Redis for an hour for the retry; it is never stored in the database.)_ `MailService.send` picks the tenant's ACTIVE sender, else the platform default.
+- [x] Verification flow `POST /v1/mail/senders/:id/verify/start`:
   1. Email a 6-digit code to `fromAddress` (expires in 10 minutes, 5 attempts).
   2. `verify/confirm` with the code.
   3. Test send through the sender's own transport to the requesting admin.
   4. DNS report: SPF (TXT on the domain includes the provider), DKIM (selector entered by the admin, or common selectors tried), DMARC (`_dmarc` TXT). Each is shown as pass or warn with a fix-it hint written for a non-technical admin.
   5. `activate` is allowed only after steps 2 and 3.
-- [ ] SSRF guard for `OWN_SMTP`:
+- [x] SSRF guard for `OWN_SMTP`:
   - Resolve the host. Refuse private, loopback, link-local and metadata addresses.
   - Allow only ports 25, 465, 587 and 2525.
   - Time out after 10 seconds.
-- [ ] Permissions: tenant `email.manage` (new); platform `email.manage`. The super admin can do all of it for any tenant.
-- [ ] Delivery log API with filters (event, status, date, recipient search by hash) and `POST /v1/mail/deliveries/:id/resend`. For OTP, reset and invite events, resending re-runs the event to issue a fresh code or link.
+- [x] Permissions: tenant `email.manage` (new); platform `email.manage`. The super admin can do all of it for any tenant. _(Built: the super admin sees the email log across companies, can resend, and can switch a company back to the default sender. Setting up a sender on a company's behalf is not built; they can use a support session.)_
+- [x] Delivery log API with filters (event, status, date, recipient search by hash) and `POST /v1/mail/deliveries/:id/resend`. For OTP, reset and invite events, resending re-runs the event to issue a fresh code or link. _(Built differently: Resend sends the held copy while it is under an hour old. After that it says to repeat the action, for example Forgot password. Re-running each event is not built.)_
 
 **Frontend**
-- [ ] Settings, then Email: current sender card; "Use our own sender" wizard (choose a kind, enter details, verify the code, test, DNS report, activate); "Switch back to default".
-- [ ] Email log screen in web (tenant) and admin (platform, filter by tenant), with statuses, plain-English errors (for example "Gmail refused the login. Use an app password." mapped from common SMTP codes) and Resend.
+- [x] Settings, then Email: current sender card; "Use our own sender" wizard (choose a kind, enter details, verify the code, test, DNS report, activate); "Switch back to default".
+- [x] Email log screen in web (tenant) and admin (platform, filter by tenant), with statuses, plain-English errors (for example "Gmail refused the login. Use an app password." mapped from common SMTP codes) and Resend.
 
 **Done when:** a tenant admin connects their Google Workspace SMTP with an app password, verifies it, sees an amber DMARC warning with a fix hint, activates it, and an invite arrives from their address. A failed send shows in the log with a readable reason and resends successfully.
 

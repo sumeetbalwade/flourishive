@@ -5,6 +5,8 @@ import {
   FileText,
   Home,
   KeyRound,
+  Mail,
+  MailCheck,
   Settings,
   LayoutTemplate,
   Stamp,
@@ -61,6 +63,13 @@ const NAV: Item[] = [
   },
   { id: 'audit', label: 'Audit log', icon: ClipboardList, group: 'Insights', needs: 'audit.read' },
   {
+    id: 'email-log',
+    label: 'Email log',
+    icon: MailCheck,
+    group: 'Insights',
+    needs: 'email.manage',
+  },
+  {
     id: 'roles',
     label: 'Roles & access',
     icon: KeyRound,
@@ -73,6 +82,13 @@ const NAV: Item[] = [
     icon: ShieldCheck,
     group: 'Administration',
     needs: 'roles.read',
+  },
+  {
+    id: 'email',
+    label: 'Email sender',
+    icon: Mail,
+    group: 'Administration',
+    needs: 'email.manage',
   },
   {
     id: 'company',

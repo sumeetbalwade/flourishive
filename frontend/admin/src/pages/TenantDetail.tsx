@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { useApi } from '../lib/api.tsx';
 import { messageOf } from '../lib/errors.ts';
 import { go } from '../router.ts';
+import { TenantMail } from '../components/TenantMail.tsx';
 import { TenantUsers } from '../components/AccountDialogs.tsx';
 import { OpenAsSupport, SupportHistory } from '../components/SupportAccess.tsx';
 import { useCan } from '../lib/auth.tsx';
@@ -168,6 +169,7 @@ export function TenantDetail({ id }: { id: string }) {
           </Card>
           <TenantUsers tenantId={id} />
           <SupportHistory tenantId={id} />
+          {can('email.manage') ? <TenantMail tenantId={id} canManage /> : null}
           <Card>
             <CardTitle>Companies</CardTitle>
             <ul className="mt-3 grid gap-2 text-sm">

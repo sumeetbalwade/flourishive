@@ -25,10 +25,13 @@ import { StaffActionsService } from './staff-actions.service.js';
 import { ConfigTestService } from './config-test.service.js';
 import { PlatformConfigController } from './platform-config.controller.js';
 import { PlatformGuard } from './platform.guard.js';
+import { PlatformMailController } from './platform-mail.controller.js';
+import { MailAdminModule } from '../mail/mail-admin.module.js';
 
 @Module({
-  imports: [IdentityModule, AccessModule, SettingsModule],
+  imports: [IdentityModule, AccessModule, SettingsModule, MailAdminModule],
   controllers: [
+    PlatformMailController,
     PlatformAuthController,
     PlatformAdminController,
     PlatformConfigController,

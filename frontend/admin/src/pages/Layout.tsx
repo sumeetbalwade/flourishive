@@ -1,5 +1,14 @@
 import { AppShell, BrandMark, brand, type NavItem } from '@flourishive/ui';
-import { Activity, Building2, KeyRound, Settings, ShieldCheck, UserCog, Users } from 'lucide-react';
+import {
+  Activity,
+  Building2,
+  KeyRound,
+  MailCheck,
+  Settings,
+  ShieldCheck,
+  UserCog,
+  Users,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAuth, useCan } from '../lib/auth.tsx';
 import { INTEGRATION_SECTIONS } from '../lib/integration-sections.ts';
@@ -29,6 +38,13 @@ const NAV: Item[] = [
     group: 'Platform',
     children: INTEGRATION_SECTIONS,
     needs: ['config.read'],
+  },
+  {
+    id: 'email-log',
+    label: 'Email log',
+    icon: MailCheck,
+    group: 'Platform',
+    needs: ['email.manage'],
   },
   { id: 'users', label: 'Platform staff', icon: Users, group: 'Platform', needs: ['staff.manage'] },
   {

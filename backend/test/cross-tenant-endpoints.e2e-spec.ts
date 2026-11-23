@@ -445,6 +445,17 @@ const NO_TENANT_DATA: Record<string, string> = {
   'POST /auth/recovery/email': 'pre-login',
   'POST /auth/recovery/email/verify': 'pre-login',
   'POST /auth/mfa/verify': 'own challenge token',
+  'GET /mail/sender': 'the signed-in company only (tenantId from the token)',
+  'PUT /mail/sender': 'the signed-in company only (tenantId from the token)',
+  'POST /mail/sender/verify/start': 'the signed-in company only',
+  'POST /mail/sender/verify/confirm': 'the signed-in company only',
+  'POST /mail/sender/test': 'the signed-in company only',
+  'POST /mail/sender/dns': 'the signed-in company only',
+  'POST /mail/sender/activate': 'the signed-in company only',
+  'DELETE /mail/sender': 'the signed-in company only',
+  'GET /mail/deliveries': 'the list is filtered to the signed-in company',
+  'POST /mail/deliveries/:id/resend':
+    'the lookup includes the signed-in company, so another company’s id is a 404',
   'POST /auth/mfa/passkey/options': 'own challenge token',
   'POST /auth/mfa/passkey/verify':
     'own challenge token; the passkey must belong to that person',

@@ -9,6 +9,7 @@ import { requestStepUp, StepUpHost } from './lib/step-up.tsx';
 import { Defaults } from './pages/Defaults.tsx';
 import { Policy } from './pages/Policy.tsx';
 import { Login, SetPassword } from './pages/Login.tsx';
+import { EmailLog } from './pages/EmailLog.tsx';
 import { Roles } from './pages/Roles.tsx';
 import { Security } from './pages/Security.tsx';
 import { Staff } from './pages/Staff.tsx';
@@ -43,6 +44,7 @@ function Routes() {
   else if (path.startsWith('/tenants/')) page = <TenantDetail id={path.split('/').pop()!} />;
   else if (path === '/users') page = <Staff />;
   else if (path === '/roles') page = <Roles />;
+  else if (path === '/email-log') page = <EmailLog />;
   else if (path === '/security') page = <Security />;
   else if (path === '/settings') page = <Defaults />;
   else if (path === '/policy') page = <Policy />;

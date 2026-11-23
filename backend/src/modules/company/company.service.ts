@@ -57,6 +57,7 @@ export class CompanyService {
       (u) => `${u.tenant.name}: ${tenantUrl(template, u.tenant.slug)}`,
     );
     await this.mail.send({
+      event: 'company.find',
       to: email,
       subject: `Your ${this.config.APP_NAME} sign-in address`,
       text: `Sign in at your company's address:\n\n${lines.join('\n')}\n\nIf you did not ask for this, you can ignore this email.`,
