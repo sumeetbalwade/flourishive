@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { slugOf } from '../lib/integration-sections.ts';
 import { useApi } from '../lib/api.tsx';
 import { messageOf } from '../lib/errors.ts';
+import { RestartApi } from '../components/RestartApi.tsx';
 import { Layout } from './Layout.tsx';
 
 const SOURCE: Record<RuntimeConfigEntry['source'], string> = {
@@ -108,6 +109,7 @@ export function Integrations({ section }: { section?: string }) {
   const qc = useQueryClient();
   const toast = useToast();
   const list = useQuery({ queryKey: ['platform-config'], queryFn: () => api.config.list() });
+  const system = useQuery({ queryKey: ['system'], queryFn: () => api.system.info() });
   const refresh = () => qc.invalidateQueries({ queryKey: ['platform-config'] });
 
   const [query, setQuery] = useState('');
@@ -137,6 +139,15 @@ export function Integrations({ section }: { section?: string }) {
       return hit.length ? [{ group, items: hit }] : [];
     });
   }, [byGroup, q]);
+  // Settings that need a restart and were saved after the API last started are not in use yet.
+  const pending = entries.filter(
+    (e) =>
+      e.restartRequired &&
+      e.source === 'console' &&
+      e.updatedAt &&
+      system.data &&
+      e.updatedAt > system.data.startedAt,
+  );
   const itemCount = visible.reduce((n, v) => n + v.items.length, 0);
 
   const dirtyKeys = (group: string) =>
@@ -240,6 +251,18 @@ export function Integrations({ section }: { section?: string }) {
             Each section saves on its own. Changing a key or password asks you to confirm it is you.
             Saved secrets are never shown again. A value set here wins over the server file.
           </p>
+          {pending.length > 0 ? (
+            <div
+              role="status"
+              className="flex flex-wrap items-center gap-3 rounded-card border border-warning/40 bg-warning-lo px-5 py-3 text-sm"
+            >
+              <span className="min-w-0 flex-1">
+                Saved but not in use yet: {pending.map((e) => e.label).join(', ')}. Restart the API
+                to apply {pending.length === 1 ? 'it' : 'them'}.
+              </span>
+              <RestartApi />
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-3">
             <div ref={search} className="min-w-60 flex-1">
               <SearchBox

@@ -1,4 +1,5 @@
 import {
+  systemInfo,
   configTestResult,
   runtimeConfigEntry,
   createTenantResponse,
@@ -101,6 +102,12 @@ export function createPlatformClient(opts: Opts) {
         await http.request('POST', '/platform/auth/logout');
         http.setAccessToken(null);
       },
+    },
+
+    system: {
+      info: () => http.request('GET', '/platform/system', { schema: systemInfo }),
+      /** Stops the API; the server starts it again within seconds. Needs a fresh confirmation. */
+      restart: () => http.request('POST', '/platform/system/restart'),
     },
 
     diagnostics: {

@@ -186,3 +186,12 @@ export const runtimeConfigBody = z.object({
 export const configTestResult = z.object({ ok: z.boolean(), message: z.string() });
 export type RuntimeConfigEntry = z.infer<typeof runtimeConfigEntry>;
 export type ConfigTestResult = z.infer<typeof configTestResult>;
+
+export const systemInfo = z.object({
+  /** True only where something restarts the API after it exits (the production service). */
+  canRestart: z.boolean(),
+  version: z.string(),
+  startedAt: z.string(),
+  uptimeSeconds: z.number(),
+});
+export type SystemInfo = z.infer<typeof systemInfo>;
