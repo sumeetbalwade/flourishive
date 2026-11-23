@@ -7,11 +7,15 @@ import {
   platformPasswordBody as passwordBody,
   platformRecoveryVerifyBody as recoveryBody,
   stepUpBody,
+  mfaEmailCodeBody,
+  mfaDisableBody,
 } from '@flourishive/schemas';
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
   HttpCode,
   Post,
   Req,
@@ -31,6 +35,7 @@ import {
 import { PlatformGuard, type PlatformRequest } from './platform.guard.js';
 
 const COOKIE = 'fh_platform_refresh';
+const DEVICE_COOKIE = 'fh_platform_device';
 const body = <T>(s: z.ZodType<T>) => new ZodPipe(s);
 
 /** Super admin sign-in. Every route here is outside the tenant guard on purpose. */
@@ -73,7 +78,11 @@ export class PlatformAuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const r = await this.auth.login(b, this.meta(req));
+    const r = await this.auth.login(
+      b,
+      this.meta(req),
+      req.cookies?.[DEVICE_COOKIE],
+    );
     return r.status === 'ok' ? this.respond(req, res, r.tokens) : r;
   }
 
@@ -84,7 +93,51 @@ export class PlatformAuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.respond(req, res, await this.auth.verifyMfa(b, this.meta(req)));
+    const { trustedDevice, ...tokens } = await this.auth.verifyMfa(
+      b,
+      this.meta(req),
+    );
+    if (trustedDevice)
+      res.cookie(DEVICE_COOKIE, trustedDevice.token, {
+        httpOnly: true,
+        secure: process.env.COOKIE_SECURE === 'true',
+        sameSite: 'strict',
+        path: '/v1/platform/auth',
+        maxAge: trustedDevice.maxAgeMs,
+      });
+    return this.respond(req, res, tokens);
+  }
+
+  /** "Email me a code instead" (after the password step). */
+  @Post('mfa/email-code')
+  @HttpCode(204)
+  async emailCode(@Body(body(mfaEmailCodeBody)) b: z.infer<typeof mfaEmailCodeBody>) {
+    await this.auth.startMfaEmailCode(b.mfaToken);
+  }
+
+  /** My security: what is on, what may be turned off, remembered devices. */
+  @UseGuards(PlatformGuard)
+  @Get('security')
+  security(@Req() req: PlatformRequest) {
+    return this.auth.securityInfo(req.platformAuth!.platformUserId);
+  }
+
+  @UseGuards(PlatformGuard)
+  @Delete('trusted-devices/:id')
+  @HttpCode(204)
+  async revokeDevice(@Req() req: PlatformRequest, @Param('id') id: string) {
+    await this.auth.revokeDevice(req.platformAuth!.platformUserId, id);
+  }
+
+  /** Turn off your own two-step (only where the platform policy is not REQUIRED). Needs the password again. */
+  @UseGuards(PlatformGuard)
+  @Post('mfa/disable')
+  @HttpCode(204)
+  async disable(
+    @Req() req: PlatformRequest,
+    @Body(body(mfaDisableBody)) b: z.infer<typeof mfaDisableBody>,
+  ) {
+    await this.auth.disableMfa(req.platformAuth!.platformUserId, b.password, req.ip);
   }
 
   /** Lost authenticator: emails a code (after the password step). */

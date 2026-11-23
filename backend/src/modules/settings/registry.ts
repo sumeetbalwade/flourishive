@@ -128,6 +128,33 @@ export const SETTINGS = {
     group: 'Security',
     description: 'How long a sign-in lasts without activity',
   }),
+  'security.trustedDeviceDays': def({
+    schema: z.number().int().min(0).max(90),
+    default: 30,
+    levels: ['tenant'],
+    label: 'Remember a device after two-step (days)',
+    group: 'Security',
+    description:
+      'After a successful two-step code a person may tick "Remember this device" and skip the code on it for this many days. 0 turns the option off',
+  }),
+  'security.adminSessionDays': def({
+    schema: z.number().int().min(1).max(30),
+    default: 14,
+    levels: ['tenant'],
+    label: 'Stay signed in, for admins (days)',
+    group: 'Security',
+    description:
+      'How long a sign-in lasts for people whose role can manage something (instead of the length for everyone else)',
+  }),
+  'platform.trustedDeviceDays': def({
+    schema: z.number().int().min(0).max(90),
+    default: 30,
+    levels: [],
+    label: 'Remember a device, for platform staff (days)',
+    group: 'Platform',
+    description:
+      'After a two-step code platform staff may skip it on that device for this many days. 0 turns the option off',
+  }),
   'security.loginAttempts': def({
     schema: z.number().int().min(3).max(10),
     default: 5,

@@ -9,8 +9,10 @@ export const platformMfaVerifyBody = z
     mfaToken: z.string(),
     code: z.string().optional(),
     recoveryCode: z.string().optional(),
+    emailCode: z.string().regex(/^\d{6}$/).optional(),
+    remember: z.boolean().optional(),
   })
-  .refine((b) => b.code || b.recoveryCode, 'code or recoveryCode is required');
+  .refine((b) => b.code || b.recoveryCode || b.emailCode, 'a code is required');
 export const platformMfaSetupBody = z.object({ mfaToken: z.string() });
 export const platformMfaConfirmBody = z.object({
   mfaToken: z.string(),
@@ -263,3 +265,40 @@ export const supportSessionView = z.object({
 export type StartSupportBody = z.infer<typeof startSupportBody>;
 export type SupportSessionStarted = z.infer<typeof supportSessionStarted>;
 export type SupportSessionView = z.infer<typeof supportSessionView>;
+
+/** What an admin can do to a sign-in account (D-63). Each needs a reason and a fresh confirmation. */
+export const ACCOUNT_ACTIONS = [
+  'reset-password',
+  'reset-mfa',
+  'unlock',
+  'sign-out-everywhere',
+  'suspend',
+  'reactivate',
+  'resend-invite',
+] as const;
+export const accountAction = z.enum(ACCOUNT_ACTIONS);
+export type AccountAction = z.infer<typeof accountAction>;
+export const accountActionBody = z.object({
+  reason: z.string().trim().min(5, 'Say why (at least a few words)').max(300),
+});
+export const accountView = z.object({
+  id: z.string(),
+  email: z.string(),
+  name: z.string().nullable(),
+  status: z.enum(['INVITED', 'ACTIVE', 'DISABLED']),
+  lastLoginAt: z.string().nullable(),
+  mfaEnabled: z.boolean(),
+  /** The role policy requires two-step for this person. */
+  mfaRequired: z.boolean(),
+  trustedDevices: z.number(),
+  roles: z.array(z.string()),
+  /** Which actions the signed-in admin may take on this account right now (rules and state applied). */
+  allowed: z.array(accountAction),
+});
+export type AccountView = z.infer<typeof accountView>;
+export const accountActionResult = z.object({
+  ok: z.literal(true),
+  /** A link to hand over when the email could not be sent (platform staff only). */
+  link: z.string().optional(),
+  emailed: z.boolean().optional(),
+});

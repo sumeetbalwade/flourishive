@@ -11,12 +11,16 @@ import {
   mfaRecoveryStartBody,
   mfaRecoveryVerifyBody,
   stepUpBody,
+  mfaEmailCodeBody,
+  mfaDisableBody,
 } from '@flourishive/schemas';
 import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
   HttpCode,
   Post,
   Req,
@@ -41,6 +45,8 @@ import { StepUpService } from './step-up.service.js';
 import { ZodPipe } from './zod.pipe.js';
 
 const COOKIE = 'fh_refresh';
+/** Holds the secret of a remembered device (D-64). httpOnly and SameSite=Strict. */
+const DEVICE_COOKIE = 'fh_device';
 const body = <T>(schema: z.ZodType<T>) => new ZodPipe(schema);
 
 @Controller('auth')
@@ -93,6 +99,21 @@ export class AuthController {
     };
   }
 
+  /** Sets the remember-this-device cookie when the person ticked it. */
+  private setDeviceCookie(
+    res: Response,
+    device?: { token: string; maxAgeMs: number },
+  ) {
+    if (!device) return;
+    res.cookie(DEVICE_COOKIE, device.token, {
+      httpOnly: true,
+      secure: this.config.COOKIE_SECURE,
+      sameSite: 'strict',
+      path: '/v1/auth',
+      maxAge: device.maxAgeMs,
+    });
+  }
+
   private respondLogin(req: Request, res: Response, r: LoginResult) {
     return r.status === 'ok' ? this.respondTokens(req, res, r.tokens) : r;
   }
@@ -128,7 +149,7 @@ export class AuthController {
     return this.respondLogin(
       req,
       res,
-      await this.auth.login(b, this.meta(req)),
+      await this.auth.login(b, this.meta(req), req.cookies?.[DEVICE_COOKIE]),
     );
   }
 
@@ -144,7 +165,11 @@ export class AuthController {
     return this.respondLogin(
       req,
       res,
-      await this.auth.loginWithGoogle(b, this.meta(req)),
+      await this.auth.loginWithGoogle(
+        b,
+        this.meta(req),
+        req.cookies?.[DEVICE_COOKIE],
+      ),
     );
   }
 
@@ -156,11 +181,46 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.respondTokens(
-      req,
-      res,
-      await this.auth.verifyMfa(b, this.meta(req)),
+    const { trustedDevice, ...tokens } = await this.auth.verifyMfa(
+      b,
+      this.meta(req),
     );
+    this.setDeviceCookie(res, trustedDevice);
+    return this.respondTokens(req, res, tokens);
+  }
+
+  /** "Email me a code instead", where the role's policy allows it. */
+  @Public()
+  @Post('mfa/email-code')
+  @HttpCode(204)
+  async mfaEmailCode(
+    @Body(body(mfaEmailCodeBody)) b: z.infer<typeof mfaEmailCodeBody>,
+    @Req() req: Request,
+  ) {
+    await this.auth.startMfaEmailCode(b.mfaToken, this.meta(req));
+  }
+
+  /** My security: what is on, what may be turned off, remembered devices. */
+  @Get('security')
+  security(@CurrentAuth() a: AccessClaims) {
+    return this.auth.securityInfo(a);
+  }
+
+  @Delete('trusted-devices/:id')
+  @HttpCode(204)
+  async revokeDevice(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
+    await this.auth.revokeDevice(a, id);
+  }
+
+  /** Turn off your own two-step (only where the policy is not REQUIRED). Needs the password again. */
+  @Post('mfa/disable')
+  @HttpCode(204)
+  async mfaDisable(
+    @CurrentAuth() a: AccessClaims,
+    @Body(body(mfaDisableBody)) b: z.infer<typeof mfaDisableBody>,
+    @Req() req: Request,
+  ) {
+    await this.auth.disableMfa(a, b.password, this.meta(req));
   }
 
   @Public()

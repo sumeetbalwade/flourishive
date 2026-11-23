@@ -16,8 +16,12 @@ export const mfaVerifyBody = z
     mfaToken: z.string(),
     code: z.string().optional(),
     recoveryCode: z.string().optional(),
+    /** A code emailed to the person (where the role's policy allows it). */
+    emailCode: z.string().regex(/^\d{6}$/).optional(),
+    /** Skip the code on this browser for the company's remember-device period. */
+    remember: z.boolean().optional(),
   })
-  .refine((b) => b.code || b.recoveryCode, 'code or recoveryCode is required');
+  .refine((b) => b.code || b.recoveryCode || b.emailCode, 'a code is required');
 export const mfaSetupBody = z.object({ mfaToken: z.string().optional() });
 export const mfaConfirmBody = z.object({ mfaToken: z.string().optional(), code });
 export const refreshBody = z.object({ refreshToken: z.string().optional() }).default({});
@@ -85,3 +89,24 @@ export const companyPublic = z.object({
 });
 export type CompanyPublic = z.infer<typeof companyPublic>;
 export const findCompanyBody = z.object({ email: z.string().email().max(191) });
+
+export const mfaEmailCodeBody = z.object({ mfaToken: z.string() });
+export const mfaDisableBody = z.object({ password: z.string().min(1).max(256) });
+export const trustedDeviceView = z.object({
+  id: z.string(),
+  label: z.string(),
+  createdAt: z.string(),
+  lastUsedAt: z.string(),
+  expiresAt: z.string(),
+});
+/** What "My security" shows and may offer. */
+export const securityInfo = z.object({
+  mfaEnabled: z.boolean(),
+  /** The role policy allows turning two-step off (it is not REQUIRED). */
+  canDisableMfa: z.boolean(),
+  emailFallback: z.boolean(),
+  trustedDeviceDays: z.number(),
+  devices: z.array(trustedDeviceView),
+});
+export type SecurityInfo = z.infer<typeof securityInfo>;
+export type TrustedDeviceView = z.infer<typeof trustedDeviceView>;

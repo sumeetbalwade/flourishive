@@ -13,10 +13,11 @@ model PlatformUser {
 
   roleId String @db.Char(36)
 
-  role            PlatformRole           @relation(fields: [roleId], references: [id])
+  role            PlatformRole            @relation(fields: [roleId], references: [id])
   recoveryCodes   PlatformRecoveryCode[]
   sessions        PlatformSession[]
   supportSessions SupportSession[]
+  trustedDevices  PlatformTrustedDevice[]
 
   @@map("platform_users")
 }
@@ -111,4 +112,19 @@ model SupportSession {
   @@index([tenantId, startedAt])
   @@index([platformUserId])
   @@map("support_sessions")
+}
+
+model PlatformTrustedDevice {
+  id         String   @id @default(uuid(7)) @db.Char(36)
+  userId     String   @db.Char(36)
+  tokenHash  String   @unique @db.Char(64)
+  label      String   @db.VarChar(120)
+  createdAt  DateTime @default(now()) @db.DateTime(3)
+  lastUsedAt DateTime @default(now()) @db.DateTime(3)
+  expiresAt  DateTime @db.DateTime(3)
+
+  user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("platform_trusted_devices")
 }

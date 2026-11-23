@@ -4,6 +4,7 @@ import { StorageMigrateService } from './modules/files/storage-migrate.service.j
 import { StorageService } from './platform/storage/storage.service.js';
 import { AccessService } from './modules/access/access.service.js';
 import { AuditWatchService } from './modules/platform-admin/audit-watch.service.js';
+import { StaffActionsService } from './modules/platform-admin/staff-actions.service.js';
 import { PlatformAuthService } from './modules/platform-admin/platform-auth.service.js';
 import { JobHandlerRegistry } from './platform/queue/job-handlers.js';
 import { JobRecordsService } from './platform/queue/job-records.service.js';
@@ -13,6 +14,7 @@ import { QueueService } from './platform/queue/queue.service.js';
  * Command line entry point (run by cron or by an operator over SSH):
  *   node dist/cli.js worker [--max-seconds=55]
  *   node dist/cli.js create-platform-user --email=you@example.com
+ *   node dist/cli.js platform-reset-mfa --email=you@example.com   (break-glass: clears two-step for a locked-out staff member)
  *   node dist/cli.js storage-check           (is file storage working, and how many reads fell back to local disk)
  *   node dist/cli.js sync-roles              (after a deploy: gives every company's system roles any new permissions)
  *   node dist/cli.js storage-migrate-r2 [--dry-run] [--delete-local]
@@ -30,13 +32,14 @@ async function main() {
   if (
     command !== 'worker' &&
     command !== 'create-platform-user' &&
+    command !== 'platform-reset-mfa' &&
     command !== 'verify-audit' &&
     command !== 'storage-migrate-r2' &&
     command !== 'sync-roles' &&
     command !== 'storage-check'
   ) {
     console.error(
-      'Usage: cli.js worker [--max-seconds=55] | create-platform-user --email=<address> | verify-audit | storage-migrate-r2 [--dry-run] [--delete-local] | sync-roles | storage-check',
+      'Usage: cli.js worker [--max-seconds=55] | create-platform-user --email=<address> | platform-reset-mfa --email=<address> | verify-audit | storage-migrate-r2 [--dry-run] [--delete-local] | sync-roles | storage-check',
     );
     process.exit(1);
   }
@@ -88,6 +91,20 @@ async function main() {
     await app.close();
     // A non-zero exit lets cron report the failure as well as the email.
     process.exit(r.broken.length === 0 ? 0 : 2);
+  }
+
+  if (command === 'platform-reset-mfa') {
+    const email = arg(args, 'email');
+    if (!email) {
+      console.error('--email is required');
+      process.exit(1);
+    }
+    await app.get(StaffActionsService).resetMfaFromServer(email);
+    console.log(
+      `Two-step cleared for ${email} and their sessions ended. They sign in with their password and set up two-step again.\nThe use was recorded in the platform audit as SYSTEM_CLI.`,
+    );
+    await app.close();
+    return;
   }
 
   if (command === 'create-platform-user') {
