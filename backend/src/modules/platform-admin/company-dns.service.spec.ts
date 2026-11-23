@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AppConfig } from '../../platform/config/config.js';
+import type { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { CompanyDnsService } from './company-dns.service.js';
 
 const config = (over: Partial<AppConfig> = {}) =>
@@ -11,6 +12,12 @@ const config = (over: Partial<AppConfig> = {}) =>
     DNS_PROXIED: false,
     ...over,
   }) as AppConfig;
+
+/** Stands in for the runtime config: reads straight from the given environment values. */
+const dnsService = (c: AppConfig) =>
+  new CompanyDnsService(c, {
+    get: async (k: string) => (c as unknown as Record<string, unknown>)[k],
+  } as unknown as RuntimeConfigService);
 
 function cloudflare(existing: unknown[]) {
   const calls: { method: string; url: string; body?: unknown }[] = [];
@@ -37,14 +44,14 @@ afterEach(() => vi.unstubAllGlobals());
 describe('company addresses in Cloudflare', () => {
   it('does nothing when it is not configured', async () => {
     const calls = cloudflare([]);
-    const dns = new CompanyDnsService(config({ DNS_TARGET_IP: undefined }));
+    const dns = dnsService(config({ DNS_TARGET_IP: undefined }));
     expect(await dns.ensure('acme')).toBe('off');
     expect(calls).toHaveLength(0);
   });
 
   it('creates one A record for the company name, not a wildcard', async () => {
     const calls = cloudflare([]);
-    const dns = new CompanyDnsService(config());
+    const dns = dnsService(config());
     expect(await dns.ensure('acme')).toBe('created');
     const post = calls.find((c) => c.method === 'POST')!;
     expect(post.body).toMatchObject({
@@ -58,13 +65,11 @@ describe('company addresses in Cloudflare', () => {
 
   it('leaves a correct record alone and fixes a wrong one', async () => {
     cloudflare([{ id: 'r1', content: '203.0.113.7', proxied: false }]);
-    expect(await new CompanyDnsService(config()).ensure('acme')).toBe('exists');
+    expect(await dnsService(config()).ensure('acme')).toBe('exists');
     const calls = cloudflare([
       { id: 'r1', content: '198.51.100.1', proxied: false },
     ]);
-    expect(await new CompanyDnsService(config()).ensure('acme')).toBe(
-      'updated',
-    );
+    expect(await dnsService(config()).ensure('acme')).toBe('updated');
     expect(calls.at(-1)).toMatchObject({ method: 'PUT' });
     expect(calls.at(-1)!.url).toContain('/dns_records/r1');
   });
@@ -83,8 +88,8 @@ describe('company addresses in Cloudflare', () => {
           ),
       ),
     );
-    await expect(
-      new CompanyDnsService(config()).ensure('acme'),
-    ).rejects.toThrow('no access');
+    await expect(dnsService(config()).ensure('acme')).rejects.toThrow(
+      'no access',
+    );
   });
 });

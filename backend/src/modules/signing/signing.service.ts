@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { RedisService } from '../../platform/cache/redis.service.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
@@ -69,6 +70,7 @@ export class SigningService {
     private readonly seal: SealService,
     private readonly esign: EsignGateway,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly runtime: RuntimeConfigService,
   ) {}
 
   private from(tenantId: string) {
@@ -227,7 +229,7 @@ export class SigningService {
     await this.event(a.tenantId, req.id, 'requested', {}, req.parties[0]!.id, {
       by: a.userId,
     });
-    const link = `${this.config.VERIFY_URL.replace(/\/$/, '')}/accept/${token}`;
+    const link = `${(await this.runtime.require('VERIFY_URL')).replace(/\/$/, '')}/accept/${token}`;
     await this.mail.send({
       to: b.email,
       subject: `Please review and accept: ${doc.reference}`,
@@ -716,7 +718,7 @@ export class SigningService {
       documentSha256: request.documentSha256,
       document: original,
       signerName: party.name,
-      returnUrl: `${this.config.VERIFY_URL.replace(/\/$/, '')}/accept/${token}?esign=${row.id}`,
+      returnUrl: `${(await this.runtime.require('VERIFY_URL')).replace(/\/$/, '')}/accept/${token}?esign=${row.id}`,
     });
     await runInTenant(tenantId, async () =>
       this.prisma.db.esignTransaction.update({

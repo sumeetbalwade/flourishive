@@ -6,6 +6,8 @@ export class ApiError extends Error {
     readonly status: number,
     message: string,
     readonly details: string[] = [],
+    /** A machine-readable reason some endpoints add, such as STEP_UP_REQUIRED. */
+    readonly code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -33,6 +35,11 @@ export interface HttpOptions {
   refreshPath: string;
   /** Called when refreshing fails: the person has to sign in again. */
   onSessionExpired?: () => void;
+  /**
+   * Called when the API asks the person to confirm it is them (STEP_UP_REQUIRED). Resolve true once
+   * they have confirmed and the request is retried, or false if they cancelled.
+   */
+  onStepUp?: () => Promise<boolean>;
 }
 
 export interface RequestOptions<T> {
@@ -77,9 +84,17 @@ export class Http {
   }
 
   async request<T = void>(method: string, path: string, o: RequestOptions<T> = {}): Promise<T> {
-    const res = await this.send(method, path, o);
-    if (res.status === 401 && o.auth !== false && (await this.refresh())) {
-      return this.read(path, await this.send(method, path, o), o.schema);
+    let res = await this.send(method, path, o);
+    if (res.status === 401 && o.auth !== false && (await this.refresh()))
+      res = await this.send(method, path, o);
+    if (res.status === 403 && o.auth !== false && this.opts.onStepUp) {
+      const code = await res
+        .clone()
+        .json()
+        .then((b: { code?: string }) => b.code)
+        .catch(() => undefined);
+      if (code === 'STEP_UP_REQUIRED' && (await this.opts.onStepUp()))
+        res = await this.send(method, path, o);
     }
     return this.read(path, res, o.schema);
   }
@@ -144,8 +159,10 @@ export class Http {
     if (!res.ok) {
       let message = res.statusText || `Request failed (${res.status})`;
       let details: string[] = [];
+      let code: string | undefined;
       try {
-        const body = (await res.json()) as { message?: string | string[] };
+        const body = (await res.json()) as { message?: string | string[]; code?: string };
+        code = body.code;
         if (Array.isArray(body.message)) {
           details = body.message;
           message = body.message[0] ?? message;
@@ -153,7 +170,7 @@ export class Http {
       } catch {
         // not JSON; keep the status text
       }
-      throw new ApiError(res.status, message, details);
+      throw new ApiError(res.status, message, details, code);
     }
     if (res.status === 204) return undefined as T;
     const json: unknown = await res.json();

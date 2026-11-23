@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { RedisService } from '../../platform/cache/redis.service.js';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import {
@@ -39,6 +40,7 @@ export class DeliveryService {
     private readonly docAccess: DocAccess,
     private readonly redis: RedisService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly runtime: RuntimeConfigService,
   ) {}
 
   private async load(tenantId: string, id: string) {
@@ -130,7 +132,7 @@ export class DeliveryService {
         },
       }),
     );
-    const link = `${this.config.VERIFY_URL.replace(/\/$/, '')}/letter/${token}`;
+    const link = `${(await this.runtime.require('VERIFY_URL')).replace(/\/$/, '')}/letter/${token}`;
     const held = await this.held(a.tenantId, doc);
     const name = person ? `${person.firstName} ${person.lastName}` : 'there';
     await this.mail.send({

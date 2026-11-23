@@ -10,6 +10,7 @@ import {
   recoveryVerifyBody,
   mfaRecoveryStartBody,
   mfaRecoveryVerifyBody,
+  stepUpBody,
 } from '@flourishive/schemas';
 import {
   BadRequestException,
@@ -25,6 +26,7 @@ import {
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { Inject } from '@nestjs/common';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import {
   AuthService,
@@ -35,6 +37,7 @@ import { CurrentAuth, Public } from './auth.context.js';
 import type { ClientMeta, IssuedTokens } from './session.service.js';
 import { TokenService, type AccessClaims } from './token.service.js';
 import { slugFromOrigin } from '../company/tenant-host.js';
+import { StepUpService } from './step-up.service.js';
 import { ZodPipe } from './zod.pipe.js';
 
 const COOKIE = 'fh_refresh';
@@ -46,6 +49,8 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly tokens: TokenService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly runtime: RuntimeConfigService,
+    private readonly stepUps: StepUpService,
   ) {}
 
   /**
@@ -53,9 +58,9 @@ export class AuthController {
    * company's address cannot be used to try another company's accounts. Other origins
    * (app., native apps, tools) name the company in the request body.
    */
-  private assertOrigin(req: Request, tenant: string): void {
+  private async assertOrigin(req: Request, tenant: string): Promise<void> {
     const fromOrigin = slugFromOrigin(
-      this.config.TENANT_URL_TEMPLATE,
+      await this.runtime.require('TENANT_URL_TEMPLATE'),
       req.headers.origin,
     );
     if (fromOrigin && fromOrigin !== tenant.toLowerCase())
@@ -119,7 +124,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    this.assertOrigin(req, b.tenant);
+    await this.assertOrigin(req, b.tenant);
     return this.respondLogin(
       req,
       res,
@@ -135,7 +140,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    this.assertOrigin(req, b.tenant);
+    await this.assertOrigin(req, b.tenant);
     return this.respondLogin(
       req,
       res,
@@ -227,6 +232,16 @@ export class AuthController {
     return { revoked };
   }
 
+  /** Confirm it is you before a sensitive action; lasts five minutes. */
+  @Post('step-up')
+  @HttpCode(204)
+  async stepUp(
+    @CurrentAuth() a: AccessClaims,
+    @Body(body(stepUpBody)) b: z.infer<typeof stepUpBody>,
+  ) {
+    await this.stepUps.confirmTenant(a, b);
+  }
+
   @Get('me')
   me(@CurrentAuth() a: AccessClaims) {
     return this.auth.me(a);
@@ -239,7 +254,7 @@ export class AuthController {
     @Body(body(forgotBody)) b: z.infer<typeof forgotBody>,
     @Req() req: Request,
   ) {
-    this.assertOrigin(req, b.tenant);
+    await this.assertOrigin(req, b.tenant);
     await this.auth.forgotPassword(b, this.meta(req));
     return { status: 'accepted' };
   }
@@ -259,7 +274,7 @@ export class AuthController {
     @Body(body(forgotBody)) b: z.infer<typeof forgotBody>,
     @Req() req: Request,
   ) {
-    this.assertOrigin(req, b.tenant);
+    await this.assertOrigin(req, b.tenant);
     await this.auth.startEmailRecovery(b, this.meta(req));
     return { status: 'accepted' };
   }
@@ -267,11 +282,11 @@ export class AuthController {
   @Public()
   @Post('recovery/email/verify')
   @HttpCode(200)
-  recoveryVerify(
+  async recoveryVerify(
     @Body(body(recoveryVerifyBody)) b: z.infer<typeof recoveryVerifyBody>,
     @Req() req: Request,
   ) {
-    this.assertOrigin(req, b.tenant);
+    await this.assertOrigin(req, b.tenant);
     return this.auth.verifyEmailRecovery(b, this.meta(req));
   }
 

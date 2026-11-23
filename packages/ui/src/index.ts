@@ -25,7 +25,12 @@ export { ToastProvider, useToast } from './components/toast.tsx';
 export { BarChart, LineChart, chartColors } from './components/chart.tsx';
 export { Switch } from './components/switch.tsx';
 export { Segmented, type SegmentOption } from './components/segmented.tsx';
-export { SettingControl, type SettingKind } from './components/setting-control.tsx';
+export { StepUpDialog } from './components/step-up-dialog.tsx';
+export {
+  SettingControl,
+  type SettingKind,
+  type SecretInfo,
+} from './components/setting-control.tsx';
 export {
   SettingsEditor,
   type SettingItem,

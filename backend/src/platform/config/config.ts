@@ -89,6 +89,8 @@ const base = z.object({
   DNS_TARGET_IP: z.ipv4().optional(),
   // true = traffic goes through Cloudflare's proxy (orange cloud).
   DNS_PROXIED: bool.default(false),
+  // Where server errors are forwarded (a Sentry-compatible DSN). Off when left out.
+  ERROR_TRACKING_DSN: z.string().optional(),
   // Development only (D-38): accept a signer certificate outside its dates. Ignored in production.
   ALLOW_EXPIRED_SIGNER_CERT: bool.default(false),
 });

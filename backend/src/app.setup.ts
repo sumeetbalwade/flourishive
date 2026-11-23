@@ -2,6 +2,10 @@ import { INestApplication, VersioningType } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import {
+  RequestIdExceptionFilter,
+  requestIdMiddleware,
+} from './platform/http/request-id.js';
+import {
   CLOUDFLARE_RANGES,
   cloudflareMatcher,
   visitorIp,
@@ -31,6 +35,7 @@ export function configureApp(app: INestApplication): void {
       done: (err: Error | null, allow?: boolean) => void,
     ) => done(null, allowed(origin)),
     credentials: true,
+    exposedHeaders: ['X-Request-Id'],
   });
 
   // Raw CSV uploads (people import) arrive as text/csv.
@@ -48,6 +53,8 @@ export function configureApp(app: INestApplication): void {
     ],
     limit: '20mb',
   });
+  app.use(requestIdMiddleware);
+  app.useGlobalFilters(new RequestIdExceptionFilter());
   app.use(cookieParser());
   // Behind cPanel's proxy; needed so req.ip is the client, not the proxy.
   (app as INestApplication & { set(k: string, v: unknown): void }).set(

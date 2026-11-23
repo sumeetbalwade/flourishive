@@ -14,5 +14,5 @@ export function useApi(): PlatformClient {
   return c;
 }
 
-export const makeClient = (onSessionExpired: () => void) =>
-  createPlatformClient({ baseUrl: brand.apiUrl, onSessionExpired });
+export const makeClient = (onSessionExpired: () => void, onStepUp?: () => Promise<boolean>) =>
+  createPlatformClient({ baseUrl: brand.apiUrl, onSessionExpired, onStepUp });

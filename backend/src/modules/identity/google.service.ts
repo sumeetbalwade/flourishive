@@ -1,11 +1,10 @@
 import {
-  Inject,
   Injectable,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
-import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 
 export interface GoogleIdentity {
   sub: string;
@@ -16,16 +15,17 @@ export interface GoogleIdentity {
 export class GoogleService {
   private readonly client = new OAuth2Client();
 
-  constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {}
+  constructor(private readonly runtime: RuntimeConfigService) {}
 
   /** Verifies a Google ID token (signature, audience, expiry) and a verified email. */
   async verify(idToken: string): Promise<GoogleIdentity> {
-    if (!this.config.GOOGLE_CLIENT_ID)
+    const audience = await this.runtime.get('GOOGLE_CLIENT_ID');
+    if (!audience)
       throw new ServiceUnavailableException('Google sign-in is not configured');
     try {
       const ticket = await this.client.verifyIdToken({
         idToken,
-        audience: this.config.GOOGLE_CLIENT_ID,
+        audience,
       });
       const p = ticket.getPayload();
       if (!p?.sub || !p.email || !p.email_verified)

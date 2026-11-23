@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
@@ -15,6 +16,7 @@ export class CompanyService {
     private readonly throttle: ThrottleService,
     private readonly mail: MailService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly runtime: RuntimeConfigService,
   ) {}
 
   async publicInfo(slug: string) {
@@ -50,9 +52,9 @@ export class CompanyService {
         }),
     );
     if (users.length === 0) return;
+    const template = await this.runtime.require('TENANT_URL_TEMPLATE');
     const lines = users.map(
-      (u) =>
-        `${u.tenant.name}: ${tenantUrl(this.config.TENANT_URL_TEMPLATE, u.tenant.slug)}`,
+      (u) => `${u.tenant.name}: ${tenantUrl(template, u.tenant.slug)}`,
     );
     await this.mail.send({
       to: email,

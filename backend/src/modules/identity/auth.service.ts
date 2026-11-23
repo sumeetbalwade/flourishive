@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { RedisService } from '../../platform/cache/redis.service.js';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import {
@@ -78,6 +79,7 @@ export class AuthService {
     private readonly otp: OtpService,
     private readonly mail: MailService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly runtime: RuntimeConfigService,
   ) {}
 
   private async tenantIdFor(slug: string): Promise<string | null> {
@@ -438,7 +440,7 @@ export class AuthService {
       userId,
       kind === 'invite' ? 7 * 24 * 3600 : 3600,
     );
-    const link = `${this.config.WEB_URL}/#/reset-password?token=${token}`;
+    const link = `${await this.runtime.require('WEB_URL')}/#/reset-password?token=${token}`;
     await this.notifications.sendNow(
       tenantId,
       kind === 'invite' ? 'auth.invite' : 'auth.password_reset',

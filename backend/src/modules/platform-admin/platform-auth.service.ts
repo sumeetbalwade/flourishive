@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { RedisService } from '../../platform/cache/redis.service.js';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
@@ -52,6 +53,7 @@ export class PlatformAuthService {
     private readonly settings: SettingsService,
     private readonly otp: OtpService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly runtime: RuntimeConfigService,
   ) {}
 
   private db() {
@@ -439,7 +441,7 @@ export class PlatformAuthService {
       { userId: user.id },
       7 * 24 * 3600,
     );
-    const link = `${this.config.ADMIN_URL}/#/set-password?token=${token}`;
+    const link = `${await this.runtime.require('ADMIN_URL')}/#/set-password?token=${token}`;
     let emailed = true;
     try {
       await this.mail.send({

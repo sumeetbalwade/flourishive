@@ -12,7 +12,31 @@ export interface SettingDefinition<T = unknown> {
   description: string;
   /** Short name for settings screens. */
   label: string;
-  group: 'Security' | 'Technical' | 'Branding' | 'Platform';
+  group:
+    | 'Security'
+    | 'Technical'
+    | 'Branding'
+    | 'Platform'
+    | 'Brand'
+    | 'Email'
+    | 'Sign-in'
+    | 'Region'
+    | 'Notifications'
+    | 'Integrations'
+    | 'Logs';
+  /** Which control to draw. Left out, it is read from the schema (see shapeOf). */
+  kind?: SettingKind;
+  /** One line on what the setting does, shown under the control. */
+  hint?: string;
+  /** The default for the lock: false means tenants cannot change it unless the super admin allows it. */
+  tenantEditable?: boolean;
+  /** True for a value that must never be shown again after saving (a secret). */
+  sensitive?: boolean;
+  /**
+   * `layered` follows user → entity → tenant → platform; `platform` is one platform-wide value
+   * (see RuntimeConfigService for keys and addresses).
+   */
+  scope?: 'layered' | 'platform';
 }
 
 function def<T>(d: SettingDefinition<T>): SettingDefinition<T> {
@@ -23,7 +47,7 @@ function def<T>(d: SettingDefinition<T>): SettingDefinition<T> {
 export const SETTINGS = {
   'branding.accentColor': def({
     schema: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-    default: '#c4914f',
+    default: '#2a9158',
     levels: ['tenant', 'entity'],
     label: 'Accent colour',
     group: 'Branding',
@@ -129,7 +153,21 @@ export type SettingValueOf<K extends SettingKey> = z.infer<
 >;
 export const isSettingKey = (k: string): k is SettingKey => k in SETTINGS;
 
-export type SettingKind = 'boolean' | 'number' | 'enum' | 'color' | 'text';
+export type SettingKind =
+  | 'boolean'
+  | 'number'
+  | 'enum'
+  | 'color'
+  | 'font'
+  | 'image'
+  | 'text'
+  | 'longtext'
+  | 'email'
+  | 'url'
+  | 'secret'
+  | 'list'
+  | 'timezone'
+  | 'json';
 export interface SettingShape {
   kind: SettingKind;
   options?: string[];
@@ -139,7 +177,10 @@ export interface SettingShape {
 
 /** What control a settings screen should draw, read from the setting's own schema. */
 export function shapeOf(key: SettingKey): SettingShape {
+  const declared = (SETTINGS[key] as SettingDefinition).kind;
   const schema = SETTINGS[key].schema as z.ZodType;
+  if (declared && !(declared === 'enum' && schema instanceof z.ZodEnum))
+    return { kind: declared };
   if (schema instanceof z.ZodBoolean) return { kind: 'boolean' };
   if (schema instanceof z.ZodNumber)
     return {

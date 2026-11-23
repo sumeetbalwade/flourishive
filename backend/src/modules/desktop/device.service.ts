@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { createHash, randomBytes, randomInt } from 'node:crypto';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { RedisService } from '../../platform/cache/redis.service.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
@@ -32,6 +33,7 @@ export class DeviceService {
     private readonly access: AccessService,
     private readonly audit: AuditService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly runtime: RuntimeConfigService,
   ) {}
 
   /** One-time code the signatory types into (or opens in) the desktop app. Valid ten minutes. */
@@ -56,7 +58,7 @@ export class DeviceService {
       CODE_TTL_SECONDS,
     );
     const code = `${raw.slice(0, 4)}-${raw.slice(4)}`;
-    const server = this.config.API_URL.replace(/\/$/, '');
+    const server = (await this.runtime.require('API_URL')).replace(/\/$/, '');
     return {
       code,
       expiresAt: new Date(Date.now() + CODE_TTL_SECONDS * 1000),

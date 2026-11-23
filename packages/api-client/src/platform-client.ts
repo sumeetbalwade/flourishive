@@ -1,4 +1,6 @@
 import {
+  configTestResult,
+  runtimeConfigEntry,
   createTenantResponse,
   mfaSetupResponse,
   platformMe,
@@ -92,6 +94,9 @@ export function createPlatformClient(opts: Opts) {
           auth: false,
         }),
       me: () => http.request('GET', '/platform/auth/me', { schema: platformMe }),
+      /** Confirm it is you (authenticator code, or the password if there is no two-step). Lasts five minutes. */
+      stepUp: (body: { code?: string; password?: string }) =>
+        http.request('POST', '/platform/auth/step-up', { json: body }),
       logout: async () => {
         await http.request('POST', '/platform/auth/logout');
         http.setAccessToken(null);
@@ -139,6 +144,18 @@ export function createPlatformClient(opts: Opts) {
       set: (key: string, change: { value?: unknown; locked?: boolean }) =>
         http.request('PUT', `/platform/settings/${key}`, { json: change }),
       clear: (key: string) => http.request('DELETE', `/platform/settings/${key}`),
+    },
+
+    /** Keys, mail server and addresses (D-57). Secrets are write-only: only whether they are set comes back. */
+    config: {
+      list: () => http.request('GET', '/platform/config', { schema: z.array(runtimeConfigEntry) }),
+      set: (key: string, value: string | number | boolean) =>
+        http.request('PUT', `/platform/config/${key}`, { json: { value } }),
+      clear: (key: string) => http.request('DELETE', `/platform/config/${key}`),
+      test: (group: string) =>
+        http.request('POST', `/platform/config/test/${group.toLowerCase().replace(/\s+/g, '-')}`, {
+          schema: configTestResult,
+        }),
     },
 
     policies: {

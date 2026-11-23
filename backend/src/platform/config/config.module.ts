@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { APP_CONFIG, loadConfig } from './config.js';
+import { RuntimeConfigService } from './runtime-config.service.js';
 
 /**
  * Local development keeps its settings in backend/.env. Variables that are already
@@ -24,7 +25,8 @@ function loadDotEnv(): void {
         return loadConfig();
       },
     },
+    RuntimeConfigService,
   ],
-  exports: [APP_CONFIG],
+  exports: [APP_CONFIG, RuntimeConfigService],
 })
 export class ConfigModule {}

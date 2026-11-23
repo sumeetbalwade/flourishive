@@ -165,7 +165,7 @@ describe('roles and permissions', () => {
 describe('settings', () => {
   it('returns defaults, then a tenant override that only that tenant sees', async () => {
     const before = await call('get', '/settings', 'emp').expect(200);
-    expect(before.body.values['branding.accentColor']).toBe('#c4914f');
+    expect(before.body.values['branding.accentColor']).toBe('#2a9158');
 
     await call('put', '/settings/tenant/branding.accentColor', 'admin')
       .send({ value: '#112233' })
@@ -179,7 +179,7 @@ describe('settings', () => {
       (await call('get', '/settings', 'adminB')).body.values[
         'branding.accentColor'
       ],
-    ).toBe('#c4914f');
+    ).toBe('#2a9158');
   });
 
   it('validates values, levels, keys and permission', async () => {

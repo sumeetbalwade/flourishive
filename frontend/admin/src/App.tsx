@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { ApiProvider, makeClient } from './lib/api.tsx';
 import { AuthProvider, useAuth } from './lib/auth.tsx';
+import { Integrations } from './pages/Integrations.tsx';
+import { requestStepUp, StepUpHost } from './lib/step-up.tsx';
 import { Defaults } from './pages/Defaults.tsx';
 import { Policy } from './pages/Policy.tsx';
 import { Login, SetPassword } from './pages/Login.tsx';
@@ -40,6 +42,7 @@ function Routes() {
   else if (path === '/users') page = <Staff />;
   else if (path === '/settings') page = <Defaults />;
   else if (path === '/policy') page = <Policy />;
+  else if (path === '/integrations') page = <Integrations />;
   else if (path === '/system') page = <System />;
   else return <Login />;
   return <Private>{page}</Private>;
@@ -50,7 +53,10 @@ export default function App({
   client: injected,
   retryDelay,
 }: { client?: PlatformClient; retryDelay?: number } = {}) {
-  const client = useMemo(() => injected ?? makeClient(() => go('/login')), [injected]);
+  const client = useMemo(
+    () => injected ?? makeClient(() => go('/login'), requestStepUp),
+    [injected],
+  );
   const queryClient = useMemo(
     () =>
       new QueryClient({
@@ -68,9 +74,11 @@ export default function App({
     <ApiProvider client={client}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <AuthProvider>
-            <Routes />
-          </AuthProvider>
+          <StepUpHost>
+            <AuthProvider>
+              <Routes />
+            </AuthProvider>
+          </StepUpHost>
         </ToastProvider>
       </QueryClientProvider>
     </ApiProvider>

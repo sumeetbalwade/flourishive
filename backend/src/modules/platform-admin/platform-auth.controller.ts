@@ -6,6 +6,7 @@ import {
   refreshBody,
   platformPasswordBody as passwordBody,
   platformRecoveryVerifyBody as recoveryBody,
+  stepUpBody,
 } from '@flourishive/schemas';
 import {
   Body,
@@ -21,6 +22,7 @@ import {
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { Public } from '../identity/auth.context.js';
+import { StepUpService } from '../identity/step-up.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
 import {
   PlatformAuthService,
@@ -35,7 +37,10 @@ const body = <T>(s: z.ZodType<T>) => new ZodPipe(s);
 @Public()
 @Controller('platform/auth')
 export class PlatformAuthController {
-  constructor(private readonly auth: PlatformAuthService) {}
+  constructor(
+    private readonly auth: PlatformAuthService,
+    private readonly stepUps: StepUpService,
+  ) {}
 
   private meta = (req: Request) => ({
     ip: req.ip,
@@ -150,6 +155,17 @@ export class PlatformAuthController {
   ) {
     await this.auth.revokeSession(req.platformAuth!.sessionId);
     res.clearCookie(COOKIE, { path: '/v1/platform/auth' });
+  }
+
+  /** Confirm it is you before a sensitive action; lasts five minutes. */
+  @UseGuards(PlatformGuard)
+  @Post('step-up')
+  @HttpCode(204)
+  async stepUp(
+    @Req() req: PlatformRequest,
+    @Body(body(stepUpBody)) b: z.infer<typeof stepUpBody>,
+  ) {
+    await this.stepUps.confirmPlatform(req.platformAuth!, b);
   }
 
   @UseGuards(PlatformGuard)

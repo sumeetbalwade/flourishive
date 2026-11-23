@@ -109,7 +109,22 @@ export const platformSettingItem = z.object({
   description: z.string(),
   label: z.string(),
   group: z.string(),
-  kind: z.enum(['boolean', 'number', 'enum', 'color', 'text']),
+  kind: z.enum([
+    'boolean',
+    'number',
+    'enum',
+    'color',
+    'font',
+    'image',
+    'text',
+    'longtext',
+    'email',
+    'url',
+    'secret',
+    'list',
+    'timezone',
+    'json',
+  ]),
   options: z.array(z.string()).optional(),
   min: z.number().optional(),
   max: z.number().optional(),
@@ -139,3 +154,35 @@ export type TenantListItem = z.infer<typeof tenantListItem>;
 export type TenantDetail = z.infer<typeof tenantDetail>;
 export type StaffItem = z.infer<typeof staffItem>;
 export type PlatformSettingItem = z.infer<typeof platformSettingItem>;
+
+/** Confirm it is you before a sensitive action: an authenticator code, or the password when there is no two-step. */
+export const stepUpBody = z
+  .object({
+    code: z
+      .string()
+      .regex(/^\d{6}$/)
+      .optional(),
+    password: z.string().min(1).max(256).optional(),
+  })
+  .refine((b) => b.code || b.password, 'code or password is required');
+
+export const runtimeConfigEntry = z.object({
+  key: z.string(),
+  label: z.string(),
+  group: z.string(),
+  hint: z.string(),
+  kind: z.enum(['text', 'number', 'boolean', 'url', 'secret']),
+  restartRequired: z.boolean(),
+  source: z.enum(['console', 'environment', 'default', 'unset']),
+  /** Never present for a secret. */
+  value: z.union([z.string(), z.number(), z.boolean()]).optional(),
+  isSet: z.boolean(),
+  updatedAt: z.string().optional(),
+  updatedBy: z.string().nullable().optional(),
+});
+export const runtimeConfigBody = z.object({
+  value: z.union([z.string(), z.number(), z.boolean()]),
+});
+export const configTestResult = z.object({ ok: z.boolean(), message: z.string() });
+export type RuntimeConfigEntry = z.infer<typeof runtimeConfigEntry>;
+export type ConfigTestResult = z.infer<typeof configTestResult>;

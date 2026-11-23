@@ -1,6 +1,6 @@
 # Phase 2B — Platform control centre
 
-**Status:** Decisions approved 2026-11-22; not started · **Depends on:** Phase 2 · **Unlocks:** Phase 3 (now billing, SSO and the public API only)
+**Status:** Decisions approved 2026-11-22; build started 2026-11-23 (PR 1 built, in review) · **Depends on:** Phase 2 · **Unlocks:** Phase 3 (now billing, SSO and the public API only)
 
 ## Goal
 
@@ -174,19 +174,19 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
 ### PR 1 — Foundations: typed settings v2, runtime config and secrets, step-up
 
 **Backend**
-- [ ] Registry v2 (`modules/settings/registry.ts`). Add the following to `SettingDefinition`:
+- [x] Registry v2 (`modules/settings/registry.ts`). Add the following to `SettingDefinition`:
   - `kind`: `boolean | number | enum | color | font | image | text | longtext | email | url | secret | list | timezone | json`. Stop inferring it from the key name (`shapeOf` today).
   - `group`: `Brand | Email | Security | Sign-in | Region | Notifications | Integrations | Logs | Platform`
   - `hint`: a one-line "what this does"
   - `tenantEditable`: the default for the lock
   - `sensitive`: true for `secret`
   - `scope`: `platform` (runtime config) or `layered` (today's user → entity → tenant → platform chain)
-- [ ] Fix the default `branding.accentColor` to `#2a9158` (D-53). Add a data migration that leaves explicitly set tenant values alone.
-- [ ] `RuntimeConfigService` (`platform/config/runtime-config.service.ts`):
+- [x] Fix the default `branding.accentColor` to `#2a9158` (D-53). Add a data migration that leaves explicitly set tenant values alone.
+- [x] `RuntimeConfigService` (`platform/config/runtime-config.service.ts`):
   - `get(key)` resolves database (`platform_config`), then `api.env`, then the default, with a 60-second Redis cache invalidated on write.
   - Secrets are decrypted with `CryptoService` only at the point of use.
-- [ ] Data: `platform_config` (`key` PK, `valueJson` for plain values, `secretEnc` for secrets, `updatedBy`, `updatedAt`). Secrets are never returned by any API; the API returns `{ isSet, updatedAt, updatedBy }`.
-- [ ] Move these keys into runtime config (keep the env names as fallbacks):
+- [x] Data: `platform_config` (`key` PK, `valueJson` for plain values, `secretEnc` for secrets, `updatedBy`, `updatedAt`). Secrets are never returned by any API; the API returns `{ isSet, updatedAt, updatedBy }`.
+- [x] Move these keys into runtime config _(R2 keys are editable but the storage driver reads them once at startup, so a change needs an API restart; the console says so. Error tracking test checks the DSN only; sending a real test event arrives with PR 8.)_ (keep the env names as fallbacks):
   - `SMTP_*`, `MAIL_FROM`
   - `GOOGLE_CLIENT_ID`
   - `CLOUDFLARE_*`, `DNS_TARGET_IP`
@@ -195,14 +195,14 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (from Phase 2 PR 8, D-72); `STORAGE_DRIVER` stays in `api.env`
   - `TENANT_URL_TEMPLATE`, `WEB_URL`, `ADMIN_URL`, `VERIFY_URL`, `API_URL`
   - Each consumer reads through `RuntimeConfigService`. `MailService` rebuilds its transport when SMTP settings change.
-- [ ] Test actions per group: `POST /v1/platform/config/test/:group` (smtp: connect, then EHLO; cloudflare: zone read; google: client id format; error tracking: send a test event). The result says what failed in plain words.
-- [ ] Step-up:
+- [x] Test actions per group: `POST /v1/platform/config/test/:group` (smtp: connect, then EHLO; cloudflare: zone read; google: client id format; error tracking: send a test event). The result says what failed in plain words.
+- [x] Step-up:
   - `POST /v1/auth/step-up` and `POST /v1/platform/auth/step-up` take a two-step code (or the password if the user has no two-step) and mark the session as stepped-up for 5 minutes.
   - `@RequireStepUp()` returns `403 { code: 'STEP_UP_REQUIRED' }`.
-- [ ] Request ID middleware: accept or generate `X-Request-Id`, put it in the async context, return it on every response and in every error body. PR 8 builds on it.
+- [x] Request ID middleware: accept or generate `X-Request-Id`, put it in the async context, return it on every response and in every error body. PR 8 builds on it.
 
 **Frontend**
-- [ ] `SettingControl` (`packages/ui/src/components/setting-control.tsx`) handles every new kind:
+- [x] `SettingControl` (`packages/ui/src/components/setting-control.tsx`) handles every new kind:
   - colour: picker plus hex, with a swatch
   - font: dropdown with a live sample, from the curated list in PR 7
   - image: upload with preview and remove
@@ -210,8 +210,8 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - list: chips
   - timezone: searchable select
   - longtext: textarea
-- [ ] `StepUpDialog` (shared): appears automatically when an API call returns `STEP_UP_REQUIRED`, asks for the code, then retries the call.
-- [ ] Admin console, Settings, then Integrations: the runtime config groups with Test buttons.
+- [x] `StepUpDialog` (shared): appears automatically when an API call returns `STEP_UP_REQUIRED`, asks for the code, then retries the call.
+- [x] Admin console, Settings, then Integrations: the runtime config groups with Test buttons.
 
 **Done when:** the super admin changes the SMTP password in the console (after step-up), the Test button shows success, a password-reset email goes out through it, `api.env` is untouched, and the old value is not visible anywhere.
 

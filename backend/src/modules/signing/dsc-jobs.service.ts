@@ -30,6 +30,7 @@ import {
 } from './dsc/dsc-validator.js';
 import { SigningService, type Actor } from './signing.service.js';
 import { signatureBox } from './appearance.js';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 
 export interface DeviceCtx {
@@ -66,6 +67,7 @@ export class DscJobsService {
     private readonly settings: SettingsService,
     private readonly redis: RedisService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly runtime: RuntimeConfigService,
   ) {}
 
   /** HR asks a named signatory to sign with their certificate. Moves the document to "signing". */
@@ -269,7 +271,7 @@ export class DscJobsService {
         reason: `Issued by ${doc.reference}`,
         digest: 'sha256',
         timestampRequired: true,
-        timestampUrl: this.config.DSC_TSA_URL,
+        timestampUrl: await this.runtime.require('DSC_TSA_URL'),
         // where the visible stamp goes, taken from the letterhead so it stays clear of the artwork
         appearance: signatureBox(letterhead),
       },

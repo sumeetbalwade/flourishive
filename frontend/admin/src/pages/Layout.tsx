@@ -1,5 +1,5 @@
 import { AppShell, BrandMark, brand, type NavItem } from '@flourishive/ui';
-import { Activity, Building2, Settings, ShieldCheck, Users } from 'lucide-react';
+import { Activity, Building2, KeyRound, Settings, ShieldCheck, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAuth } from '../lib/auth.tsx';
 import { go } from '../router.ts';
@@ -8,6 +8,7 @@ const NAV: NavItem[] = [
   { id: 'tenants', label: 'Tenants', icon: Building2, group: 'Overview' },
   { id: 'settings', label: 'Platform defaults', icon: Settings, group: 'Platform' },
   { id: 'policy', label: 'Security policy', icon: ShieldCheck, group: 'Platform' },
+  { id: 'integrations', label: 'Integrations', icon: KeyRound, group: 'Platform' },
   { id: 'users', label: 'Platform staff', icon: Users, group: 'Platform' },
   { id: 'system', label: 'System checks', icon: Activity, group: 'Platform' },
 ];

@@ -1,9 +1,10 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { SignPdf } from '@signpdf/signpdf';
 import forge from 'node-forge';
 import { createHash, generateKeyPairSync } from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
+import { RuntimeConfigService } from '../../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../../platform/config/config.js';
 import { SealSigner, type SealKey } from './cms.js';
 import { verifySeal, type SealCheck } from './verify.js';
@@ -21,7 +22,10 @@ export class SealService {
   private readonly log = new Logger(SealService.name);
   private key?: SealKey;
 
-  constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {}
+  constructor(
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+    @Optional() private readonly runtime?: RuntimeConfigService,
+  ) {}
 
   private load(): SealKey {
     if (this.key) return this.key;
@@ -77,7 +81,10 @@ export class SealService {
     const withPlaceholder = Buffer.from(
       await doc.save({ useObjectStreams: false }),
     );
-    const signer = new SealSigner(this.load(), this.config.SEAL_TSA_URL);
+    const signer = new SealSigner(
+      this.load(),
+      (await this.runtime?.get('SEAL_TSA_URL')) ?? this.config.SEAL_TSA_URL,
+    );
     return new SignPdf().sign(withPlaceholder, signer);
   }
 

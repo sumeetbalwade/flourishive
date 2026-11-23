@@ -250,6 +250,9 @@ export function createApiClient(opts: Opts) {
           }),
         ),
       me: () => http.request('GET', '/auth/me', { schema: meResponse }),
+      /** Confirm it is you (authenticator code, or the password if there is no two-step). Lasts five minutes. */
+      stepUp: (body: { code?: string; password?: string }) =>
+        http.request('POST', '/auth/step-up', { json: body }),
       logout: async () => {
         await http.request('POST', '/auth/logout');
         http.setAccessToken(null);
