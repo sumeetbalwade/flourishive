@@ -441,6 +441,18 @@ export function createApiClient(opts: Opts) {
           method?: 'OTP' | 'AADHAAR';
         },
       ) => http.request('POST', `/documents/${id}/signature-requests`, { json: body }),
+      electronicOptions: (id: string) =>
+        http.request('GET', `/documents/${id}/signature-requests/electronic`, {
+          schema: z.object({ allowed: z.boolean(), requestId: z.string().nullable() }),
+        }),
+      signElectronically: (id: string, requestId: string, code: string) =>
+        http.request(
+          'POST',
+          `/documents/${id}/signature-requests/${requestId}/sign-electronically`,
+          {
+            json: { code },
+          },
+        ),
       cancelRequest: (id: string, requestId: string, reason: string) =>
         http.request('POST', `/documents/${id}/signature-requests/${requestId}/cancel`, {
           json: { reason },

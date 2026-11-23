@@ -120,9 +120,20 @@ export function Verify({ token }: { token: string }) {
               <span>
                 {r.signature.signer}
                 {r.signature.organisation ? `, ${r.signature.organisation}` : ''}
-                <span className="block text-xs text-muted">
-                  {date(r.signature.at)} · certificate from {r.signature.issuer}
-                </span>
+                {r.signature.kind === 'electronic' ? (
+                  <>
+                    {' '}
+                    <Badge tone="warning">Signed electronically (no DSC)</Badge>
+                    <span className="block text-xs text-muted">
+                      {date(r.signature.at)} · visible stamp and organisation seal, without a
+                      digital signature certificate
+                    </span>
+                  </>
+                ) : (
+                  <span className="block text-xs text-muted">
+                    {date(r.signature.at)} · certificate from {r.signature.issuer}
+                  </span>
+                )}
               </span>
             ) : (
               <span className="text-muted">Not yet signed</span>

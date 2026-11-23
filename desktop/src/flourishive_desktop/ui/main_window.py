@@ -31,6 +31,7 @@ from ..controller import Controller
 from ..errors import DesktopError, Offline, Unpaired
 from ..link import PairLink, parse_link
 from ..tokens import find_libraries
+from .electronic_dialog import ElectronicDialog
 from .sign_dialog import SignDialog
 from .workers import Call
 
@@ -136,11 +137,17 @@ class QueuePage(QWidget):
         self.sign_btn.setObjectName("sign")
         self.sign_btn.setEnabled(False)
         self.sign_btn.clicked.connect(self._sign)
+        self.electronic_btn = QPushButton("Sign without token…")
+        self.electronic_btn.setObjectName("electronic")
+        self.electronic_btn.setEnabled(False)
+        self.electronic_btn.hide()
+        self.electronic_btn.clicked.connect(self._sign_electronically)
         top = QHBoxLayout()
         top.addWidget(label("To sign", title=True, wrap=False))
         top.addStretch(1)
         top.addWidget(self.refresh_btn)
         top.addWidget(self.all_btn)
+        top.addWidget(self.electronic_btn)
         top.addWidget(self.sign_btn)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(28, 24, 28, 24)
@@ -182,6 +189,11 @@ class QueuePage(QWidget):
         n = len(self.selected())
         self.sign_btn.setEnabled(n > 0)
         self.sign_btn.setText(f"Sign {n} selected" if n else "Sign selected")
+        # offered only when the company allows it and every chosen letter is eligible
+        chosen = self.selected()
+        allowed = any(j.electronic_allowed for j in self.jobs)
+        self.electronic_btn.setVisible(allowed)
+        self.electronic_btn.setEnabled(bool(chosen) and all(j.electronic_allowed for j in chosen))
 
     def _select_all(self) -> None:
         self.table.blockSignals(True)
@@ -189,6 +201,19 @@ class QueuePage(QWidget):
             self.table.item(r, 0).setCheckState(Qt.CheckState.Checked)
         self.table.blockSignals(False)
         self._changed()
+
+    def _sign_electronically(self) -> None:
+        jobs = [j for j in self.selected() if j.electronic_allowed]
+        if not jobs:
+            return
+        if self.window.update_required:
+            self.window.banner.setText("This version is too old to sign. Install the update first.")
+            return
+        self.window.timer.stop()
+        ElectronicDialog(self.c, jobs, self).exec()
+        self.window.timer.start()
+        self.window.poll()
+        self.window.history.reload()
 
     def _sign(self) -> None:
         jobs = self.selected()

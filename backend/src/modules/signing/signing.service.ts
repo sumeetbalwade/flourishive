@@ -632,6 +632,60 @@ export class SigningService {
     return { accepted: true, reference: doc.reference, acceptedAt };
   }
 
+  /**
+   * The record pages of every acceptance so far (email code or Aadhaar), rebuilt from what was
+   * stored when each person accepted. Used when a later signature has to be put on a fresh copy of
+   * the original instead of on top of an earlier seal.
+   */
+  async acceptanceRecordPages(
+    tenantId: string,
+    documentId: string,
+  ): Promise<Buffer[]> {
+    const doc = await runInTenant(tenantId, async () =>
+      this.prisma.db.generatedDocument.findUniqueOrThrow({
+        where: { id: documentId },
+      }),
+    );
+    const done = await runInTenant(tenantId, async () =>
+      this.prisma.db.signatureRequest.findMany({
+        where: {
+          documentId,
+          status: 'COMPLETED',
+          method: { in: ['OTP', 'AADHAAR'] },
+        },
+        orderBy: { completedAt: 'asc' },
+        include: { parties: true, events: true },
+      }),
+    );
+    const pages: Buffer[] = [];
+    for (const r of done) {
+      const party = r.parties[0];
+      const ev = r.events.find((e) => e.type === 'accepted');
+      if (!party || !r.completedAt) continue;
+      const aadhaar = r.method === 'AADHAAR';
+      pages.push(
+        await renderAcceptancePage({
+          reference: doc.reference,
+          letterType: doc.letterType,
+          documentSha256: r.documentSha256,
+          partyName: party.name,
+          partyEmail: party.email,
+          method: aadhaar
+            ? r.testSignature
+              ? 'Aadhaar eSign (mock provider, TEST)'
+              : 'Aadhaar eSign'
+            : 'Email one-time code',
+          acceptedAt: r.completedAt,
+          ip: ev?.ip ?? 'unknown',
+          userAgent: ev?.userAgent ?? 'unknown',
+          requestId: r.id,
+          statement: aadhaar ? ESIGN_STATEMENT : STATEMENT,
+        }),
+      );
+    }
+    return pages;
+  }
+
   /** Aadhaar eSign step 1: sends the person to the provider. */
   async startEsign(token: string, c: ClientInfo) {
     await this.limit(c, 'esign', 20, 3600);

@@ -414,6 +414,8 @@ const NO_TENANT_DATA: Record<string, string> = {
     'the paired device credential is the credential; the release is the same for every company',
   'GET /desktop/update/download':
     'the paired device credential is the credential; the release is the same for every company',
+  'POST /desktop/jobs/:id/sign-electronically':
+    "the paired device credential is the credential; it only reaches its own jobs, and the signatory's authenticator code is also required",
   'GET /desktop/me':
     'the paired device credential is the credential; it only reaches its own tenant',
   'GET /desktop/jobs':
@@ -665,6 +667,19 @@ const PROBES = (): Record<string, Probe> => ({
   'POST /documents/bulk/:id/deliver': {
     mode: 'refuse',
     send: () => as('post', `/documents/bulk/${ids.bulkA}/deliver`),
+  },
+  'GET /documents/:id/signature-requests/electronic': {
+    mode: 'refuse',
+    send: () =>
+      as('get', `/documents/${ids.docA}/signature-requests/electronic`),
+  },
+  'POST /documents/:id/signature-requests/:requestId/sign-electronically': {
+    mode: 'refuse',
+    send: () =>
+      as(
+        'post',
+        `/documents/${ids.docA}/signature-requests/${ids.docA}/sign-electronically`,
+      ).send({ code: '123456' }),
   },
   'POST /documents/:id/revoke': {
     mode: 'refuse',

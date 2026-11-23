@@ -122,6 +122,22 @@ export class DesktopJobsController {
     return this.jobs.claim(d, id);
   }
 
+  /** Sign without the token (only when the company allows it). Needs the signatory's authenticator code. */
+  @Post('jobs/:id/sign-electronically')
+  signElectronically(
+    @CurrentDevice() d: DeviceCtx,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ) {
+    return this.jobs.signElectronically(
+      d,
+      id,
+      new ZodPipe(z.object({ code: z.string().regex(/^\d{6}$/) })).transform(body).code,
+      { ip: req.ip, userAgent: req.headers['user-agent'] },
+    );
+  }
+
   @Get('jobs/:id/input')
   async input(
     @CurrentDevice() d: DeviceCtx,

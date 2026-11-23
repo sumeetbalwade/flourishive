@@ -8,6 +8,8 @@ import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { AccessService } from '../src/modules/access/access.service.js';
 import { FilesService } from '../src/modules/files/files.service.js';
+import { MfaService } from '../src/modules/identity/mfa.service.js';
+import { SettingsService } from '../src/modules/settings/settings.service.js';
 import { PasswordService } from '../src/modules/identity/password.service.js';
 import { SessionService } from '../src/modules/identity/session.service.js';
 import {
@@ -434,5 +436,137 @@ describe('certificate signing jobs', () => {
     });
     await app.get(RedisService).client.flushdb();
     await dev('get', '/jobs', b).expect(403);
+  });
+});
+
+describe('signing without the token', () => {
+  // the test above took the signatory's role away; give it back
+  beforeAll(async () => {
+    await runInTenant(tenantId, async () => {
+      const role = await prisma.db.role.findUniqueOrThrow({
+        where: { tenantId_key: { tenantId, key: 'hr_lead' } },
+      });
+      await prisma.db.userRole.create({
+        data: { tenantId, userId: uid.lead!, roleId: role.id },
+      });
+    });
+    await app.get(RedisService).client.flushdb();
+  });
+
+  const sealed = async (id: string) =>
+    (
+      await call('get', `/documents/${id}/signature-requests`, 'lead').expect(
+        200,
+      )
+    ).body[0];
+
+  it('is refused until the company switches it on, then needs the authenticator code', async () => {
+    const id = await approvedFixtureDoc();
+    await askDsc(id).expect(201);
+    const cred = await pairedDevice();
+    // earlier tests may have left other open jobs, so pick this document's own
+    const mine = (await sealed(id)).id as string;
+    const jobs = () => dev('get', '/jobs', cred).expect(200);
+    const job = (await jobs()).body.find((j: { id: string }) => j.id === mine);
+    expect(job.electronicAllowed).toBe(false);
+    await dev('post', `/jobs/${job.id}/sign-electronically`, cred)
+      .send({ code: '123456' })
+      .expect(403);
+
+    await app
+      .get(SettingsService)
+      .set(
+        { tenantId, userId: uid.admin!, updatedBy: uid.admin! },
+        'tenant',
+        'signing.allowWithoutDsc',
+        true,
+      );
+    expect(
+      (await jobs()).body.find((j: { id: string }) => j.id === mine)
+        .electronicAllowed,
+    ).toBe(true);
+
+    // no authenticator set up yet
+    await dev('post', `/jobs/${job.id}/sign-electronically`, cred)
+      .send({ code: '123456' })
+      .expect(400);
+    const mfa = app.get(MfaService);
+    const enc = mfa.encryptSecret(mfa.newSecret());
+    await runInTenant(tenantId, async () =>
+      prisma.db.user.update({
+        where: { id: uid.lead! },
+        data: { mfaSecretEnc: enc, mfaEnabledAt: new Date() },
+      }),
+    );
+    const wrong =
+      (await mfa.currentCode(enc)) === '000000' ? '111111' : '000000';
+    await dev('post', `/jobs/${job.id}/sign-electronically`, cred)
+      .send({ code: wrong })
+      .expect(400);
+    await dev('post', `/jobs/${job.id}/sign-electronically`, cred)
+      .send({ code: await mfa.currentCode(enc) })
+      .expect(201);
+
+    expect(await stateOf(id)).toBe('issued');
+    expect(await sealed(id)).toMatchObject({
+      method: 'SEAL',
+      status: 'COMPLETED',
+    });
+    // the same job cannot be signed twice
+    await dev('post', `/jobs/${job.id}/sign-electronically`, cred)
+      .send({ code: await mfa.currentCode(enc) })
+      .expect(409);
+
+    // anyone checking the letter is told it was signed electronically, without a DSC
+    const doc = (await call('get', `/documents/${id}`, 'admin').expect(200))
+      .body;
+    const v = await request(app.getHttpServer())
+      .get(`/v1/public/verify/${doc.verifyToken}`)
+      .set('X-Forwarded-For', `10.11.9.${++ip}`)
+      .expect(200);
+    expect(v.body.signature).toMatchObject({ kind: 'electronic' });
+  });
+
+  it('works from the web app for the signatory, and not for someone else', async () => {
+    const id = await approvedFixtureDoc();
+    await askDsc(id).expect(201);
+    const opts = (
+      await call(
+        'get',
+        `/documents/${id}/signature-requests/electronic`,
+        'lead',
+      ).expect(200)
+    ).body;
+    expect(opts.allowed).toBe(true);
+    expect(opts.requestId).toBeTruthy();
+    const none = (
+      await call(
+        'get',
+        `/documents/${id}/signature-requests/electronic`,
+        'admin',
+      ).expect(200)
+    ).body;
+    expect(none.requestId).toBeNull();
+    const mfa = app.get(MfaService);
+    const enc = (
+      await runInTenant(tenantId, async () =>
+        prisma.db.user.findUniqueOrThrow({ where: { id: uid.lead! } }),
+      )
+    ).mfaSecretEnc!;
+    await call(
+      'post',
+      `/documents/${id}/signature-requests/${opts.requestId}/sign-electronically`,
+      'admin',
+    )
+      .send({ code: await mfa.currentCode(enc) })
+      .expect(404);
+    await call(
+      'post',
+      `/documents/${id}/signature-requests/${opts.requestId}/sign-electronically`,
+      'lead',
+    )
+      .send({ code: await mfa.currentCode(enc) })
+      .expect(201);
+    expect(await stateOf(id)).toBe('issued');
   });
 });

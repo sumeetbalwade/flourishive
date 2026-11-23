@@ -20,6 +20,7 @@ class Job:
     sha256: str
     expires_at: str
     claimed_by_this_device: bool = False
+    electronic_allowed: bool = False  # the company lets signatories sign without the token
 
 
 @dataclass(frozen=True)
@@ -150,9 +151,14 @@ class Api:
                 sha256=r["sha256"],
                 expires_at=r["expiresAt"],
                 claimed_by_this_device=bool(r.get("claimedByThisDevice")),
+                electronic_allowed=bool(r.get("electronicAllowed")),
             )
             for r in rows
         ]
+
+    def sign_electronically(self, job_id: str, code: str) -> dict[str, Any]:
+        """Signs without the token, confirmed by the signatory's authenticator code (only if the company allows it)."""
+        return self._json(self._request("POST", f"/v1/desktop/jobs/{job_id}/sign-electronically", json={"code": code}))
 
     def claim(self, job_id: str) -> Claim:
         b = self._json(self._request("POST", f"/v1/desktop/jobs/{job_id}/claim"))
