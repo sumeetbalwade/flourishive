@@ -68,6 +68,9 @@ load_env
 echo "==> Install and build"
 corepack enable >/dev/null 2>&1 || sudo corepack enable
 pnpm install --frozen-lockfile
+# The database client is generated from the schema. A deploy that changes the schema but not the lockfile skips
+# the install hook that generates it, so the build would see a stale client; always regenerate.
+(cd backend && pnpm exec prisma generate)
 VITE_APP_NAME=Flourishive VITE_TENANT_DOMAIN=$DOMAIN VITE_API_URL=https://api.$DOMAIN pnpm build
 
 echo "==> Seal key (first time only; keep the backup safe)"
