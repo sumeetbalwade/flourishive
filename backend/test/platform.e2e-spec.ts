@@ -354,6 +354,13 @@ describe('platform users', () => {
     ]);
     expect(JSON.stringify(list.body)).not.toMatch(/passwordHash|mfaSecret/);
 
+    // Changing a person's status needs a recent confirmation (step-up).
+    const claims = JSON.parse(
+      Buffer.from(tokens.root!.split('.')[1]!, 'base64url').toString(),
+    );
+    await app
+      .get(RedisService)
+      .client.set(`stepup:${claims.sessionId}`, '1', 'EX', 300);
     await call('patch', `/platform/users/${root!.id}`, tokens.root)
       .send({ status: 'DISABLED' })
       .expect(400); // not yourself
