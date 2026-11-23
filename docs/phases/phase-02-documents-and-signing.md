@@ -27,6 +27,7 @@ HR at Flourisense issues real intern letters end to end. A letter is generated f
 - [x] **Aadhaar eSign:** provider adapter with a mock provider (D-44): request, redirect to the provider, return, finish; anything signed with the mock is labelled TEST. Switch with `ESIGN_PROVIDER` (`none` default, `mock`). A real provider is one more class implementing `EsignProvider` (provider chosen per D-28)
 - [x] **DSC (server side, PR 5):** desktop pairing (D-24, D-45), signing-job API (D-46), upload of the signed PDF, validation in Node before acceptance (D-31, D-48). The desktop app itself is PR 6. See docs/runbooks/dsc-validation.md
 - [x] Revocation and supersede, with the reason recorded
+- [x] **Signing without the token (D-79):** company setting `signing.allowWithoutDsc` (off by default, super admin can lock it). The signatory confirms with their authenticator code in the desktop app ("Sign without token") or on the web letter page; the server rebuilds the file from the original with the acceptance records, adds a visible signer stamp and the organisation seal. Labelled "Signed electronically (no DSC)" on the verify page. Not a DSC signature.
 - [x] Dev-only setting `ALLOW_EXPIRED_SIGNER_CERT` (D-38): accepts signatures from the expired DSC; off by default; documents signed this way are labelled TEST
 
 ### Flourishive Desktop v1 (`desktop/`, D-11, D-12)
@@ -192,6 +193,8 @@ D-10, D-11, D-12, D-13, D-14, D-24, D-25, D-28, D-31, D-33, D-35
 - **D-77 Delivery and offer hold:** HR clicks Email (one letter or a batch). The email holds a private link valid 30 days that HR can cancel; the recipient sees the letter's details and downloads the PDF through the API checks and R2. Offer letters are held: the link works but the download is locked until an admin releases it (permission `documents.release`, tenant admin only) so candidates cannot shop offers. The hold is a company setting, `documents.holdOfferDownloads`, on by default.
 
 - **D-78 Editor PDF engine (2026-11-22):** the visual editor's JSON is drawn by React-PDF, the same engine as coded layouts, so fonts, letterhead and stamping are shared. Only bold and underline marks, headings, lists, tables, lines and a signature box are allowed.
+
+- **D-79 Signing without the DSC token (2026-11-22):** an admin-controlled option, off by default. Signatory proves themselves with an authenticator code; server adds a visible stamp and the organisation seal; the letter and verify page say it was signed electronically without a DSC. It does not replace DSC for letters that must carry a certificate signature; it is one setting for the whole company (per-letter-type control is not built).
 
 ## Open items
 - How the signing animation is built on each surface (options to be presented before the desktop UI work starts, PR 6)

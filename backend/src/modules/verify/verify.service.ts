@@ -76,7 +76,9 @@ export class VerifyService {
       }),
     );
     const accepted = done.find((r) => r.method === 'OTP');
-    const signedReq = done.find((r) => r.method === 'DSC');
+    const signedReq = done.find(
+      (r) => r.method === 'DSC' || r.method === 'SEAL',
+    );
     const signedEvent = signedReq
       ? await runInTenant(doc.tenantId, async () =>
           this.prisma.db.signatureEvent.findFirst({
@@ -114,6 +116,10 @@ export class VerifyService {
       signature:
         signedReq?.completedAt && signedEvent
           ? {
+              kind:
+                signedReq.method === 'SEAL'
+                  ? ('electronic' as const)
+                  : ('dsc' as const),
               signer: m.signer ?? 'Unknown',
               organisation: m.organisation ?? null,
               issuer: m.issuer ?? '',

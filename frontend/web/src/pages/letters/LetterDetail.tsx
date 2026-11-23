@@ -18,6 +18,7 @@ import { useAuth } from '../../lib/auth.tsx';
 import { messageOf } from '../../lib/errors.ts';
 import { go } from '../../router.ts';
 import { Layout } from '../Layout.tsx';
+import { ElectronicSignPanel } from './ElectronicSignPanel.tsx';
 import { EndLifePanel } from './EndLifePanel.tsx';
 import { DeliveryPanel } from './DeliveryPanel.tsx';
 import { PdfPreview } from './PdfPreview.tsx';
@@ -313,6 +314,10 @@ export function LetterDetail({ id }: { id: string }) {
                   })}
                 </div>
               </Card>
+            ) : null}
+
+            {d.workflow.state === 'signing' && auth.can('documents.sign') ? (
+              <ElectronicSignPanel id={id} />
             ) : null}
 
             {(d.workflow.state === 'issued' && auth.can('documents.approve')) ||

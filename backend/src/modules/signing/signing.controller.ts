@@ -31,6 +31,7 @@ const requestBody = z.object({
   finalStep: z.boolean().default(false),
 });
 const esignCompleteBody = z.object({ txn: z.string().uuid() });
+const codeBody = z.object({ code: z.string().regex(/^\d{6}$/) });
 const cancelBody = z.object({ reason: z.string().trim().min(1).max(500) });
 const confirmBody = z.object({
   code: z.string().regex(/^\d{6}$/),
@@ -64,6 +65,29 @@ export class SigningStaffController {
       a,
       id,
       new ZodPipe(requestBody).transform(body),
+    );
+  }
+
+  /** For the signatory: may they sign without the token, and which request is theirs? */
+  @Get('electronic')
+  @RequirePermission('documents.sign')
+  electronic(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
+    return this.dsc.electronicOptions(a, id);
+  }
+
+  @Post(':requestId/sign-electronically')
+  @RequirePermission('documents.sign')
+  signElectronically(
+    @CurrentAuth() a: AccessClaims,
+    @Param('requestId') rid: string,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ) {
+    return this.dsc.signElectronically(
+      a,
+      rid,
+      new ZodPipe(codeBody).transform(body).code,
+      client(req),
     );
   }
 

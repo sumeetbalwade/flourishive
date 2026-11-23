@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  ForbiddenException,
   NotFoundException,
   PayloadTooLargeException,
   UnprocessableEntityException,
@@ -11,6 +12,12 @@ import {
 import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
+import { PDFDocument } from 'pdf-lib';
+import { RedisService } from '../../platform/cache/redis.service.js';
+import { MfaService } from '../identity/mfa.service.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { SealService } from './seal/seal.service.js';
+import { drawElectronicStamp } from './electronic-stamp.js';
 import { StorageService } from '../../platform/storage/storage.service.js';
 import { AccessService } from '../access/access.service.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -54,6 +61,10 @@ export class DscJobsService {
     private readonly workflow: WorkflowService,
     private readonly audit: AuditService,
     private readonly validator: DscValidator,
+    private readonly seal: SealService,
+    private readonly mfa: MfaService,
+    private readonly settings: SettingsService,
+    private readonly redis: RedisService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -177,6 +188,12 @@ export class DscJobsService {
     );
     const byDoc = new Map(docs.map((x) => [x.id, x]));
     const byEnt = new Map(entities.map((x) => [x.id, x.legalName]));
+    const electronicAllowed = await this.settings.get(
+      'signing.allowWithoutDsc',
+      {
+        tenantId: d.tenantId,
+      },
+    );
     return rows.map((r) => {
       const doc = byDoc.get(r.documentId)!;
       return {
@@ -188,6 +205,7 @@ export class DscJobsService {
         expiresAt: r.expiresAt,
         createdAt: r.createdAt,
         claimedByThisDevice: r.claimedByDeviceId === d.deviceId,
+        electronicAllowed,
       };
     });
   }
@@ -421,5 +439,208 @@ export class DscJobsService {
       test: result.test,
       warnings: result.warnings,
     };
+  }
+
+  // ------------------------------------------------- signing without a token
+
+  /** Whether this company lets signatories sign without the USB token, and the open request for this person. */
+  async electronicOptions(
+    a: { tenantId: string; userId: string },
+    documentId: string,
+  ) {
+    const allowed = await this.settings.get('signing.allowWithoutDsc', {
+      tenantId: a.tenantId,
+    });
+    const r = await runInTenant(a.tenantId, async () =>
+      this.prisma.db.signatureRequest.findFirst({
+        where: {
+          documentId,
+          method: 'DSC',
+          status: 'PENDING',
+          expiresAt: { gt: new Date() },
+          parties: { some: { userId: a.userId } },
+        },
+      }),
+    );
+    return { allowed, requestId: allowed && r ? r.id : null };
+  }
+
+  /**
+   * The signatory signs without the token (setting `signing.allowWithoutDsc`). They confirm with their
+   * authenticator code; the letter gets a visible stamp and the organisation seal and is labelled
+   * "Signed electronically (no DSC)". The file is rebuilt from the original so the seal is the only
+   * signature on it.
+   */
+  async signElectronically(
+    who: { tenantId: string; userId: string; deviceId?: string },
+    requestId: string,
+    code: string,
+    c: { ip?: string; userAgent?: string } = {},
+  ) {
+    if (
+      !(await this.settings.get('signing.allowWithoutDsc', {
+        tenantId: who.tenantId,
+      }))
+    )
+      throw new ForbiddenException(
+        'Signing without a DSC token is not switched on for this company',
+      );
+    const r = await runInTenant(who.tenantId, async () =>
+      this.prisma.db.signatureRequest.findFirst({
+        where: {
+          id: requestId,
+          method: { in: ['DSC', 'SEAL'] },
+          parties: { some: { userId: who.userId } },
+        },
+        include: { parties: true },
+      }),
+    );
+    if (!r) throw new NotFoundException();
+    if (r.status !== 'PENDING' || r.expiresAt < new Date())
+      throw new ConflictException('This request is closed');
+    if (
+      who.deviceId &&
+      r.claimedByDeviceId &&
+      r.claimedByDeviceId !== who.deviceId &&
+      r.claimExpiresAt &&
+      r.claimExpiresAt > new Date()
+    )
+      throw new ConflictException('Another computer is signing this');
+
+    // A fresh authenticator code proves it is really the signatory at the keyboard.
+    const user = await runInTenant(who.tenantId, async () =>
+      this.prisma.db.user.findUnique({
+        where: { id: who.userId },
+        select: {
+          mfaSecretEnc: true,
+          mfaEnabledAt: true,
+          person: { select: { firstName: true, lastName: true } },
+          email: true,
+        },
+      }),
+    );
+    if (!user?.mfaSecretEnc || !user.mfaEnabledAt)
+      throw new BadRequestException(
+        'Turn on your authenticator app first; it is needed to sign without a token',
+      );
+    const limit = await this.redis.rateLimit(
+      `esign-self:${who.userId}`,
+      8,
+      600,
+    );
+    if (!limit.allowed)
+      throw new BadRequestException('Too many tries. Wait a few minutes.');
+    if (!(await this.mfa.verifyCode(user.mfaSecretEnc, code))) {
+      await this.signing.record(who.tenantId, r.id, 'seal_code_failed', c);
+      throw new BadRequestException(
+        'That code is not right. Try the next one.',
+      );
+    }
+
+    const doc = await runInTenant(who.tenantId, async () =>
+      this.prisma.db.generatedDocument.findUniqueOrThrow({
+        where: { id: r.documentId },
+      }),
+    );
+    const original = await readAll(
+      this.storage.read(
+        (await this.files.get(who.tenantId, doc.fileId)).storageKey,
+      ),
+    );
+    if (sha256(original) !== doc.sha256)
+      throw new ConflictException('The document changed after it was approved');
+    const letterhead = await runInTenant(who.tenantId, async () =>
+      this.prisma.db.letterhead.findUniqueOrThrow({
+        where: { id: doc.letterheadId },
+      }),
+    );
+    const name = user.person
+      ? `${user.person.firstName} ${user.person.lastName}`.trim()
+      : user.email;
+    const at = new Date();
+    const pdf = await PDFDocument.load(original);
+    for (const page of await this.signing.acceptanceRecordPages(
+      who.tenantId,
+      doc.id,
+    )) {
+      const rec = await PDFDocument.load(page);
+      for (const p of await pdf.copyPages(rec, rec.getPageIndices()))
+        pdf.addPage(p);
+    }
+    const box = signatureBox(letterhead);
+    await drawElectronicStamp(pdf, {
+      page: box.page,
+      box: box.box,
+      signer: name,
+      at,
+    });
+    const sealed = await this.seal.seal(
+      Buffer.from(await pdf.save({ useObjectStreams: false })),
+      { reason: `Signed electronically by ${name} (no DSC)` },
+    );
+    const file = await this.files.storeTrusted(
+      { tenantId: who.tenantId, userId: who.userId },
+      {
+        body: sealed,
+        mimeType: 'application/pdf',
+        name: `${doc.reference.replaceAll('/', '-')}-signed.pdf`,
+        ownerType: 'document',
+      },
+    );
+    await runInTenant(who.tenantId, async () =>
+      this.prisma.db.$transaction(async (tx) => {
+        const won = await tx.signatureRequest.updateMany({
+          where: { id: r.id, status: 'PENDING' },
+          data: {
+            status: 'COMPLETED',
+            method: 'SEAL',
+            completedAt: at,
+            signedFileId: file.id,
+            claimedByDeviceId: null,
+            claimExpiresAt: null,
+          },
+        });
+        if (won.count !== 1)
+          throw new ConflictException('This request is no longer open');
+        await tx.signatureParty.updateMany({
+          where: { requestId: r.id },
+          data: { status: 'ACCEPTED', respondedAt: at },
+        });
+        await tx.signatureEvent.create({
+          data: {
+            tenantId: who.tenantId,
+            requestId: r.id,
+            type: 'signed',
+            ip: c.ip?.slice(0, 64) ?? null,
+            userAgent: c.userAgent?.slice(0, 255) ?? null,
+            meta: {
+              kind: 'seal',
+              deviceId: who.deviceId ?? null,
+              signer: name,
+              organisation: null,
+              issuer: 'Organisation seal (no digital signature certificate)',
+              signedAt: at.toISOString(),
+              signedSha256: file.sha256,
+            },
+          },
+        });
+      }),
+    );
+    await this.workflow.act(
+      { tenantId: who.tenantId, userId: null },
+      { type: 'document', id: doc.id },
+      'issue',
+      { asSystem: true },
+    );
+    await this.audit.recordSafely({
+      tenantId: who.tenantId,
+      actorType: 'USER',
+      actorId: who.userId,
+      action: 'signature.signed',
+      entityType: 'document',
+      entityId: doc.id,
+      meta: { reference: doc.reference, method: 'SEAL' },
+    });
+    return { signed: true, reference: doc.reference, electronic: true };
   }
 }

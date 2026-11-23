@@ -122,6 +122,8 @@ export const verifyResult = z.object({
   /** The authorised signatory's digital signature, once the certificate signature is in. */
   signature: z
     .object({
+      /** `electronic`: signed without a certificate token (visible stamp and organisation seal). */
+      kind: z.enum(['dsc', 'electronic']).default('dsc'),
       signer: z.string(),
       organisation: z.string().nullable(),
       issuer: z.string(),

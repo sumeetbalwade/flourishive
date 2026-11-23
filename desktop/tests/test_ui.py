@@ -43,6 +43,13 @@ class FakeApi:
             raise self.jobs_error
         return list(self._jobs)
 
+    def sign_electronically(self, job_id, code):
+        self.calls.append(f"esign {job_id} {code}")
+        if code == "000000":
+            from flourishive_desktop.errors import ServerRefused
+            raise ServerRefused(400, "That code is not right. Try the next one.", None)
+        return {"signed": True}
+
     def claim(self, job_id):
         self.calls.append(f"claim {job_id}")
         return Claim(job_id, "ref", hashlib.sha256(self.pdf).hexdigest(), f"/in/{job_id}", "Issued by ref", "http://tsa.invalid", Appearance(True, 0, (321.28, 70.0, 535.28, 118.0)))
@@ -259,4 +266,39 @@ def test_no_bar_when_up_to_date(qtbot, tmp_path):
     qtbot.addWidget(w)
     qtbot.waitUntil(lambda: w.queue.table.rowCount() == 1, timeout=3000)
     assert w.update_bar.isHidden() and not w.update_required
+
+
+def test_sign_without_token_only_when_the_company_allows_it(qtbot, tmp_path):
+    import dataclasses
+
+    from flourishive_desktop.ui.electronic_dialog import ElectronicDialog
+
+    api = FakeApi(b"", [dataclasses.replace(j, electronic_allowed=True) for j in jobs(2)])
+    w = MainWindow(make_controller(tmp_path, api))
+    qtbot.addWidget(w)
+    qtbot.waitUntil(lambda: w.queue.table.rowCount() == 2, timeout=3000)
+    assert not w.queue.electronic_btn.isHidden() and not w.queue.electronic_btn.isEnabled()
+    qtbot.mouseClick(w.queue.all_btn, Qt.MouseButton.LeftButton)
+    assert w.queue.electronic_btn.isEnabled()
+
+    dlg = ElectronicDialog(w.c, w.queue.selected())
+    qtbot.addWidget(dlg)
+    dlg.code.setText("12")
+    dlg._start()
+    assert "6 digits" in dlg.message.text() and not [c for c in api.calls if c.startswith("esign")]
+    dlg.code.setText("000000")
+    dlg._start()
+    qtbot.waitUntil(lambda: dlg.go.isEnabled(), timeout=3000)
+    assert "not right" in dlg.message.text()
+    dlg.code.setText("123456")
+    dlg._start()
+    qtbot.waitUntil(lambda: dlg.signed == 2, timeout=3000)
+    assert [c for c in api.calls if c.startswith("esign") and c.endswith("123456")]
+
+
+def test_no_electronic_button_when_not_allowed(qtbot, tmp_path):
+    w = MainWindow(make_controller(tmp_path, FakeApi(b"", jobs(1))))
+    qtbot.addWidget(w)
+    qtbot.waitUntil(lambda: w.queue.table.rowCount() == 1, timeout=3000)
+    assert w.queue.electronic_btn.isHidden()
 

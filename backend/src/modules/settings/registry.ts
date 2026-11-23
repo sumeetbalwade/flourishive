@@ -46,6 +46,15 @@ export const SETTINGS = {
     group: 'Branding',
     description: 'Sender name on emails',
   }),
+  'signing.allowWithoutDsc': def({
+    schema: z.boolean(),
+    default: false,
+    levels: ['tenant'],
+    label: 'Allow signing without a DSC token',
+    group: 'Security',
+    description:
+      'Signatories may sign letters in the desktop or web app without the USB certificate token. The letter gets a visible stamp and the organisation seal, and is labelled "Signed electronically (no DSC)". Needs the signatory to confirm with their authenticator code.',
+  }),
   'documents.holdOfferDownloads': def({
     schema: z.boolean(),
     default: true,

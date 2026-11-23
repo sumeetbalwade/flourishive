@@ -2,6 +2,8 @@ enum SignatureMethod {
   OTP
   DSC
   AADHAAR
+  /// Signed by the signatory without a certificate token: a visible stamp, then the organisation seal.
+  SEAL
 }
 
 enum SignatureRequestStatus {
