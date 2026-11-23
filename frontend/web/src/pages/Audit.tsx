@@ -29,6 +29,10 @@ export function Audit() {
     queryFn: () => api.audit.list({ action: action || undefined, page, pageSize: 25 }),
     placeholderData: keepPreviousData,
   });
+  const support = useQuery({
+    queryKey: ['support-sessions'],
+    queryFn: () => api.support.sessions(),
+  });
   const pages = list.data ? Math.max(1, Math.ceil(list.data.total / list.data.pageSize)) : 1;
 
   return (
@@ -71,6 +75,32 @@ export function Audit() {
         </p>
       ) : check === 'running' ? (
         <p className="mb-4 text-sm text-muted">Checking every entry…</p>
+      ) : null}
+
+      {support.data?.length ? (
+        <section className="mb-6 rounded-card border border-line bg-surface p-5 shadow-card">
+          <h2 className="font-display text-lg font-medium">Platform support access</h2>
+          <p className="mt-1 text-sm text-muted">
+            Every time the platform team opened your company, and why.
+          </p>
+          <ul className="mt-3 grid gap-2">
+            {support.data.slice(0, 10).map((s) => (
+              <li key={s.id} className="rounded-md border border-line px-4 py-2.5 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{s.staff}</span>
+                  <Badge tone={s.mode === 'WRITE' ? 'warning' : 'neutral'}>
+                    {s.mode === 'WRITE' ? 'Could change' : 'View only'}
+                  </Badge>
+                  {s.active ? <Badge tone="success">Open now</Badge> : null}
+                  <span className="ml-auto text-xs text-faint">
+                    {new Date(s.startedAt).toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <p className="mt-1 text-muted">“{s.reason}”</p>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       <div className="mb-5 flex items-center gap-3">

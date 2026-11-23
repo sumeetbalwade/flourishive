@@ -23,6 +23,7 @@ model Tenant {
   engagements         Engagement[]
   internDetails       InternDetail[]
   auditLogs           AuditLog[]
+  supportSessions     SupportSession[]
   auditChainHead      AuditChainHead?
   files               File[]
   notifications       Notification[]

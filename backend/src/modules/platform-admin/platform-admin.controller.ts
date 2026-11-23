@@ -25,7 +25,12 @@ import { Public } from '../identity/auth.context.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
 import { StorageService } from '../../platform/storage/storage.service.js';
 import { PlatformAdminService } from './platform-admin.service.js';
-import { PlatformGuard, type PlatformRequest } from './platform.guard.js';
+import { RequireStepUp } from '../identity/step-up.service.js';
+import {
+  PlatformGuard,
+  RequirePlatformPermission,
+  type PlatformRequest,
+} from './platform.guard.js';
 
 /** The super admin console API. Not reachable with a tenant token. */
 @Public()
@@ -39,19 +44,26 @@ export class PlatformAdminController {
 
   private actor = (req: PlatformRequest) => req.platformAuth!.platformUserId;
 
+  @RequirePlatformPermission('config.read')
   /** Is file storage working? Writes and removes a tiny test file. */
-  @Get('diagnostics/storage') storageCheck() {
+  @Get('diagnostics/storage')
+  storageCheck() {
     return this.storage.check();
   }
 
-  @Get('tenants') tenants() {
+  @RequirePlatformPermission('tenants.read')
+  @Get('tenants')
+  tenants() {
     return this.admin.listTenants();
   }
 
-  @Get('tenants/:id') tenant(@Param('id') id: string) {
+  @RequirePlatformPermission('tenants.read')
+  @Get('tenants/:id')
+  tenant(@Param('id') id: string) {
     return this.admin.getTenant(id);
   }
 
+  @RequirePlatformPermission('tenants.manage')
   @Post('tenants')
   create(
     @Req() req: PlatformRequest,
@@ -60,6 +72,7 @@ export class PlatformAdminController {
     return this.admin.createTenant(this.actor(req), b, req.ip);
   }
 
+  @RequirePlatformPermission('tenants.manage')
   @Patch('tenants/:id')
   @HttpCode(204)
   update(
@@ -70,6 +83,7 @@ export class PlatformAdminController {
     return this.admin.updateTenant(this.actor(req), id, b, req.ip);
   }
 
+  @RequirePlatformPermission('tenants.manage')
   /** Creates the company's address in Cloudflare again (after a failure, or a changed server address). */
   @Post('tenants/:id/dns')
   @HttpCode(200)
@@ -77,18 +91,23 @@ export class PlatformAdminController {
     return this.admin.syncDns(this.actor(req), id, req.ip);
   }
 
-  @Get('users') users() {
+  @RequirePlatformPermission('staff.manage')
+  @Get('users')
+  users() {
     return this.admin.listUsers();
   }
 
+  @RequirePlatformPermission('staff.manage')
   @Post('users')
   invite(
     @Req() req: PlatformRequest,
     @Body(new ZodPipe(inviteBody)) b: z.infer<typeof inviteBody>,
   ) {
-    return this.admin.inviteUser(this.actor(req), b.email);
+    return this.admin.inviteUser(this.actor(req), b.email, b.roleId);
   }
 
+  @RequirePlatformPermission('staff.manage')
+  @RequireStepUp()
   @Patch('users/:id')
   @HttpCode(204)
   setStatus(
@@ -99,10 +118,13 @@ export class PlatformAdminController {
     return this.admin.setUserStatus(this.actor(req), id, b.status);
   }
 
-  @Get('settings') settings() {
+  @RequirePlatformPermission('config.read')
+  @Get('settings')
+  settings() {
     return this.admin.platformSettings();
   }
 
+  @RequirePlatformPermission('platform.controls')
   @Put('settings/:key')
   @HttpCode(204)
   setDefault(
@@ -119,17 +141,21 @@ export class PlatformAdminController {
     );
   }
 
+  @RequirePlatformPermission('platform.controls')
   @Delete('settings/:key')
   @HttpCode(204)
   clearDefault(@Req() req: PlatformRequest, @Param('key') key: string) {
     return this.admin.clearPlatformSetting(this.actor(req), key);
   }
 
+  @RequirePlatformPermission('config.read')
   /** Two-step and recovery defaults, and the floor tenants cannot go below, per system role. */
-  @Get('policies') policies() {
+  @Get('policies')
+  policies() {
     return this.admin.platformPolicies();
   }
 
+  @RequirePlatformPermission('platform.controls')
   @Put('policies/:roleKey')
   @HttpCode(204)
   setPolicy(
@@ -141,6 +167,7 @@ export class PlatformAdminController {
     return this.admin.setPlatformPolicy(this.actor(req), roleKey, b);
   }
 
+  @RequirePlatformPermission('tenants.manage')
   @Put('tenants/:id/settings/:key')
   @HttpCode(204)
   setTenantValue(
@@ -152,6 +179,7 @@ export class PlatformAdminController {
     return this.admin.setTenantSetting(this.actor(req), id, key, b.value);
   }
 
+  @RequirePlatformPermission('tenants.manage')
   @Delete('tenants/:id/settings/:key')
   @HttpCode(204)
   clearTenantValue(

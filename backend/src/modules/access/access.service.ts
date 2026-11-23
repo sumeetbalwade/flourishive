@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { supportPrincipalKey } from '../identity/support-keys.js';
 import { RolePolicyService } from './role-policy.service.js';
 import { RedisService } from '../../platform/cache/redis.service.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
@@ -87,6 +88,18 @@ export class AccessService {
     tenantId: string,
     userId: string,
   ): Promise<PermissionMap> {
+    // Platform staff in a support session hold no company role; what they may do follows the mode.
+    const support = await this.redis.client.get(
+      supportPrincipalKey(tenantId, userId),
+    );
+    if (support) {
+      return Object.fromEntries(
+        ALL_PERMISSIONS.filter(
+          (c) =>
+            support === 'WRITE' || c === 'self.read' || c.endsWith('.read'),
+        ).map((c) => [c, ['*']]),
+      );
+    }
     const cached = await this.redis.getJson<PermissionMap>(
       cacheKey(tenantId, userId),
     );

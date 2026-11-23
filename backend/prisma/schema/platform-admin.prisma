@@ -11,8 +11,12 @@ model PlatformUser {
   createdAt    DateTime   @default(now()) @db.DateTime(3)
   updatedAt    DateTime   @updatedAt @db.DateTime(3)
 
-  recoveryCodes PlatformRecoveryCode[]
-  sessions      PlatformSession[]
+  roleId String @db.Char(36)
+
+  role            PlatformRole           @relation(fields: [roleId], references: [id])
+  recoveryCodes   PlatformRecoveryCode[]
+  sessions        PlatformSession[]
+  supportSessions SupportSession[]
 
   @@map("platform_users")
 }
@@ -58,4 +62,53 @@ model PlatformRefreshToken {
 
   @@index([sessionId])
   @@map("platform_refresh_tokens")
+}
+
+/// A set of platform permissions (D-55). The four presets cannot be edited; custom roles can.
+model PlatformRole {
+  id          String   @id @default(uuid(7)) @db.Char(36)
+  key         String   @unique @db.VarChar(60)
+  name        String   @db.VarChar(80)
+  description String?  @db.VarChar(255)
+  isPreset    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+
+  permissions PlatformRolePermission[]
+  users       PlatformUser[]
+
+  @@map("platform_roles")
+}
+
+model PlatformRolePermission {
+  roleId         String @db.Char(36)
+  permissionCode String @db.VarChar(60)
+
+  role PlatformRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionCode])
+  @@map("platform_role_permissions")
+}
+
+enum SupportMode {
+  READ
+  WRITE
+}
+
+/// Platform staff looking at (or, rarely, changing) a company, with a reason. Short-lived and endable.
+model SupportSession {
+  id             String      @id @default(uuid(7)) @db.Char(36)
+  tenantId       String      @db.Char(36)
+  platformUserId String      @db.Char(36)
+  reason         String      @db.VarChar(500)
+  mode           SupportMode @default(READ)
+  startedAt      DateTime    @default(now()) @db.DateTime(3)
+  expiresAt      DateTime    @db.DateTime(3)
+  endedAt        DateTime?   @db.DateTime(3)
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id])
+  user   PlatformUser @relation(fields: [platformUserId], references: [id])
+
+  @@index([tenantId, startedAt])
+  @@index([platformUserId])
+  @@map("support_sessions")
 }

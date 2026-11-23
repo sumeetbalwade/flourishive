@@ -18,6 +18,7 @@ import {
 import { AuditService } from '../audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AccessService } from '../access/access.service.js';
+import { supportSessionKey, type OpenSupportSession } from './support-keys.js';
 import { RolePolicyService } from '../access/role-policy.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { MailService } from '../../platform/mail/mail.service.js';
@@ -45,6 +46,9 @@ export type LoginResult =
 export interface Principal {
   tenantId: string;
   userId: string;
+  /** Set for platform staff in a support session (the session id is then in `sessionId`). */
+  support?: { mode: 'READ' | 'WRITE' };
+  sessionId?: string;
 }
 
 interface UserRow {
@@ -395,6 +399,31 @@ export class AuthService {
   }
 
   async me(who: Principal) {
+    if (who.support) {
+      // Platform staff in a support session have no company account; show who they are and the limits.
+      const open = await this.redis.getJson<OpenSupportSession>(
+        supportSessionKey(who.sessionId ?? ''),
+      );
+      if (!open)
+        throw new UnauthorizedException('The support session has ended');
+      return {
+        id: who.userId,
+        tenantId: who.tenantId,
+        email: open.staffEmail,
+        mfaEnabled: false,
+        mfaRequired: false,
+        mfaLevel: 'OFF' as const,
+        permissions: Object.keys(
+          await this.access.permissionsFor(who.tenantId, who.userId),
+        ).sort(),
+        support: {
+          sessionId: open.sessionId,
+          mode: open.mode,
+          reason: open.reason,
+          expiresAt: open.expiresAt,
+        },
+      };
+    }
     const user = await this.findUser(who.tenantId, { id: who.userId });
     if (!user) throw new UnauthorizedException();
     return {

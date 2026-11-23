@@ -69,7 +69,10 @@ export const patchTenantBody = z.object({
   name: z.string().trim().min(1).max(191).optional(),
   status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
 });
-export const inviteStaffBody = z.object({ email: z.string().trim().email().max(191) });
+export const inviteStaffBody = z.object({
+  email: z.string().trim().email().max(191),
+  roleId: z.string().min(1),
+});
 export const staffStatusBody = z.object({ status: z.enum(['ACTIVE', 'DISABLED']) });
 
 const counts = z.object({
@@ -103,6 +106,7 @@ export const staffItem = z.object({
   mfaEnabledAt: z.string().nullable(),
   lastLoginAt: z.string().nullable(),
   createdAt: z.string(),
+  role: z.object({ id: z.string(), key: z.string(), name: z.string() }),
 });
 export const platformSettingItem = z.object({
   key: z.string(),
@@ -136,7 +140,14 @@ export const platformSettingItem = z.object({
 export const platformSettingBody = z
   .object({ value: z.unknown().optional(), locked: z.boolean().optional() })
   .refine((b) => b.value !== undefined || b.locked !== undefined, 'value or locked is required');
-export const platformMe = z.object({ id: z.string(), email: z.string(), mfaEnabled: z.boolean() });
+export const platformMe = z.object({
+  id: z.string(),
+  email: z.string(),
+  mfaEnabled: z.boolean(),
+  role: z.object({ id: z.string(), key: z.string(), name: z.string() }).nullable(),
+  /** Platform permission codes the signed-in staff member holds; the console hides what they cannot use. */
+  permissions: z.array(z.string()),
+});
 export const staffInviteResponse = z.object({
   id: z.string(),
   link: z.string(),
@@ -195,3 +206,60 @@ export const systemInfo = z.object({
   uptimeSeconds: z.number(),
 });
 export type SystemInfo = z.infer<typeof systemInfo>;
+
+export const platformRoleView = z.object({
+  id: z.string(),
+  key: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  isPreset: z.boolean(),
+  permissions: z.array(z.string()),
+  members: z.number(),
+});
+export const platformPermissionInfo = z.object({
+  code: z.string(),
+  area: z.string(),
+  label: z.string(),
+  hint: z.string(),
+});
+export const platformRolesResponse = z.object({
+  roles: z.array(platformRoleView),
+  permissions: z.array(platformPermissionInfo),
+});
+export const createPlatformRoleBody = z.object({
+  name: z.string().trim().min(2).max(80),
+  description: z.string().trim().max(255).optional(),
+  permissions: z.array(z.string()).max(60),
+});
+export const updatePlatformRoleBody = createPlatformRoleBody.partial();
+export const platformAssignRoleBody = z.object({ roleId: z.string().min(1) });
+export type PlatformRoleView = z.infer<typeof platformRoleView>;
+export type PlatformPermissionInfo = z.infer<typeof platformPermissionInfo>;
+export type PlatformRolesResponse = z.infer<typeof platformRolesResponse>;
+
+export const startSupportBody = z.object({
+  reason: z.string().trim().min(5, 'Say why you are opening this company').max(500),
+  mode: z.enum(['READ', 'WRITE']).default('READ'),
+  minutes: z.number().int().min(5).max(240).default(60),
+});
+export const supportSessionStarted = z.object({
+  sessionId: z.string(),
+  accessToken: z.string(),
+  expiresAt: z.string(),
+  mode: z.enum(['READ', 'WRITE']),
+  /** Where to open the company's web app (the token travels in the URL fragment). */
+  url: z.string(),
+});
+export const supportSessionView = z.object({
+  id: z.string(),
+  staff: z.string(),
+  reason: z.string(),
+  mode: z.enum(['READ', 'WRITE']),
+  startedAt: z.string(),
+  expiresAt: z.string(),
+  endedAt: z.string().nullable(),
+  active: z.boolean(),
+});
+export type StartSupportBody = z.infer<typeof startSupportBody>;
+export type SupportSessionStarted = z.infer<typeof supportSessionStarted>;
+export type SupportSessionView = z.infer<typeof supportSessionView>;

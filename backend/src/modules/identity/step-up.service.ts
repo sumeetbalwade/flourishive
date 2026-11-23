@@ -60,8 +60,10 @@ export class StepUpService {
     c: { tenantId: string; userId: string; sessionId: string },
     input: { code?: string; password?: string },
   ): Promise<void> {
-    const user = await runInTenant(c.tenantId, () =>
-      this.prisma.db.user.findUnique({ where: { id: c.userId } }),
+    const user = await runInTenant(
+      c.tenantId,
+      async () =>
+        await this.prisma.db.user.findUnique({ where: { id: c.userId } }),
     );
     await this.confirm(
       `user:${c.userId}`,
@@ -79,10 +81,11 @@ export class StepUpService {
     c: { platformUserId: string; sessionId: string },
     input: { code?: string; password?: string },
   ): Promise<void> {
-    const user = await runAsSystem(() =>
-      this.prisma.db.platformUser.findUnique({
-        where: { id: c.platformUserId },
-      }),
+    const user = await runAsSystem(
+      async () =>
+        await this.prisma.db.platformUser.findUnique({
+          where: { id: c.platformUserId },
+        }),
     );
     await this.confirm(
       `platform:user:${c.platformUserId}`,

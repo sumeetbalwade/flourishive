@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { AccessService } from './modules/access/access.service.js';
+import { OWNER_ROLE_ID } from './modules/platform-admin/platform-permissions.js';
 import { PasswordService } from './modules/identity/password.service.js';
 import { PrismaService } from './platform/database/prisma.service.js';
 import {
@@ -259,6 +260,7 @@ if (dev) {
       create: {
         email: platformEmail,
         status: 'ACTIVE',
+        roleId: OWNER_ROLE_ID,
         passwordHash: await passwords.hash('dev-password-change-me'),
       },
     });

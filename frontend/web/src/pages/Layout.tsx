@@ -15,6 +15,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
+import { SupportBanner } from '../components/SupportBanner.tsx';
 import { useAuth } from '../lib/auth.tsx';
 import { go } from '../router.ts';
 
@@ -118,6 +119,7 @@ export function Layout({
   const section = group ?? undefined;
   return (
     <AppShell
+      banner={me?.support ? <SupportBanner support={me.support} staff={me.email} /> : undefined}
       brand={
         <span className="flex items-center gap-3" title={brand.appName}>
           <BrandMark />

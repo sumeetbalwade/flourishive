@@ -23,6 +23,7 @@ export const ME_STAFF: StaffItem = {
   mfaEnabledAt: '2026-11-10T00:00:00.000Z',
   lastLoginAt: null,
   createdAt: '2026-11-01T00:00:00.000Z',
+  role: { id: 'r-owner', key: 'owner', name: 'Owner' },
 };
 
 export function fakeClient(over: Record<string, unknown> = {}) {
@@ -38,7 +39,22 @@ export function fakeClient(over: Record<string, unknown> = {}) {
       mfaSetup: vi.fn(),
       mfaConfirm: vi.fn(),
       setPassword: vi.fn(),
-      me: vi.fn().mockResolvedValue({ id: 's1', email: 'root@flourishive.test', mfaEnabled: true }),
+      me: vi.fn().mockResolvedValue({
+        id: 's1',
+        email: 'root@flourishive.test',
+        mfaEnabled: true,
+        role: { id: 'r-owner', key: 'owner', name: 'Owner' },
+        permissions: [
+          'tenants.read',
+          'tenants.manage',
+          'tenants.data.read',
+          'staff.manage',
+          'roles.manage',
+          'config.read',
+          'config.secrets.manage',
+          'platform.controls',
+        ],
+      }),
       logout: vi.fn().mockResolvedValue(undefined),
     },
     tenants: {

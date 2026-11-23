@@ -7,6 +7,8 @@ export interface AccessClaims {
   userId: string;
   tenantId: string;
   sessionId: string;
+  /** Present when platform staff is looking at this company in a support session (D-56). */
+  support?: { mode: 'READ' | 'WRITE' };
 }
 
 export type MfaChallengePurpose = 'mfa-verify' | 'mfa-setup';
@@ -60,11 +62,11 @@ export class TokenService {
     }
   }
 
-  signAccess(claims: AccessClaims): Promise<string> {
+  signAccess(claims: AccessClaims, ttlSeconds?: number): Promise<string> {
     return this.sign(
       { ...claims, sub: claims.userId },
       'access',
-      this.config.ACCESS_TOKEN_TTL_SECONDS,
+      ttlSeconds ?? this.config.ACCESS_TOKEN_TTL_SECONDS,
     );
   }
 
@@ -74,6 +76,9 @@ export class TokenService {
       userId: String(p.userId),
       tenantId: String(p.tenantId),
       sessionId: String(p.sessionId),
+      ...(p.support
+        ? { support: p.support as NonNullable<AccessClaims['support']> }
+        : {}),
     };
   }
 

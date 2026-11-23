@@ -10,7 +10,12 @@ import {
 import { go } from '../router.ts';
 import { useApi } from './api.tsx';
 
-type State = { status: 'loading' } | { status: 'anon' } | { status: 'authed'; email: string };
+export interface StaffProfile {
+  email: string;
+  role: { id: string; key: string; name: string } | null;
+  permissions: string[];
+}
+type State = { status: 'loading' } | { status: 'anon' } | ({ status: 'authed' } & StaffProfile);
 interface AuthValue {
   state: State;
   onSignedIn: () => Promise<void>;
@@ -24,7 +29,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadMe = useCallback(async () => {
     try {
-      setState({ status: 'authed', email: (await api.auth.me()).email });
+      const me = await api.auth.me();
+      setState({
+        status: 'authed',
+        email: me.email,
+        role: me.role,
+        permissions: me.permissions,
+      });
     } catch {
       setState({ status: 'anon' });
     }
@@ -66,4 +77,11 @@ export function useAuth(): AuthValue {
   const v = use(Ctx);
   if (!v) throw new Error('useAuth needs an AuthProvider');
   return v;
+}
+
+/** Whether the signed-in staff member may do something. Hide what they cannot use; the API refuses it anyway. */
+export function useCan() {
+  const { state } = useAuth();
+  const held = state.status === 'authed' ? state.permissions : [];
+  return (...codes: string[]) => codes.some((c) => held.includes(c));
 }

@@ -20,7 +20,11 @@ import { RequireStepUp } from '../identity/step-up.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
 import { ConfigTestService } from './config-test.service.js';
 import { PlatformAuditService } from './platform-audit.service.js';
-import { PlatformGuard, type PlatformRequest } from './platform.guard.js';
+import {
+  PlatformGuard,
+  RequirePlatformPermission,
+  type PlatformRequest,
+} from './platform.guard.js';
 
 /** Keys, mail server and addresses that used to need an edit of `api.env` (D-57). */
 @Public()
@@ -33,11 +37,14 @@ export class PlatformConfigController {
     private readonly audit: PlatformAuditService,
   ) {}
 
-  @Get() list() {
+  @RequirePlatformPermission('config.read')
+  @Get()
+  list() {
     return this.runtime.describe();
   }
 
   /** Secrets are write-only: the value is never returned, only whether one is set. */
+  @RequirePlatformPermission('config.secrets.manage')
   @Put(':key')
   @RequireStepUp()
   @HttpCode(204)
@@ -59,6 +66,7 @@ export class PlatformConfigController {
     });
   }
 
+  @RequirePlatformPermission('config.secrets.manage')
   @Delete(':key')
   @RequireStepUp()
   @HttpCode(204)
@@ -74,6 +82,7 @@ export class PlatformConfigController {
     });
   }
 
+  @RequirePlatformPermission('config.read')
   @Post('test/:group')
   @HttpCode(200)
   test(@Param('group') group: string) {

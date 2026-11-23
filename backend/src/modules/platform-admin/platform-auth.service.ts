@@ -19,6 +19,8 @@ import { PasswordService } from '../identity/password.service.js';
 import { ThrottleService } from '../identity/throttle.service.js';
 import { TokenService, sha256 } from '../identity/token.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { PlatformRolesService } from './platform-roles.service.js';
+import { OWNER_ROLE_ID } from './platform-permissions.js';
 import { PlatformAuditService } from './platform-audit.service.js';
 
 export type PlatformLogin =
@@ -53,6 +55,7 @@ export class PlatformAuthService {
     private readonly settings: SettingsService,
     private readonly otp: OtpService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly roles: PlatformRolesService,
     private readonly runtime: RuntimeConfigService,
   ) {}
 
@@ -414,13 +417,21 @@ export class PlatformAuthService {
   async me(userId: string) {
     const u = await this.user(userId);
     if (!u) throw new UnauthorizedException();
-    return { id: u.id, email: u.email, mfaEnabled: Boolean(u.mfaEnabledAt) };
+    return {
+      id: u.id,
+      email: u.email,
+      mfaEnabled: Boolean(u.mfaEnabledAt),
+      role: await this.roles.roleOf(u.id),
+      permissions: [...(await this.roles.permissionsOf(u.id))].sort(),
+    };
   }
 
   /** Creates or re-issues an invite. Returns the link so a CLI operator can hand it over. */
   async invite(
     email: string,
     actorId: string | null,
+    /** Defaults to Owner, so the very first member of staff (set up from the command line) can do everything. */
+    roleId: string = OWNER_ROLE_ID,
   ): Promise<{ id: string; link: string; emailed: boolean }> {
     const address = email.toLowerCase();
     const existing = await runAsSystem(
@@ -433,7 +444,9 @@ export class PlatformAuthService {
       existing ??
       (await runAsSystem(
         async () =>
-          await this.db().platformUser.create({ data: { email: address } }),
+          await this.db().platformUser.create({
+            data: { email: address, roleId },
+          }),
       ));
     const token = randomBytes(32).toString('base64url');
     await this.redis.setJson(

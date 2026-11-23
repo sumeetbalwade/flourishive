@@ -13,7 +13,11 @@ import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { Public } from '../identity/auth.context.js';
 import { RequireStepUp } from '../identity/step-up.service.js';
 import { PlatformAuditService } from './platform-audit.service.js';
-import { PlatformGuard, type PlatformRequest } from './platform.guard.js';
+import {
+  PlatformGuard,
+  RequirePlatformPermission,
+  type PlatformRequest,
+} from './platform.guard.js';
 
 const STARTED_AT = new Date();
 
@@ -45,6 +49,7 @@ export class PlatformSystemController {
   }
 
   /** Stops the API; the service manager starts it again within a few seconds. */
+  @RequirePlatformPermission('platform.controls')
   @Post('restart')
   @RequireStepUp()
   @HttpCode(202)

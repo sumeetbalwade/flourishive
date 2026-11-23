@@ -9,7 +9,7 @@ export const auditListQuery = z.object({
 });
 export const auditEntry = z.object({
   seq: z.string(),
-  actorType: z.enum(['USER', 'PLATFORM', 'SYSTEM']),
+  actorType: z.enum(['USER', 'PLATFORM', 'SYSTEM', 'SUPPORT']),
   actorId: z.string().nullable(),
   action: z.string(),
   entityType: z.string().nullable(),

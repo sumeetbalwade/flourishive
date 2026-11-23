@@ -26,7 +26,12 @@ export class AuditInterceptor implements NestInterceptor {
     return next.handle().pipe(
       mergeMap(async (value) => {
         const auth = req.auth;
-        if (auth && MUTATING.has(req.method) && !req.auditSkip) {
+        // Platform staff in a support session are recorded on every request, reads included.
+        if (
+          auth &&
+          (MUTATING.has(req.method) || auth.support) &&
+          !req.auditSkip
+        ) {
           const template = String(req.route?.path ?? req.path);
           const segments = template
             .replace(/^\/v\d+\//, '/')
@@ -35,12 +40,15 @@ export class AuditInterceptor implements NestInterceptor {
           const params = req.params as Record<string, string>;
           await this.audit.recordSafely({
             tenantId: auth.tenantId,
-            actorType: 'USER',
+            actorType: auth.support ? 'SUPPORT' : 'USER',
             actorId: auth.userId,
             action: `${req.method} ${template}`,
             entityType: segments[0] ?? null,
             entityId: params.id ?? params.entityId ?? null,
             meta: {
+              ...(auth.support
+                ? { supportSessionId: auth.sessionId, mode: auth.support.mode }
+                : {}),
               status: context
                 .switchToHttp()
                 .getResponse<{ statusCode: number }>().statusCode,

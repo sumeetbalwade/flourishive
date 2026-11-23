@@ -1,6 +1,6 @@
 # Phase 2B — Platform control centre
 
-**Status:** Decisions approved 2026-11-22; build started 2026-11-23 (PR 1 built, in review) · **Depends on:** Phase 2 · **Unlocks:** Phase 3 (now billing, SSO and the public API only)
+**Status:** Decisions approved 2026-11-22; build started 2026-11-23 (PR 1 and PR 2 built, in review) · **Depends on:** Phase 2 · **Unlocks:** Phase 3 (now billing, SSO and the public API only)
 
 ## Goal
 
@@ -218,38 +218,38 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
 ### PR 2 — Platform staff roles and support sessions (D-55, D-56)
 
 **Backend**
-- [ ] `platform-permissions.ts` catalogue, for example:
+- [x] `platform-permissions.ts` catalogue, for example:
   - `tenants.read`, `tenants.manage`, `tenants.users.read`, `tenants.users.manage`, `tenants.data.read`, `tenants.data.write`
   - `staff.manage`, `roles.manage`
   - `config.read`, `config.secrets.manage`
   - `email.manage`, `brand.manage`
   - `logs.read`, `logs.errors.detail`, `alerts.manage`
   - `platform.controls`
-- [ ] Data: `platform_roles` (`id`, `key`, `name`, `isPreset`), `platform_role_permissions`, `platform_users.roleId` (required).
+- [x] Data: `platform_roles` (`id`, `key`, `name`, `isPreset`), `platform_role_permissions`, `platform_users.roleId` (required).
   - Migration: every existing platform user becomes Owner.
   - Seed the presets:
     - **Owner:** everything
     - **Super admin:** everything except `staff.manage`, `roles.manage` and `config.secrets.manage`
     - **Support:** `tenants.read`, `tenants.users.read`, `logs.read`, and support sessions read-only
     - **Read-only auditor:** `tenants.read`, `logs.read`, platform audit read
-- [ ] `@RequirePlatformPermission(code)` guard. Every existing platform endpoint gets a code, and `PlatformGuard` loads permissions (cached).
-- [ ] Invariants, enforced in the service and covered by tests:
+- [x] `@RequirePlatformPermission(code)` guard. Every existing platform endpoint gets a code, and `PlatformGuard` loads permissions (cached).
+- [x] Invariants, enforced in the service and covered by tests:
   - At least one active Owner always.
   - You cannot remove your own `roles.manage`.
   - Only an Owner can grant Owner.
-- [ ] Support sessions:
+- [x] Support sessions:
   - Data: `support_sessions` (`tenantId`, `platformUserId`, `reason`, `mode: READ|WRITE`, `startedAt`, `expiresAt` (max 4 h, default 1 h), `endedAt`).
   - `POST /v1/platform/tenants/:id/support-sessions` issues a short-lived tenant-audience token flagged `support: { sessionId, mode }`.
   - READ mode rejects every non-GET request (one guard).
   - WRITE mode needs `tenants.data.write`.
   - Every request made in a session is audited in the tenant as actor `SUPPORT`.
-- [ ] The tenant sees support sessions: a banner in the web app while a session is active ("Flourishive support is viewing your account until 15:30, reason: …"), and a list in their Audit screen.
+- [x] The tenant sees support sessions: a banner in the web app while a session is active ("Flourishive support is viewing your account until 15:30, reason: …"), and a list in their Audit screen.
 
 **Frontend (admin)**
-- [ ] Staff screen: invite, assign role, suspend.
-- [ ] Roles screen: preset roles are read-only (they can be duplicated); custom roles use a permission checklist grouped by area, with plain-English descriptions.
-- [ ] Tenant detail: an "Open as support" button with reason and mode, opening the web app in a new tab with a top banner and an "End session" button.
-- [ ] Navigation and actions are hidden when the permission is missing.
+- [x] Staff screen: invite, assign role, suspend.
+- [x] Roles screen: preset roles are read-only (they can be duplicated); custom roles use a permission checklist grouped by area, with plain-English descriptions.
+- [x] Tenant detail: an "Open as support" button with reason and mode, opening the web app in a new tab with a top banner and an "End session" button.
+- [x] Navigation and actions are hidden when the permission is missing.
 
 **Done when:** a Support user can see tenants and logs but not keys. They open a 1-hour read-only session with a reason, the tenant admin sees the banner and the audit line, and a write attempt in that session is refused.
 

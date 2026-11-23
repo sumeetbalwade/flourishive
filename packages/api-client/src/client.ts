@@ -1,4 +1,5 @@
 import {
+  supportSessionView,
   auditListResponse,
   chainCheck,
   fileResponse,
@@ -363,6 +364,15 @@ export function createApiClient(opts: Opts) {
         http.request('POST', '/access/user-roles', { json: { userId, roleKey, entityId } }),
       remove: (userId: string, roleKey: string, entityId?: string) =>
         http.request('DELETE', '/access/user-roles', { json: { userId, roleKey, entityId } }),
+    },
+
+    /** Platform staff looking at this company (D-56). */
+    support: {
+      sessions: () =>
+        http.request('GET', '/support/sessions', { schema: z.array(supportSessionView) }),
+      /** The banner's End session: ends the support session this tab is using. */
+      endCurrent: () => http.request('POST', '/support/sessions/current/end'),
+      end: (id: string) => http.request('POST', `/support/sessions/${id}/end`),
     },
 
     audit: {

@@ -10,6 +10,13 @@ import { PlatformAuditService } from './platform-audit.service.js';
 import { PlatformAuthController } from './platform-auth.controller.js';
 import { PlatformAuthService } from './platform-auth.service.js';
 import { PlatformSystemController } from './platform-system.controller.js';
+import {
+  PlatformSupportController,
+  TenantSupportController,
+} from './support-controllers.js';
+import { SupportSessionsService } from './support-sessions.service.js';
+import { PlatformRolesController } from './platform-roles.controller.js';
+import { PlatformRolesService } from './platform-roles.service.js';
 import { ConfigTestService } from './config-test.service.js';
 import { PlatformConfigController } from './platform-config.controller.js';
 import { PlatformGuard } from './platform.guard.js';
@@ -21,6 +28,9 @@ import { PlatformGuard } from './platform.guard.js';
     PlatformAdminController,
     PlatformConfigController,
     PlatformSystemController,
+    PlatformRolesController,
+    PlatformSupportController,
+    TenantSupportController,
   ],
   providers: [
     PlatformAuthService,
@@ -30,6 +40,8 @@ import { PlatformGuard } from './platform.guard.js';
     AuditWatchService,
     PlatformGuard,
     ConfigTestService,
+    PlatformRolesService,
+    SupportSessionsService,
   ],
   exports: [PlatformAuthService, PlatformAuditService, AuditWatchService],
 })

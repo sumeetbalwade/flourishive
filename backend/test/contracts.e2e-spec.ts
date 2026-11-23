@@ -1,3 +1,4 @@
+import { OWNER_ROLE_ID } from '../src/modules/platform-admin/platform-permissions.js';
 import {
   auditListResponse,
   chainCheck,
@@ -121,7 +122,11 @@ beforeAll(async () => {
   const staff = await runAsSystem(
     async () =>
       await prisma.db.platformUser.create({
-        data: { email: 'root@contract.test', status: 'ACTIVE' },
+        data: {
+          email: 'root@contract.test',
+          status: 'ACTIVE',
+          roleId: OWNER_ROLE_ID,
+        },
       }),
   );
   platformToken = await app.get(TokenService).signPlatformAccess({

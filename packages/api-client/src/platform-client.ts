@@ -1,4 +1,9 @@
 import {
+  platformRolesResponse,
+  platformRoleView,
+  supportSessionStarted,
+  supportSessionView,
+  type StartSupportBody,
   systemInfo,
   configTestResult,
   runtimeConfigEntry,
@@ -104,6 +109,33 @@ export function createPlatformClient(opts: Opts) {
       },
     },
 
+    roles: {
+      /** The roles with what each may do, and the permission catalogue with plain-English labels. */
+      list: () => http.request('GET', '/platform/roles', { schema: platformRolesResponse }),
+      create: (body: { name: string; description?: string; permissions: string[] }) =>
+        http.request('POST', '/platform/roles', { json: body, schema: platformRoleView }),
+      update: (id: string, body: { name?: string; description?: string; permissions?: string[] }) =>
+        http.request('PATCH', `/platform/roles/${id}`, { json: body }),
+      remove: (id: string) => http.request('DELETE', `/platform/roles/${id}`),
+      assign: (userId: string, roleId: string) =>
+        http.request('PUT', `/platform/users/${userId}/role`, { json: { roleId } }),
+    },
+
+    support: {
+      /** Opens a company with a reason. The result has the address to open (the token is in it). */
+      start: (tenantId: string, body: StartSupportBody) =>
+        http.request('POST', `/platform/tenants/${tenantId}/support-sessions`, {
+          json: body,
+          schema: supportSessionStarted,
+        }),
+      list: (tenantId: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/support-sessions`, {
+          schema: z.array(supportSessionView),
+        }),
+      end: (sessionId: string) =>
+        http.request('POST', `/platform/support-sessions/${sessionId}/end`),
+    },
+
     system: {
       info: () => http.request('GET', '/platform/system', { schema: systemInfo }),
       /** Stops the API; the server starts it again within seconds. Needs a fresh confirmation. */
@@ -138,8 +170,11 @@ export function createPlatformClient(opts: Opts) {
 
     staff: {
       list: () => http.request('GET', '/platform/users', { schema: z.array(staffItem) }),
-      invite: (email: string) =>
-        http.request('POST', '/platform/users', { json: { email }, schema: staffInviteResponse }),
+      invite: (email: string, roleId: string) =>
+        http.request('POST', '/platform/users', {
+          json: { email, roleId },
+          schema: staffInviteResponse,
+        }),
       setStatus: (id: string, status: 'ACTIVE' | 'DISABLED') =>
         http.request('PATCH', `/platform/users/${id}`, { json: { status } }),
     },

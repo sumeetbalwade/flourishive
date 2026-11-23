@@ -59,6 +59,15 @@ export const meResponse = z.object({
   mfaRequired: z.boolean(),
   mfaLevel: mfaLevel,
   permissions: z.array(z.string()),
+  /** Present when the person is platform staff in a support session rather than a company user. */
+  support: z
+    .object({
+      sessionId: z.string(),
+      mode: z.enum(['READ', 'WRITE']),
+      reason: z.string(),
+      expiresAt: z.string(),
+    })
+    .optional(),
 });
 
 export type LoginBody = z.infer<typeof loginBody>;

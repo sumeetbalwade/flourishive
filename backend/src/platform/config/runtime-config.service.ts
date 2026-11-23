@@ -66,8 +66,8 @@ export class RuntimeConfigService {
   private async rows(): Promise<Map<string, Row>> {
     let list = await this.redis.getJson<Row[]>(CACHE_KEY).catch(() => null);
     if (!list) {
-      const found = await runAsSystem(() =>
-        this.prisma.db.platformConfig.findMany(),
+      const found = await runAsSystem(
+        async () => await this.prisma.db.platformConfig.findMany(),
       );
       list = found.map((r) => ({
         key: r.key,
@@ -166,12 +166,13 @@ export class RuntimeConfigService {
             secretEnc: this.crypto.encrypt(String(parsed.data)),
           }
         : { valueJson: parsed.data as never, secretEnc: null };
-    await runAsSystem(() =>
-      this.prisma.db.platformConfig.upsert({
-        where: { key },
-        update: { ...data, updatedBy: actorId },
-        create: { key, ...data, updatedBy: actorId },
-      }),
+    await runAsSystem(
+      async () =>
+        await this.prisma.db.platformConfig.upsert({
+          where: { key },
+          update: { ...data, updatedBy: actorId },
+          create: { key, ...data, updatedBy: actorId },
+        }),
     );
     await this.redis.del(CACHE_KEY);
   }
@@ -179,8 +180,9 @@ export class RuntimeConfigService {
   /** Forgets the console value, so the environment variable (or default) applies again. */
   async clear(key: string): Promise<void> {
     if (!isRuntimeKey(key)) throw new NotFoundException('Unknown setting');
-    await runAsSystem(() =>
-      this.prisma.db.platformConfig.deleteMany({ where: { key } }),
+    await runAsSystem(
+      async () =>
+        await this.prisma.db.platformConfig.deleteMany({ where: { key } }),
     );
     await this.redis.del(CACHE_KEY);
   }

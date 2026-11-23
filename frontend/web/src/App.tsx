@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './lib/auth.tsx';
 import type { ApiClient } from '@flourishive/api-client';
 const Desktop = lazy(() => import('./pages/Desktop.tsx'));
 const Gallery = lazy(() => import('./pages/Gallery.tsx'));
+import { SupportEntry } from './pages/SupportEntry.tsx';
 import { Audit } from './pages/Audit.tsx';
 import { ForgotPassword, ResetPassword } from './pages/auth/Password.tsx';
 import { FindCompany } from './pages/auth/FindCompany.tsx';
@@ -74,6 +75,7 @@ function Routes() {
 
   if (path === '/login' || path === '/')
     return auth.state.status === 'loading' ? <PageLoader fullscreen /> : <Login />;
+  if (path === '/support') return <SupportEntry token={query.get('token') ?? ''} />;
   if (path === '/find-company') return <FindCompany />;
   if (path === '/forgot-password') return <ForgotPassword />;
   if (path === '/reset-password') return <ResetPassword token={query.get('token') ?? ''} />;
