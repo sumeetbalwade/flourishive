@@ -25,6 +25,7 @@ export interface AccountInfo {
   mfaEnabled: boolean;
   mfaRequired: boolean;
   trustedDevices: number;
+  passkeys?: number;
   roles: string[];
   allowed: AccountActionName[];
 }
@@ -144,6 +145,8 @@ export function AccountPanel({
           {account.mfaEnabled ? 'On' : 'Off'}
           {account.mfaRequired ? ' (required for their role)' : ''}
         </dd>
+        <dt className="text-muted">Passkeys</dt>
+        <dd>{account.passkeys ?? 0}</dd>
         <dt className="text-muted">Remembered devices</dt>
         <dd>{account.trustedDevices}</dd>
         <dt className="text-muted">Roles</dt>

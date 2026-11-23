@@ -13,6 +13,10 @@ import {
   stepUpBody,
   mfaEmailCodeBody,
   mfaDisableBody,
+  passkeyRegisterBody,
+  passkeyLoginOptionsBody,
+  passkeyLoginBody,
+  mfaPasskeyBody,
 } from '@flourishive/schemas';
 import {
   BadRequestException,
@@ -41,7 +45,8 @@ import { CurrentAuth, Public } from './auth.context.js';
 import type { ClientMeta, IssuedTokens } from './session.service.js';
 import { TokenService, type AccessClaims } from './token.service.js';
 import { slugFromOrigin } from '../company/tenant-host.js';
-import { StepUpService } from './step-up.service.js';
+import { RequireStepUp, StepUpService } from './step-up.service.js';
+import { relyingPartyFrom, type RelyingParty } from './passkey.service.js';
 import { ZodPipe } from './zod.pipe.js';
 
 const COOKIE = 'fh_refresh';
@@ -73,6 +78,16 @@ export class AuthController {
       throw new BadRequestException(
         'This sign-in page belongs to a different company',
       );
+  }
+
+  /** The site the browser is on. A passkey belongs to that host and works nowhere else. */
+  private rp(req: Request): RelyingParty {
+    const rp = relyingPartyFrom(req.headers.origin);
+    if (!rp)
+      throw new BadRequestException(
+        'Passkeys need a browser on the sign-in page',
+      );
+    return rp;
   }
 
   private meta(req: Request): ClientMeta {
@@ -198,6 +213,99 @@ export class AuthController {
     @Req() req: Request,
   ) {
     await this.auth.startMfaEmailCode(b.mfaToken, this.meta(req));
+  }
+
+  /** Second step by passkey, after the password. */
+  @Public()
+  @Post('mfa/passkey/options')
+  @HttpCode(200)
+  mfaPasskeyOptions(
+    @Body(body(mfaEmailCodeBody)) b: z.infer<typeof mfaEmailCodeBody>,
+    @Req() req: Request,
+  ) {
+    return this.auth.mfaPasskeyOptions(b.mfaToken, this.rp(req));
+  }
+
+  @Public()
+  @Post('mfa/passkey/verify')
+  @HttpCode(200)
+  async mfaPasskeyVerify(
+    @Body(body(mfaPasskeyBody)) b: z.infer<typeof mfaPasskeyBody>,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.respondTokens(
+      req,
+      res,
+      await this.auth.verifyMfaPasskey(
+        b as never,
+        this.rp(req),
+        this.meta(req),
+      ),
+    );
+  }
+
+  /** Sign in with a passkey alone. */
+  @Public()
+  @Post('passkeys/login/options')
+  @HttpCode(200)
+  async passkeyLoginOptions(
+    @Body(body(passkeyLoginOptionsBody))
+    b: z.infer<typeof passkeyLoginOptionsBody>,
+    @Req() req: Request,
+  ) {
+    await this.assertOrigin(req, b.tenant);
+    return this.auth.passkeyLoginOptions(b.tenant, this.rp(req));
+  }
+
+  @Public()
+  @Post('passkeys/login/verify')
+  @HttpCode(200)
+  async passkeyLogin(
+    @Body(body(passkeyLoginBody)) b: z.infer<typeof passkeyLoginBody>,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.assertOrigin(req, b.tenant);
+    return this.respondTokens(
+      req,
+      res,
+      await this.auth.passkeyLogin(b as never, this.rp(req), this.meta(req)),
+    );
+  }
+
+  /** Add a passkey (needs a recent confirmation). */
+  @RequireStepUp()
+  @Post('passkeys/register/options')
+  @HttpCode(200)
+  passkeyRegisterOptions(@CurrentAuth() a: AccessClaims, @Req() req: Request) {
+    return this.auth.passkeyRegisterOptions(a, this.rp(req));
+  }
+
+  @RequireStepUp()
+  @Post('passkeys/register/verify')
+  @HttpCode(200)
+  passkeyRegisterVerify(
+    @CurrentAuth() a: AccessClaims,
+    @Body(body(passkeyRegisterBody)) b: z.infer<typeof passkeyRegisterBody>,
+    @Req() req: Request,
+  ) {
+    return this.auth.passkeyRegisterVerify(
+      a,
+      b as never,
+      this.rp(req),
+      this.meta(req),
+    );
+  }
+
+  @Delete('passkeys/:id')
+  @HttpCode(204)
+  async removePasskey(
+    @CurrentAuth() a: AccessClaims,
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    await this.auth.removePasskey(a, id, this.meta(req));
   }
 
   /** My security: what is on, what may be turned off, remembered devices. */

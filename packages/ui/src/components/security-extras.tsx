@@ -11,6 +11,7 @@ export interface SecurityData {
   canDisableMfa: boolean;
   emailFallback: boolean;
   trustedDeviceDays: number;
+  passkeys?: { id: string; label: string; createdAt: string; lastUsedAt: string }[];
   devices: {
     id: string;
     label: string;

@@ -32,6 +32,11 @@ import {
   type IssuedTokens,
 } from './session.service.js';
 import { TrustedDeviceService } from './trusted-device.service.js';
+import { PasskeyService, type RelyingParty } from './passkey.service.js';
+import type {
+  AuthenticationResponseJSON,
+  RegistrationResponseJSON,
+} from '@simplewebauthn/server';
 import { ThrottleService } from './throttle.service.js';
 import {
   TokenService,
@@ -41,7 +46,12 @@ import {
 
 export type LoginResult =
   | { status: 'ok'; tokens: IssuedTokens }
-  | { status: 'mfa_required'; mfaToken: string }
+  | {
+      status: 'mfa_required';
+      mfaToken: string;
+      /** Which second steps this person can use. */
+      methods: { code: boolean; passkey: boolean };
+    }
   | { status: 'mfa_setup_required'; mfaToken: string };
 
 export interface Principal {
@@ -86,6 +96,7 @@ export class AuthService {
     private readonly mail: MailService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly runtime: RuntimeConfigService,
+    private readonly passkeys: PasskeyService,
   ) {}
 
   private async tenantIdFor(slug: string): Promise<string | null> {
@@ -132,14 +143,14 @@ export class AuthService {
     via: 'password' | 'google',
     trustedToken?: string,
   ): Promise<LoginResult> {
-    if (user.mfaEnabledAt) {
+    const scope = { kind: 'tenant' as const, tenantId: user.tenantId };
+    // A passkey is a second factor too, and it satisfies a REQUIRED two-step policy.
+    const hasPasskey = (await this.passkeys.count(scope, user.id)) > 0;
+    if (user.mfaEnabledAt || hasPasskey) {
       // A remembered device skips the code (D-64).
       if (
-        await this.devices.check(
-          { kind: 'tenant', tenantId: user.tenantId },
-          user.id,
-          trustedToken,
-        )
+        user.mfaEnabledAt &&
+        (await this.devices.check(scope, user.id, trustedToken))
       )
         return {
           status: 'ok',
@@ -155,7 +166,11 @@ export class AuthService {
         tenantId: user.tenantId,
         purpose: 'mfa-verify',
       });
-      return { status: 'mfa_required', mfaToken };
+      return {
+        status: 'mfa_required',
+        mfaToken,
+        methods: { code: Boolean(user.mfaEnabledAt), passkey: hasPasskey },
+      };
     }
     if (await this.mfaIsRequired(user)) {
       const mfaToken = await this.tokens.signMfaChallenge({
@@ -367,6 +382,128 @@ export class AuthService {
     return { ...tokens, ...(trustedDevice ? { trustedDevice } : {}) };
   }
 
+  /** Second step by passkey, after the password: the browser is asked for one of this person's passkeys. */
+  async mfaPasskeyOptions(mfaToken: string, rp: RelyingParty) {
+    const who = await this.challengePrincipal(mfaToken, 'mfa-verify');
+    await this.throttle.assertNotLocked('mfa', `user:${who.userId}`);
+    return this.passkeys.authenticationOptions(
+      { kind: 'tenant', tenantId: who.tenantId },
+      rp,
+      who.userId,
+    );
+  }
+
+  async verifyMfaPasskey(
+    input: { mfaToken: string; response: AuthenticationResponseJSON },
+    rp: RelyingParty,
+    meta: ClientMeta,
+  ): Promise<IssuedTokens> {
+    const who = await this.challengePrincipal(input.mfaToken, 'mfa-verify');
+    const key = `user:${who.userId}`;
+    await this.throttle.assertNotLocked('mfa', key);
+    const user = await this.findUser(who.tenantId, { id: who.userId });
+    try {
+      if (user?.status !== 'ACTIVE') throw new UnauthorizedException();
+      await this.passkeys.authenticationVerify(
+        { kind: 'tenant', tenantId: who.tenantId },
+        input.response,
+        rp,
+        who.userId,
+      );
+    } catch (e) {
+      await this.throttle.recordFailure('mfa', key);
+      await this.auditUser(who.tenantId, who.userId, 'auth.mfa_failed', meta);
+      throw e;
+    }
+    await this.throttle.clear('mfa', key);
+    return this.startAudited(
+      who.tenantId,
+      who.userId,
+      meta,
+      'password+passkey',
+    );
+  }
+
+  /** Sign in with a passkey alone: no email, no password, no code. */
+  async passkeyLoginOptions(tenantSlug: string, rp: RelyingParty) {
+    const tenantId = await this.tenantIdFor(tenantSlug);
+    if (!tenantId) throw new UnauthorizedException(INVALID);
+    return this.passkeys.authenticationOptions(
+      { kind: 'tenant', tenantId },
+      rp,
+    );
+  }
+
+  async passkeyLogin(
+    input: { tenant: string; response: AuthenticationResponseJSON },
+    rp: RelyingParty,
+    meta: ClientMeta,
+  ): Promise<IssuedTokens> {
+    const ipKey = `ip:${meta.ip ?? 'unknown'}`;
+    await this.throttle.assertNotLocked('login', ipKey);
+    const tenantId = await this.tenantIdFor(input.tenant);
+    try {
+      if (!tenantId) throw new UnauthorizedException(INVALID);
+      const { userId } = await this.passkeys.authenticationVerify(
+        { kind: 'tenant', tenantId },
+        input.response,
+        rp,
+      );
+      const user = await this.findUser(tenantId, { id: userId });
+      if (user?.status !== 'ACTIVE') throw new UnauthorizedException(INVALID);
+      await this.throttle.clear('login', ipKey);
+      return await this.startAudited(tenantId, userId, meta, 'passkey');
+    } catch (e) {
+      await this.throttle.recordFailure('login', ipKey);
+      throw e;
+    }
+  }
+
+  /** Adding a passkey from My security (the route needs a fresh step-up). */
+  async passkeyRegisterOptions(who: Principal, rp: RelyingParty) {
+    const user = await this.findUser(who.tenantId, { id: who.userId });
+    if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
+    return this.passkeys.registrationOptions(
+      { kind: 'tenant', tenantId: who.tenantId },
+      { id: user.id, email: user.email },
+      rp,
+    );
+  }
+
+  async passkeyRegisterVerify(
+    who: Principal,
+    input: { response: RegistrationResponseJSON; label?: string },
+    rp: RelyingParty,
+    meta: ClientMeta,
+  ) {
+    const view = await this.passkeys.registrationVerify(
+      { kind: 'tenant', tenantId: who.tenantId },
+      who.userId,
+      input.response,
+      rp,
+      input.label,
+      meta.userAgent,
+    );
+    await this.auditUser(who.tenantId, who.userId, 'auth.passkey_added', meta, {
+      label: view.label,
+    });
+    return view;
+  }
+
+  async removePasskey(who: Principal, id: string, meta: ClientMeta) {
+    await this.passkeys.revoke(
+      { kind: 'tenant', tenantId: who.tenantId },
+      who.userId,
+      id,
+    );
+    await this.auditUser(
+      who.tenantId,
+      who.userId,
+      'auth.passkey_removed',
+      meta,
+    );
+  }
+
   /** "Email me a code instead": sends a sign-in code to the account, if the role's policy allows it. */
   async startMfaEmailCode(mfaToken: string, meta: ClientMeta): Promise<void> {
     const who = await this.challengePrincipal(mfaToken, 'mfa-verify');
@@ -404,6 +541,7 @@ export class AuthService {
         tenantId: who.tenantId,
       }),
       devices: await this.devices.list(scope, who.userId),
+      passkeys: await this.passkeys.list(scope, who.userId),
     };
   }
 

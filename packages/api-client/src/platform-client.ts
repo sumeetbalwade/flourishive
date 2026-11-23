@@ -3,6 +3,7 @@ import {
   accountListItem,
   accountView,
   securityInfo,
+  passkeyView,
   type AccountAction,
   platformRolesResponse,
   platformRoleView,
@@ -34,6 +35,7 @@ type Opts = Omit<HttpOptions, 'refreshPath'>;
 const platformLogin = z.object({
   status: z.enum(['ok', 'mfa_required', 'mfa_setup_required']),
   mfaToken: z.string().optional(),
+  methods: z.object({ code: z.boolean(), passkey: z.boolean() }).optional(),
   accessToken: z.string().optional(),
   expiresIn: z.number().optional(),
   refreshToken: z.string().optional(),
@@ -61,6 +63,42 @@ export function createPlatformClient(opts: Opts) {
           await http.request('POST', '/platform/auth/login', {
             json: { email, password },
             schema: platformLogin,
+            auth: false,
+          }),
+        ),
+      passkeyRegisterOptions: () =>
+        http.request('POST', '/platform/auth/passkeys/register/options', { schema: z.any() }),
+      passkeyRegister: (response: unknown, label?: string) =>
+        http.request('POST', '/platform/auth/passkeys/register/verify', {
+          json: { response, label },
+          schema: passkeyView,
+        }),
+      passkeyRemove: (id: string) => http.request('DELETE', `/platform/auth/passkeys/${id}`),
+      /** Sign in with a passkey alone (no email or password). */
+      passkeyLoginOptions: () =>
+        http.request('POST', '/platform/auth/passkeys/login/options', {
+          schema: z.any(),
+          auth: false,
+        }),
+      passkeyLogin: async (response: unknown) =>
+        adopt(
+          await http.request('POST', '/platform/auth/passkeys/login/verify', {
+            json: { response },
+            schema: tokensResponse,
+            auth: false,
+          }),
+        ),
+      mfaPasskeyOptions: (mfaToken: string) =>
+        http.request('POST', '/platform/auth/mfa/passkey/options', {
+          json: { mfaToken },
+          schema: z.any(),
+          auth: false,
+        }),
+      mfaPasskeyVerify: async (mfaToken: string, response: unknown) =>
+        adopt(
+          await http.request('POST', '/platform/auth/mfa/passkey/verify', {
+            json: { mfaToken, response },
+            schema: tokensResponse,
             auth: false,
           }),
         ),

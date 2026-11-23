@@ -3,6 +3,7 @@ import {
   accountListItem,
   accountView,
   securityInfo,
+  passkeyView,
   type AccountAction,
   supportSessionView,
   auditListResponse,
@@ -229,6 +230,45 @@ export function createApiClient(opts: Opts) {
           await http.request('POST', '/auth/google', {
             json: { tenant, idToken },
             schema: loginResponse,
+            auth: false,
+          }),
+        ),
+      /** Passkeys. The browser half (`startRegistration`, `startAuthentication`) lives in the apps. */
+      passkeyRegisterOptions: () =>
+        http.request('POST', '/auth/passkeys/register/options', { schema: z.any() }),
+      passkeyRegister: (response: unknown, label?: string) =>
+        http.request('POST', '/auth/passkeys/register/verify', {
+          json: { response, label },
+          schema: passkeyView,
+        }),
+      passkeyRemove: (id: string) => http.request('DELETE', `/auth/passkeys/${id}`),
+      /** Sign in with a passkey alone (no email or password). */
+      passkeyLoginOptions: (tenant: string) =>
+        http.request('POST', '/auth/passkeys/login/options', {
+          json: { tenant },
+          schema: z.any(),
+          auth: false,
+        }),
+      passkeyLogin: async (tenant: string, response: unknown) =>
+        adopt(
+          await http.request('POST', '/auth/passkeys/login/verify', {
+            json: { tenant, response },
+            schema: tokensResponse,
+            auth: false,
+          }),
+        ),
+      /** The second step by passkey, after the password. */
+      mfaPasskeyOptions: (mfaToken: string) =>
+        http.request('POST', '/auth/mfa/passkey/options', {
+          json: { mfaToken },
+          schema: z.any(),
+          auth: false,
+        }),
+      mfaPasskeyVerify: async (mfaToken: string, response: unknown) =>
+        adopt(
+          await http.request('POST', '/auth/mfa/passkey/verify', {
+            json: { mfaToken, response },
+            schema: tokensResponse,
             auth: false,
           }),
         ),

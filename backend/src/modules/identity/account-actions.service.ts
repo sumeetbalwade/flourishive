@@ -19,6 +19,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { AuthService } from './auth.service.js';
 import { SessionService } from './session.service.js';
 import { TrustedDeviceService } from './trusted-device.service.js';
+import { PasskeyService } from './passkey.service.js';
 
 export type AccountAction =
   | 'reset-password'
@@ -61,6 +62,7 @@ export class AccountActionsService {
     private readonly auth: AuthService,
     private readonly sessions: SessionService,
     private readonly devices: TrustedDeviceService,
+    private readonly passkeys: PasskeyService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
   ) {}
@@ -91,6 +93,7 @@ export class AccountActionsService {
     status: 'INVITED' | 'ACTIVE' | 'DISABLED',
     mfaEnabled: boolean,
   ): AccountAction[] {
+    // `mfaEnabled` here also covers "has a passkey": resetting two-step removes both.
     const out: AccountAction[] = [];
     if (status === 'ACTIVE')
       out.push('reset-password', 'sign-out-everywhere', 'suspend');
@@ -104,6 +107,10 @@ export class AccountActionsService {
   async account(tenantId: string, id: string, actor?: Actor) {
     const u = await this.user(tenantId, id);
     const policy = await this.policies.effectiveFor(tenantId, id);
+    const passkeyCount = await this.passkeys.count(
+      { kind: 'tenant', tenantId },
+      id,
+    );
     const blocked =
       actor?.kind === 'tenant'
         ? await this.blockedFor(tenantId, actor.userId, id)
@@ -117,6 +124,7 @@ export class AccountActionsService {
       status: u.status,
       lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
       mfaEnabled: Boolean(u.mfaEnabledAt),
+      passkeys: passkeyCount,
       mfaRequired: u.mfaRequired || policy.mfaLevel === 'REQUIRED',
       trustedDevices: await this.devices.count(
         { kind: 'tenant', tenantId },
@@ -125,7 +133,10 @@ export class AccountActionsService {
       roles: u.userRoles.map((r) => r.role.name),
       allowed: blocked
         ? []
-        : this.allowedFor(u.status, Boolean(u.mfaEnabledAt)),
+        : this.allowedFor(
+            u.status,
+            Boolean(u.mfaEnabledAt) || passkeyCount > 0,
+          ),
     };
   }
 
@@ -159,7 +170,14 @@ export class AccountActionsService {
       if (why) throw new ForbiddenException(why);
     }
     const u = await this.user(tenantId, targetId);
-    if (!this.allowedFor(u.status, Boolean(u.mfaEnabledAt)).includes(action))
+    const scope0 = { kind: 'tenant' as const, tenantId };
+    const hasPasskey = (await this.passkeys.count(scope0, targetId)) > 0;
+    if (
+      !this.allowedFor(
+        u.status,
+        Boolean(u.mfaEnabledAt) || hasPasskey,
+      ).includes(action)
+    )
       throw new ConflictException(
         `That does not apply to this account (it is ${u.status.toLowerCase()}).`,
       );
@@ -181,6 +199,7 @@ export class AccountActionsService {
           });
         });
         await this.devices.revokeAll(scope, targetId);
+        await this.passkeys.revokeAll(scope, targetId);
         await this.sessions.revokeAll(tenantId, targetId);
         break;
       case 'unlock': {

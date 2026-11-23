@@ -9,11 +9,12 @@ import { useApi, remember } from '../../lib/api.tsx';
 import { useAuth } from '../../lib/auth.tsx';
 import { detectHere, useCompany } from '../../lib/company.ts';
 import { messageOf } from '../../lib/errors.ts';
+import { passkeysSupported, answerPasskey } from '../../lib/passkeys.ts';
 import { go } from '../../router.ts';
 
 type Step =
   | { kind: 'credentials' }
-  | { kind: 'mfa'; token: string }
+  | { kind: 'mfa'; token: string; methods: { code: boolean; passkey: boolean } }
   | { kind: 'enrol'; token: string }
   | { kind: 'codes'; codes: string[] };
 
@@ -39,7 +40,11 @@ export function Login() {
     if (result.status === 'ok') return finish();
     setStep(
       result.status === 'mfa_required'
-        ? { kind: 'mfa', token: result.mfaToken }
+        ? {
+            kind: 'mfa',
+            token: result.mfaToken,
+            methods: result.methods ?? { code: true, passkey: false },
+          }
         : { kind: 'enrol', token: result.mfaToken },
     );
   }
@@ -60,6 +65,7 @@ export function Login() {
     return (
       <MfaChallenge
         token={step.token}
+        methods={step.methods}
         onDone={finish}
         onReenrol={(t) => setStep({ kind: 'enrol', token: t })}
         onBack={() => setStep({ kind: 'credentials' })}
@@ -168,6 +174,27 @@ export function Login() {
           <Button type="submit" size="lg" loading={busy} disabled={busy}>
             {busy ? 'Signing in…' : 'Continue'}
           </Button>
+          {passkeysSupported() ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              disabled={busy}
+              onClick={() => {
+                if (!tenant.trim()) return setError('Enter your company code first.');
+                void run(async () => {
+                  const slug = tenant.trim().toLowerCase();
+                  const options = await api.auth.passkeyLoginOptions(slug);
+                  const response = await answerPasskey(options);
+                  await api.auth.passkeyLogin(slug, response);
+                  remember.set('fh.tenant', slug);
+                  await finish();
+                });
+              }}
+            >
+              Sign in with a passkey
+            </Button>
+          ) : null}
           <GoogleButton
             onError={setError}
             onCredential={(idToken) => {
@@ -202,11 +229,13 @@ export function Login() {
 
 function MfaChallenge({
   token,
+  methods,
   onDone,
   onReenrol,
   onBack,
 }: {
   token: string;
+  methods: { code: boolean; passkey: boolean };
   onDone: () => Promise<void>;
   /** After an emailed code proves it is them: set up a new authenticator with this token. */
   onReenrol: (setupToken: string) => void;
@@ -235,6 +264,47 @@ function MfaChallenge({
       setBusy(false);
     }
   }
+
+  async function viaPasskey() {
+    setBusy(true);
+    setError('');
+    try {
+      const options = await api.auth.mfaPasskeyOptions(token);
+      await api.auth.mfaPasskeyVerify(token, await answerPasskey(options));
+      await onDone();
+    } catch (err) {
+      setError(messageOf(err));
+      setBusy(false);
+    }
+  }
+
+  if (methods.passkey && !methods.code)
+    return (
+      <Frame>
+        <Card className="p-8">
+          <h1 className="font-display text-3xl">Confirm with your passkey</h1>
+          <p className="mt-2 text-sm text-muted">
+            Use your fingerprint, face or screen lock to finish signing in.
+          </p>
+          {error ? (
+            <p role="alert" className="mt-3 text-sm text-danger">
+              {error}
+            </p>
+          ) : null}
+          <Button
+            className="mt-6 w-full"
+            size="lg"
+            loading={busy}
+            onClick={() => void viaPasskey()}
+          >
+            Use my passkey
+          </Button>
+          <button type="button" className="mt-4 text-sm text-faint underline" onClick={onBack}>
+            Back to sign in
+          </button>
+        </Card>
+      </Frame>
+    );
 
   if (byEmail)
     return (
@@ -395,6 +465,16 @@ function MfaChallenge({
           >
             No phone or codes? Email me a code to reset my authenticator
           </button>
+          {methods.passkey ? (
+            <button
+              type="button"
+              className="text-sm text-muted underline"
+              disabled={busy}
+              onClick={() => void viaPasskey()}
+            >
+              Use a passkey instead
+            </button>
+          ) : null}
           <button type="button" className="text-sm text-faint underline" onClick={onBack}>
             Back to sign in
           </button>

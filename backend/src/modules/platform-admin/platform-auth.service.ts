@@ -21,13 +21,25 @@ import { ThrottleService } from '../identity/throttle.service.js';
 import { TokenService, sha256 } from '../identity/token.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { TrustedDeviceService } from '../identity/trusted-device.service.js';
+import {
+  PasskeyService,
+  type RelyingParty,
+} from '../identity/passkey.service.js';
+import type {
+  AuthenticationResponseJSON,
+  RegistrationResponseJSON,
+} from '@simplewebauthn/server';
 import { PlatformRolesService } from './platform-roles.service.js';
 import { OWNER_ROLE_ID } from './platform-permissions.js';
 import { PlatformAuditService } from './platform-audit.service.js';
 
 export type PlatformLogin =
   | { status: 'ok'; tokens: PlatformTokens }
-  | { status: 'mfa_required'; mfaToken: string }
+  | {
+      status: 'mfa_required';
+      mfaToken: string;
+      methods: { code: boolean; passkey: boolean };
+    }
   | { status: 'mfa_setup_required'; mfaToken: string };
 
 export interface PlatformTokens {
@@ -60,6 +72,7 @@ export class PlatformAuthService {
     private readonly roles: PlatformRolesService,
     private readonly runtime: RuntimeConfigService,
     private readonly devices: TrustedDeviceService,
+    private readonly passkeys: PasskeyService,
   ) {}
 
   private db() {
@@ -94,26 +107,38 @@ export class PlatformAuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
     await this.throttle.clear('login', keys[0]!);
+    const scope = { kind: 'platform' as const };
+    const hasPasskey = (await this.passkeys.count(scope, user.id)) > 0;
     // Someone who already enrolled is always asked for a code; otherwise the platform policy decides.
     if (
       !user.mfaEnabledAt &&
+      !hasPasskey &&
       (await this.settings.getPlatform('platform.superAdminMfa')) !== 'REQUIRED'
     )
       return { status: 'ok', tokens: await this.startSession(user.id, meta) };
     // A remembered device skips the code (D-64).
     if (
       user.mfaEnabledAt &&
-      (await this.devices.check({ kind: 'platform' }, user.id, trustedToken))
+      (await this.devices.check(scope, user.id, trustedToken))
     )
       return { status: 'ok', tokens: await this.startSession(user.id, meta) };
-    const purpose = user.mfaEnabledAt ? 'mfa-verify' : 'mfa-setup';
-    const mfaToken = await this.tokens.signPlatformMfa({
-      platformUserId: user.id,
-      purpose,
-    });
+    // A passkey is a second factor too, and it satisfies a REQUIRED policy.
+    if (!user.mfaEnabledAt && !hasPasskey) {
+      return {
+        status: 'mfa_setup_required',
+        mfaToken: await this.tokens.signPlatformMfa({
+          platformUserId: user.id,
+          purpose: 'mfa-setup',
+        }),
+      };
+    }
     return {
-      status: user.mfaEnabledAt ? 'mfa_required' : 'mfa_setup_required',
-      mfaToken,
+      status: 'mfa_required',
+      mfaToken: await this.tokens.signPlatformMfa({
+        platformUserId: user.id,
+        purpose: 'mfa-verify',
+      }),
+      methods: { code: Boolean(user.mfaEnabledAt), passkey: hasPasskey },
     };
   }
 
@@ -212,6 +237,133 @@ export class PlatformAuthService {
     });
   }
 
+  private static readonly SCOPE = { kind: 'platform' as const };
+
+  /** Second step by passkey, after the password. */
+  async mfaPasskeyOptions(mfaToken: string, rp: RelyingParty) {
+    const c = await this.tokens.verifyPlatformMfa(mfaToken);
+    if (c.purpose !== 'mfa-verify')
+      throw new UnauthorizedException('Invalid token');
+    await this.throttle.assertNotLocked(
+      'mfa',
+      `platform:user:${c.platformUserId}`,
+    );
+    return this.passkeys.authenticationOptions(
+      PlatformAuthService.SCOPE,
+      rp,
+      c.platformUserId,
+    );
+  }
+
+  async verifyMfaPasskey(
+    input: { mfaToken: string; response: AuthenticationResponseJSON },
+    rp: RelyingParty,
+    meta: { ip?: string; userAgent?: string },
+  ): Promise<PlatformTokens> {
+    const c = await this.tokens.verifyPlatformMfa(input.mfaToken);
+    if (c.purpose !== 'mfa-verify')
+      throw new UnauthorizedException('Invalid token');
+    const key = `platform:user:${c.platformUserId}`;
+    await this.throttle.assertNotLocked('mfa', key);
+    try {
+      const user = await this.user(c.platformUserId);
+      if (user?.status !== 'ACTIVE') throw new UnauthorizedException();
+      await this.passkeys.authenticationVerify(
+        PlatformAuthService.SCOPE,
+        input.response,
+        rp,
+        c.platformUserId,
+      );
+    } catch (e) {
+      await this.throttle.recordFailure('mfa', key);
+      throw e;
+    }
+    await this.throttle.clear('mfa', key);
+    return this.startSession(c.platformUserId, meta);
+  }
+
+  /** Sign in with a passkey alone. */
+  passkeyLoginOptions(rp: RelyingParty) {
+    return this.passkeys.authenticationOptions(PlatformAuthService.SCOPE, rp);
+  }
+
+  async passkeyLogin(
+    response: AuthenticationResponseJSON,
+    rp: RelyingParty,
+    meta: { ip?: string; userAgent?: string },
+  ): Promise<PlatformTokens> {
+    const key = `platform:ip:${meta.ip ?? 'unknown'}`;
+    await this.throttle.assertNotLocked('login', key);
+    try {
+      const { userId } = await this.passkeys.authenticationVerify(
+        PlatformAuthService.SCOPE,
+        response,
+        rp,
+      );
+      const user = await this.user(userId);
+      if (user?.status !== 'ACTIVE')
+        throw new UnauthorizedException('Passkey sign-in failed');
+      await this.throttle.clear('login', key);
+      await this.audit.record({
+        actorId: userId,
+        action: 'platform.login_passkey',
+        entityType: 'platform_users',
+        entityId: userId,
+        ip: meta.ip,
+      });
+      return await this.startSession(userId, meta);
+    } catch (e) {
+      await this.throttle.recordFailure('login', key);
+      throw e;
+    }
+  }
+
+  async passkeyRegisterOptions(userId: string, rp: RelyingParty) {
+    const user = await this.user(userId);
+    if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
+    return this.passkeys.registrationOptions(
+      PlatformAuthService.SCOPE,
+      { id: user.id, email: user.email },
+      rp,
+    );
+  }
+
+  async passkeyRegisterVerify(
+    userId: string,
+    input: { response: RegistrationResponseJSON; label?: string },
+    rp: RelyingParty,
+    meta: { ip?: string; userAgent?: string },
+  ) {
+    const view = await this.passkeys.registrationVerify(
+      PlatformAuthService.SCOPE,
+      userId,
+      input.response,
+      rp,
+      input.label,
+      meta.userAgent,
+    );
+    await this.audit.record({
+      actorId: userId,
+      action: 'platform.passkey_added',
+      entityType: 'platform_users',
+      entityId: userId,
+      meta: { label: view.label },
+      ip: meta.ip,
+    });
+    return view;
+  }
+
+  async removePasskey(userId: string, id: string, ip?: string) {
+    await this.passkeys.revoke(PlatformAuthService.SCOPE, userId, id);
+    await this.audit.record({
+      actorId: userId,
+      action: 'platform.passkey_removed',
+      entityType: 'platform_users',
+      entityId: userId,
+      ip,
+    });
+  }
+
   /** What My security shows for platform staff. */
   async securityInfo(userId: string) {
     const user = await this.user(userId);
@@ -228,6 +380,7 @@ export class PlatformAuthService {
         'platform.trustedDeviceDays',
       ),
       devices: await this.devices.list({ kind: 'platform' }, userId),
+      passkeys: await this.passkeys.list({ kind: 'platform' }, userId),
     };
   }
 

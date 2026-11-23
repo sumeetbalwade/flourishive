@@ -23,6 +23,7 @@ export {
   type AccountActionName,
 } from './components/account-panel.tsx';
 export { SecurityExtras, type SecurityData } from './components/security-extras.tsx';
+export { PasskeysCard, type PasskeyItem } from './components/passkeys-card.tsx';
 export { CollapsibleSection } from './components/collapsible-section.tsx';
 export { SearchBox } from './components/search-box.tsx';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './components/tabs.tsx';

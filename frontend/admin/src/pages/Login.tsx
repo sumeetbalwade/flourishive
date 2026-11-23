@@ -6,11 +6,12 @@ import { RecoveryCodes } from '../components/RecoveryCodes.tsx';
 import { useApi } from '../lib/api.tsx';
 import { useAuth } from '../lib/auth.tsx';
 import { messageOf } from '../lib/errors.ts';
+import { passkeysSupported, answerPasskey } from '../lib/passkeys.ts';
 import { go } from '../router.ts';
 
 type Step =
   | { kind: 'credentials' }
-  | { kind: 'mfa'; token: string }
+  | { kind: 'mfa'; token: string; methods: { code: boolean; passkey: boolean } }
   | { kind: 'enrol'; token: string }
   | { kind: 'email'; token: string }
   | { kind: 'codes'; codes: string[] };
@@ -108,7 +109,9 @@ export function Login() {
             <button
               type="button"
               className="text-sm text-muted underline"
-              onClick={() => setStep({ kind: 'mfa', token })}
+              onClick={() =>
+                setStep({ kind: 'mfa', token, methods: { code: true, passkey: false } })
+              }
             >
               Back
             </button>
@@ -119,6 +122,50 @@ export function Login() {
   }
   if (step.kind === 'mfa') {
     const token = step.token;
+    const methods = step.methods;
+    const viaPasskey = async () => {
+      setBusy(true);
+      setError('');
+      try {
+        const options = await api.auth.mfaPasskeyOptions(token);
+        await api.auth.mfaPasskeyVerify(token, await answerPasskey(options));
+        await finish();
+      } catch (err) {
+        setError(messageOf(err));
+        setBusy(false);
+      }
+    };
+    if (methods.passkey && !methods.code)
+      return (
+        <Frame>
+          <Card className="p-8">
+            <h1 className="font-display text-3xl">Confirm with your passkey</h1>
+            <p className="mt-2 text-sm text-muted">
+              Use your fingerprint, face or screen lock to finish signing in.
+            </p>
+            {error ? (
+              <p role="alert" className="mt-3 text-sm text-danger">
+                {error}
+              </p>
+            ) : null}
+            <Button
+              className="mt-6 w-full"
+              size="lg"
+              loading={busy}
+              onClick={() => void viaPasskey()}
+            >
+              Use my passkey
+            </Button>
+            <button
+              type="button"
+              className="mt-4 text-sm text-faint underline"
+              onClick={() => setStep({ kind: 'credentials' })}
+            >
+              Back to sign in
+            </button>
+          </Card>
+        </Frame>
+      );
     const ready = recovery && !emailMode ? code.trim().length >= 8 : code.length === 6;
     return (
       <Frame>
@@ -219,6 +266,16 @@ export function Login() {
             >
               {recovery ? 'Use my authenticator app' : 'Lost your phone? Use a recovery code'}
             </button>
+            {methods.passkey ? (
+              <button
+                type="button"
+                className="text-sm text-muted underline"
+                disabled={busy}
+                onClick={() => void viaPasskey()}
+              >
+                Use a passkey instead
+              </button>
+            ) : null}
             <button
               type="button"
               className="text-sm text-muted underline"
@@ -269,7 +326,11 @@ export function Login() {
               }
               setStep(
                 r.status === 'mfa_required'
-                  ? { kind: 'mfa', token: r.mfaToken }
+                  ? {
+                      kind: 'mfa',
+                      token: r.mfaToken,
+                      methods: r.methods ?? { code: true, passkey: false },
+                    }
                   : { kind: 'enrol', token: r.mfaToken },
               );
               setBusy(false);
@@ -288,6 +349,28 @@ export function Login() {
           <Button type="submit" size="lg" loading={busy} disabled={busy}>
             {busy ? 'Signing in…' : 'Continue'}
           </Button>
+          {passkeysSupported() ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError('');
+                try {
+                  const options = await api.auth.passkeyLoginOptions();
+                  await api.auth.passkeyLogin(await answerPasskey(options));
+                  await finish();
+                } catch (err) {
+                  setError(messageOf(err));
+                  setBusy(false);
+                }
+              }}
+            >
+              Sign in with a passkey
+            </Button>
+          ) : null}
         </form>
       </Card>
     </Frame>

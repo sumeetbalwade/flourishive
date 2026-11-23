@@ -1,8 +1,17 @@
-import { SecurityExtras, Card, CardTitle, Badge, Skeleton, useToast } from '@flourishive/ui';
+import {
+  SecurityExtras,
+  PasskeysCard,
+  Card,
+  CardTitle,
+  Badge,
+  Skeleton,
+  useToast,
+} from '@flourishive/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../lib/api.tsx';
 import { useAuth } from '../lib/auth.tsx';
 import { messageOf } from '../lib/errors.ts';
+import { makePasskey, passkeysSupported } from '../lib/passkeys.ts';
 import { Layout } from './Layout.tsx';
 
 /** My security for platform staff: remembered devices and turning two-step off where the policy allows. */
@@ -32,26 +41,47 @@ export function Security() {
         {info.isPending ? (
           <Skeleton className="h-40 w-full" />
         ) : info.data ? (
-          <SecurityExtras
-            info={info.data}
-            onRevoke={async (id) => {
-              try {
-                await api.auth.revokeDevice(id);
+          <>
+            <PasskeysCard
+              passkeys={info.data.passkeys ?? []}
+              supported={passkeysSupported()}
+              onAdd={async () => {
+                const options = await api.auth.passkeyRegisterOptions();
+                const response = await makePasskey(options);
+                await api.auth.passkeyRegister(response);
+                toast({ title: 'Passkey added', tone: 'success' });
                 await qc.invalidateQueries({ queryKey: ['staff-security'] });
-              } catch (e) {
-                toast({ title: messageOf(e), tone: 'danger' });
-              }
-            }}
-            onDisable={async (password) => {
-              try {
-                await api.auth.mfaDisable(password);
-              } catch (e) {
-                throw new Error(messageOf(e));
-              }
-              toast({ title: 'Two-step is off', tone: 'success' });
-              await qc.invalidateQueries({ queryKey: ['staff-security'] });
-            }}
-          />
+              }}
+              onRemove={async (id) => {
+                try {
+                  await api.auth.passkeyRemove(id);
+                  await qc.invalidateQueries({ queryKey: ['staff-security'] });
+                } catch (e) {
+                  toast({ title: messageOf(e), tone: 'danger' });
+                }
+              }}
+            />
+            <SecurityExtras
+              info={info.data}
+              onRevoke={async (id) => {
+                try {
+                  await api.auth.revokeDevice(id);
+                  await qc.invalidateQueries({ queryKey: ['staff-security'] });
+                } catch (e) {
+                  toast({ title: messageOf(e), tone: 'danger' });
+                }
+              }}
+              onDisable={async (password) => {
+                try {
+                  await api.auth.mfaDisable(password);
+                } catch (e) {
+                  throw new Error(messageOf(e));
+                }
+                toast({ title: 'Two-step is off', tone: 'success' });
+                await qc.invalidateQueries({ queryKey: ['staff-security'] });
+              }}
+            />
+          </>
         ) : null}
       </div>
     </Layout>

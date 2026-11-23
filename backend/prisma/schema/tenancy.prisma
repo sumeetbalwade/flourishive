@@ -25,6 +25,7 @@ model Tenant {
   auditLogs           AuditLog[]
   supportSessions     SupportSession[]
   trustedDevices      TrustedDevice[]
+  passkeys            Passkey[]
   auditChainHead      AuditChainHead?
   files               File[]
   notifications       Notification[]

@@ -294,6 +294,7 @@ export const accountView = z.object({
   /** The role policy requires two-step for this person. */
   mfaRequired: z.boolean(),
   trustedDevices: z.number(),
+  passkeys: z.number().default(0),
   roles: z.array(z.string()),
   /** Which actions the signed-in admin may take on this account right now (rules and state applied). */
   allowed: z.array(accountAction),

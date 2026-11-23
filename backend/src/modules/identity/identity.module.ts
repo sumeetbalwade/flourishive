@@ -12,6 +12,7 @@ import { MfaService } from './mfa.service.js';
 import { OtpService } from './otp.service.js';
 import { PasswordService } from './password.service.js';
 import { StepUpGuard, StepUpService } from './step-up.service.js';
+import { PasskeyService } from './passkey.service.js';
 import { TrustedDeviceService } from './trusted-device.service.js';
 import { AccountActionsService } from './account-actions.service.js';
 import { SessionService } from './session.service.js';
@@ -30,6 +31,7 @@ import { TokenService } from './token.service.js';
     PasswordService,
     SessionService,
     TrustedDeviceService,
+    PasskeyService,
     AccountActionsService,
     StepUpService,
     StepUpGuard,
@@ -49,6 +51,7 @@ import { TokenService } from './token.service.js';
     MfaService,
     OtpService,
     TrustedDeviceService,
+    PasskeyService,
     AccountActionsService,
     StepUpService,
     StepUpGuard,

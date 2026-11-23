@@ -9,6 +9,7 @@ import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
 import { TrustedDeviceService } from '../identity/trusted-device.service.js';
+import { PasskeyService } from '../identity/passkey.service.js';
 import { PlatformAuditService } from './platform-audit.service.js';
 import { PlatformAuthService } from './platform-auth.service.js';
 import { PlatformRolesService } from './platform-roles.service.js';
@@ -36,6 +37,7 @@ export class StaffActionsService {
     private readonly auth: PlatformAuthService,
     private readonly roles: PlatformRolesService,
     private readonly devices: TrustedDeviceService,
+    private readonly passkeys: PasskeyService,
     private readonly audit: PlatformAuditService,
     private readonly mail: MailService,
   ) {}
@@ -85,6 +87,7 @@ export class StaffActionsService {
   async account(actorId: string, id: string) {
     const u = await this.load(id);
     const blocked = await this.blockedFor(actorId, id, u.roleId);
+    const passkeys = await this.passkeys.count({ kind: 'platform' }, id);
     return {
       id: u.id,
       email: u.email,
@@ -92,12 +95,13 @@ export class StaffActionsService {
       status: u.status,
       lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
       mfaEnabled: Boolean(u.mfaEnabledAt),
+      passkeys,
       mfaRequired: false,
       trustedDevices: await this.devices.count({ kind: 'platform' }, id),
       roles: [(await this.roles.roleOf(id))?.name ?? ''].filter(Boolean),
       allowed: blocked
         ? []
-        : this.allowedFor(u.status, Boolean(u.mfaEnabledAt)),
+        : this.allowedFor(u.status, Boolean(u.mfaEnabledAt) || passkeys > 0),
     };
   }
 
@@ -111,7 +115,14 @@ export class StaffActionsService {
     const u = await this.load(targetId);
     const why = await this.blockedFor(actorId, targetId, u.roleId);
     if (why) throw new ForbiddenException(why);
-    if (!this.allowedFor(u.status, Boolean(u.mfaEnabledAt)).includes(action))
+    const hasPasskey =
+      (await this.passkeys.count({ kind: 'platform' }, targetId)) > 0;
+    if (
+      !this.allowedFor(
+        u.status,
+        Boolean(u.mfaEnabledAt) || hasPasskey,
+      ).includes(action)
+    )
       throw new ConflictException(
         `That does not apply to this account (it is ${u.status.toLowerCase()}).`,
       );
@@ -134,6 +145,7 @@ export class StaffActionsService {
           });
         });
         await this.devices.revokeAll(scope, targetId);
+        await this.passkeys.revokeAll(scope, targetId);
         await this.auth.revokeAllSessions(targetId);
         break;
       case 'unlock':
@@ -212,6 +224,7 @@ export class StaffActionsService {
       });
     });
     await this.devices.revokeAll({ kind: 'platform' }, u.id);
+    await this.passkeys.revokeAll({ kind: 'platform' }, u.id);
     await this.auth.revokeAllSessions(u.id);
     await this.audit.record({
       actorId: null,

@@ -11,6 +11,8 @@ export async function deleteTenantData(
     if (!tenant) return;
     const where = { tenantId: tenant.id };
     await prisma.db.supportSession.deleteMany({ where });
+    await prisma.db.passkey.deleteMany({ where });
+    await prisma.db.trustedDevice.deleteMany({ where });
     await prisma.db.desktopDevice.deleteMany({ where });
     await prisma.db.signatureEvent.deleteMany({ where });
     await prisma.db.signatureParty.deleteMany({ where });

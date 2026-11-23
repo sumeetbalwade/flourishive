@@ -18,6 +18,7 @@ model PlatformUser {
   sessions        PlatformSession[]
   supportSessions SupportSession[]
   trustedDevices  PlatformTrustedDevice[]
+  passkeys        PlatformPasskey[]
 
   @@map("platform_users")
 }
@@ -127,4 +128,22 @@ model PlatformTrustedDevice {
 
   @@index([userId])
   @@map("platform_trusted_devices")
+}
+
+model PlatformPasskey {
+  id           String   @id @default(uuid(7)) @db.Char(36)
+  userId       String   @db.Char(36)
+  credentialId String   @unique @db.VarChar(512)
+  publicKey    Bytes
+  counter      Int      @default(0)
+  transports   String?  @db.VarChar(255)
+  label        String   @db.VarChar(120)
+  rpId         String   @db.VarChar(255)
+  createdAt    DateTime @default(now()) @db.DateTime(3)
+  lastUsedAt   DateTime @default(now()) @db.DateTime(3)
+
+  user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("platform_passkeys")
 }

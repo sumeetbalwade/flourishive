@@ -46,7 +46,12 @@ export const tokensResponse = z.object({
 });
 export const loginResponse = z.discriminatedUnion('status', [
   tokensResponse,
-  z.object({ status: z.literal('mfa_required'), mfaToken: z.string() }),
+  z.object({
+    status: z.literal('mfa_required'),
+    mfaToken: z.string(),
+    /** Which second steps this person has. Older servers omit it: then it is the authenticator code. */
+    methods: z.object({ code: z.boolean(), passkey: z.boolean() }).optional(),
+  }),
   z.object({ status: z.literal('mfa_setup_required'), mfaToken: z.string() }),
 ]);
 export const mfaSetupResponse = z.object({ secret: z.string(), otpauthUri: z.string() });
@@ -102,6 +107,32 @@ export const trustedDeviceView = z.object({
   lastUsedAt: z.string(),
   expiresAt: z.string(),
 });
+/** A browser's WebAuthn answer. The server hands it to the library, which does the real checking. */
+const webauthnJson = z
+  .object({
+    id: z.string().min(1).max(1024),
+    response: z.object({ clientDataJSON: z.string().min(1).max(8192) }).passthrough(),
+  })
+  .passthrough();
+export const passkeyRegisterBody = z.object({
+  response: webauthnJson,
+  label: z.string().trim().max(120).optional(),
+});
+export const passkeyLoginOptionsBody = z.object({ tenant: z.string().min(1).max(63) });
+export const passkeyLoginBody = z.object({
+  tenant: z.string().min(1).max(63),
+  response: webauthnJson,
+});
+export const mfaPasskeyBody = z.object({ mfaToken: z.string(), response: webauthnJson });
+export const platformPasskeyLoginBody = z.object({ response: webauthnJson });
+export const passkeyView = z.object({
+  id: z.string(),
+  label: z.string(),
+  createdAt: z.string(),
+  lastUsedAt: z.string(),
+});
+export type PasskeyView = z.infer<typeof passkeyView>;
+
 /** What "My security" shows and may offer. */
 export const securityInfo = z.object({
   mfaEnabled: z.boolean(),
@@ -110,6 +141,7 @@ export const securityInfo = z.object({
   emailFallback: z.boolean(),
   trustedDeviceDays: z.number(),
   devices: z.array(trustedDeviceView),
+  passkeys: z.array(passkeyView).default([]),
 });
 export type SecurityInfo = z.infer<typeof securityInfo>;
 export type TrustedDeviceView = z.infer<typeof trustedDeviceView>;

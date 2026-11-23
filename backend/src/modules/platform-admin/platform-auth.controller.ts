@@ -9,8 +9,12 @@ import {
   stepUpBody,
   mfaEmailCodeBody,
   mfaDisableBody,
+  passkeyRegisterBody,
+  mfaPasskeyBody,
+  platformPasskeyLoginBody,
 } from '@flourishive/schemas';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -26,7 +30,12 @@ import {
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { Public } from '../identity/auth.context.js';
-import { StepUpService } from '../identity/step-up.service.js';
+import { RequireStepUp, StepUpService } from '../identity/step-up.service.js';
+import {
+  relyingPartyFrom,
+  type RelyingParty,
+} from '../identity/passkey.service.js';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
 import {
   PlatformAuthService,
@@ -45,12 +54,24 @@ export class PlatformAuthController {
   constructor(
     private readonly auth: PlatformAuthService,
     private readonly stepUps: StepUpService,
+    private readonly runtime: RuntimeConfigService,
   ) {}
 
   private meta = (req: Request) => ({
     ip: req.ip,
     userAgent: req.headers['user-agent'],
   });
+
+  /** Staff passkeys belong to the admin site only, so the browser must be on the admin address. */
+  private async rp(req: Request): Promise<RelyingParty> {
+    const rp = relyingPartyFrom(req.headers.origin);
+    const admin = relyingPartyFrom(await this.runtime.get('ADMIN_URL'));
+    if (!rp || !admin || rp.origin !== admin.origin)
+      throw new BadRequestException(
+        'Passkeys work only on the admin sign-in page',
+      );
+    return rp;
+  }
 
   private respond(req: Request, res: Response, t: PlatformTokens) {
     const native = req.headers['x-client'] === 'native';
@@ -106,6 +127,95 @@ export class PlatformAuthController {
         maxAge: trustedDevice.maxAgeMs,
       });
     return this.respond(req, res, tokens);
+  }
+
+  @Post('mfa/passkey/options')
+  @HttpCode(200)
+  async mfaPasskeyOptions(
+    @Body(body(mfaEmailCodeBody)) b: z.infer<typeof mfaEmailCodeBody>,
+    @Req() req: Request,
+  ) {
+    return this.auth.mfaPasskeyOptions(b.mfaToken, await this.rp(req));
+  }
+
+  @Post('mfa/passkey/verify')
+  @HttpCode(200)
+  async mfaPasskeyVerify(
+    @Body(body(mfaPasskeyBody)) b: z.infer<typeof mfaPasskeyBody>,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.respond(
+      req,
+      res,
+      await this.auth.verifyMfaPasskey(
+        b as never,
+        await this.rp(req),
+        this.meta(req),
+      ),
+    );
+  }
+
+  /** Sign in with a passkey alone. */
+  @Post('passkeys/login/options')
+  @HttpCode(200)
+  async passkeyLoginOptions(@Req() req: Request) {
+    return this.auth.passkeyLoginOptions(await this.rp(req));
+  }
+
+  @Post('passkeys/login/verify')
+  @HttpCode(200)
+  async passkeyLogin(
+    @Body(body(platformPasskeyLoginBody))
+    b: z.infer<typeof platformPasskeyLoginBody>,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.respond(
+      req,
+      res,
+      await this.auth.passkeyLogin(
+        b.response as never,
+        await this.rp(req),
+        this.meta(req),
+      ),
+    );
+  }
+
+  // Guards run bottom to top: sign-in first, then the recent-confirmation check.
+  @RequireStepUp()
+  @UseGuards(PlatformGuard)
+  @Post('passkeys/register/options')
+  @HttpCode(200)
+  async passkeyRegisterOptions(@Req() req: PlatformRequest) {
+    return this.auth.passkeyRegisterOptions(
+      req.platformAuth!.platformUserId,
+      await this.rp(req),
+    );
+  }
+
+  // Guards run bottom to top: sign-in first, then the recent-confirmation check.
+  @RequireStepUp()
+  @UseGuards(PlatformGuard)
+  @Post('passkeys/register/verify')
+  @HttpCode(200)
+  async passkeyRegisterVerify(
+    @Req() req: PlatformRequest,
+    @Body(body(passkeyRegisterBody)) b: z.infer<typeof passkeyRegisterBody>,
+  ) {
+    return this.auth.passkeyRegisterVerify(
+      req.platformAuth!.platformUserId,
+      b as never,
+      await this.rp(req),
+      this.meta(req),
+    );
+  }
+
+  @UseGuards(PlatformGuard)
+  @Delete('passkeys/:id')
+  @HttpCode(204)
+  async removePasskey(@Req() req: PlatformRequest, @Param('id') id: string) {
+    await this.auth.removePasskey(req.platformAuth!.platformUserId, id, req.ip);
   }
 
   /** "Email me a code instead" (after the password step). */

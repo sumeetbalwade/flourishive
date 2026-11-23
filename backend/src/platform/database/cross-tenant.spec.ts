@@ -8,6 +8,7 @@ import {
 import { deleteTenantData } from '../../../test/helpers.js';
 import { runAsSystem, runInTenant } from './tenant-context.js';
 import { TENANT_SCOPED_MODELS } from './tenant-scoping.js';
+import { OWNER_ROLE_ID } from '../../modules/platform-admin/platform-permissions.js';
 
 /**
  * Cross-tenant safety net (plan: Phase 1 quality). For every tenant-scoped
@@ -629,6 +630,53 @@ const fixtures: Record<string, Fixture> = {
       },
     }),
     change: { name: 'hacked' },
+  },
+  SupportSession: {
+    delegate: 'supportSession',
+    create: async (tenantId) => {
+      const staff = await runAsSystem(async () => {
+        const email = `${crypto.randomUUID()}@staff.test`;
+        return await db.platformUser.create({
+          data: { email, roleId: OWNER_ROLE_ID },
+        });
+      });
+      return {
+        data: {
+          tenantId,
+          platformUserId: staff.id,
+          reason: 'testing isolation',
+          expiresAt: new Date(Date.now() + 3600_000),
+        },
+      };
+    },
+    change: { reason: 'hacked' },
+  },
+  TrustedDevice: {
+    delegate: 'trustedDevice',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        userId: crypto.randomUUID(),
+        tokenHash: crypto.randomUUID().replaceAll('-', '').padEnd(64, '0'),
+        label: 'Chrome on macOS',
+        expiresAt: new Date(Date.now() + 3600_000),
+      },
+    }),
+    change: { label: 'hacked' },
+  },
+  Passkey: {
+    delegate: 'passkey',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        userId: crypto.randomUUID(),
+        credentialId: crypto.randomUUID(),
+        publicKey: Buffer.from('key'),
+        label: 'Test passkey',
+        rpId: 'localhost',
+      },
+    }),
+    change: { label: 'hacked' },
   },
   Notification: {
     delegate: 'notification',

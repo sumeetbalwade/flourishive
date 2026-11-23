@@ -296,12 +296,12 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
 
 ### PR 4 — Passkeys (D-64)
 
-- [ ] Library: `@simplewebauthn/server` and `@simplewebauthn/browser`. Relying-party ID: the tenant host (`<slug>.flourishive.in` or the custom domain) for tenants, and `admin.flourishive.in` for platform staff.
-- [ ] Data: `passkeys` and `platform_passkeys` (`userId`, `credentialId`, `publicKey`, `counter`, `transports`, `label`, `createdAt`, `lastUsedAt`).
-- [ ] Registration from My security (needs step-up). A passkey counts as a second factor, and as password plus two-step in one step when used to sign in.
-- [ ] Sign-in: the email step offers "Use a passkey" when the browser supports it.
-- [ ] Policy: a passkey satisfies REQUIRED two-step. Admins can see and remove a user's passkeys through account actions.
-- [ ] Tests: registration and authentication ceremonies with the library's test vectors. Replay with an old counter is refused.
+- [x] Library: `@simplewebauthn/server` and `@simplewebauthn/browser`. Relying-party ID: the tenant host (`<slug>.flourishive.in` or the custom domain) for tenants, and `admin.flourishive.in` for platform staff. _(Built: the host of the browser's Origin; for staff it must equal `ADMIN_URL`.)_
+- [x] Data: `passkeys` and `platform_passkeys` (`userId`, `credentialId`, `publicKey`, `counter`, `transports`, `label`, `createdAt`, `lastUsedAt`).
+- [x] Registration from My security (needs step-up). A passkey counts as a second factor, and as password plus two-step in one step when used to sign in.
+- [x] Sign-in: the email step offers "Use a passkey" when the browser supports it.
+- [x] Policy: a passkey satisfies REQUIRED two-step. Admins can see and remove a user's passkeys through account actions. _(Built: the account panel shows the count, and Reset two-step also removes passkeys, in the company and staff routes and in the break-glass command.)_
+- [x] Tests: registration and authentication ceremonies with a software authenticator (`test/virtual-authenticator.ts`), not library vectors. Replay with an old counter is refused.
 
 **Done when:** an admin signs in with Touch ID on a Mac and Face ID on an iPhone without typing a code.
 

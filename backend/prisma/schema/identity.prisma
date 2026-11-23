@@ -103,3 +103,24 @@ model TrustedDevice {
   @@index([tenantId, userId])
   @@map("trusted_devices")
 }
+
+/// A passkey (WebAuthn credential) a person registered. It signs them in on its own, or counts as their
+/// second factor after the password. Only the public key is kept. `rpId` is the host it was made for.
+model Passkey {
+  id           String   @id @default(uuid(7)) @db.Char(36)
+  tenantId     String   @db.Char(36)
+  userId       String   @db.Char(36)
+  credentialId String   @unique @db.VarChar(512)
+  publicKey    Bytes
+  counter      Int      @default(0)
+  transports   String?  @db.VarChar(255)
+  label        String   @db.VarChar(120)
+  rpId         String   @db.VarChar(255)
+  createdAt    DateTime @default(now()) @db.DateTime(3)
+  lastUsedAt   DateTime @default(now()) @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, userId])
+  @@map("passkeys")
+}

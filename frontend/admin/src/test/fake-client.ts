@@ -65,6 +65,23 @@ export function fakeClient(over: Record<string, unknown> = {}) {
       setSetting: vi.fn().mockResolvedValue(undefined),
       clearSetting: vi.fn().mockResolvedValue(undefined),
     },
+    roles: {
+      list: vi.fn().mockResolvedValue({
+        roles: [
+          {
+            id: 'r-support',
+            key: 'support',
+            name: 'Support',
+            description: null,
+            isPreset: true,
+            permissions: [],
+            members: 0,
+          },
+        ],
+        permissions: [],
+      }),
+      assign: vi.fn().mockResolvedValue(undefined),
+    },
     staff: {
       list: vi
         .fn()

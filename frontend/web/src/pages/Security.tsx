@@ -4,6 +4,7 @@ import {
   Card,
   CardTitle,
   SecurityExtras,
+  PasskeysCard,
   Dialog,
   DialogClose,
   DialogContent,
@@ -16,6 +17,7 @@ import { RecoveryCodes } from '../components/RecoveryCodes.tsx';
 import { useApi } from '../lib/api.tsx';
 import { useAuth } from '../lib/auth.tsx';
 import { messageOf } from '../lib/errors.ts';
+import { makePasskey, passkeysSupported } from '../lib/passkeys.ts';
 import { go } from '../router.ts';
 import { Layout } from './Layout.tsx';
 
@@ -71,6 +73,28 @@ export function Security() {
             </p>
           )}
         </Card>
+
+        {info.data ? (
+          <PasskeysCard
+            passkeys={info.data.passkeys ?? []}
+            supported={passkeysSupported()}
+            onAdd={async () => {
+              const options = await api.auth.passkeyRegisterOptions();
+              const response = await makePasskey(options);
+              await api.auth.passkeyRegister(response);
+              toast({ title: 'Passkey added', tone: 'success' });
+              await qc.invalidateQueries({ queryKey: ['security'] });
+            }}
+            onRemove={async (id) => {
+              try {
+                await api.auth.passkeyRemove(id);
+                await qc.invalidateQueries({ queryKey: ['security'] });
+              } catch (e) {
+                toast({ title: messageOf(e), tone: 'danger' });
+              }
+            }}
+          />
+        ) : null}
 
         {info.data ? (
           <SecurityExtras
