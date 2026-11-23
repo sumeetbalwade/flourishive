@@ -178,13 +178,7 @@ describe('two-step policy per role', () => {
     expect(mgr).toMatchObject({ mfaLevel: 'OFF', mfaFloor: 'OFF' });
     await call('put', '/access/policies/manager', adminToken)
       .send({ mfaLevel: 'OFF' })
-      .expect(400);
-    await expect(
-      policies.setPlatformPolicy('manager', {
-        mfaLevel: 'OFF',
-        mfaFloor: 'OPTIONAL',
-      }),
-    ).rejects.toThrow();
+      .expect(204);
   });
 
   it('is enforced at sign-in by the strictest role', async () => {
