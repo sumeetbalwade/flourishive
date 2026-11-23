@@ -17,6 +17,8 @@ export {
   DialogContent,
   SheetContent,
 } from './components/dialog.tsx';
+export { CollapsibleSection } from './components/collapsible-section.tsx';
+export { SearchBox } from './components/search-box.tsx';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './components/tabs.tsx';
 export { Select } from './components/select.tsx';
 export { Table, THead, TBody, TR, TH, TD } from './components/table.tsx';

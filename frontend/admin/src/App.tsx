@@ -42,7 +42,8 @@ function Routes() {
   else if (path === '/users') page = <Staff />;
   else if (path === '/settings') page = <Defaults />;
   else if (path === '/policy') page = <Policy />;
-  else if (path === '/integrations') page = <Integrations />;
+  else if (path === '/integrations' || path.startsWith('/integrations/'))
+    page = <Integrations section={path.split('/')[2]} />;
   else if (path === '/system') page = <System />;
   else return <Login />;
   return <Private>{page}</Private>;

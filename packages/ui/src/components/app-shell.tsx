@@ -1,4 +1,4 @@
-import { LogOut, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
+import { ChevronRight, LogOut, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { motion } from 'motion/react';
 import { DropdownMenu } from 'radix-ui';
 import { Fragment, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
@@ -16,6 +16,11 @@ export type NavItem = {
   group?: string;
   /** A small tag on the item, e.g. "Preview". */
   tag?: string;
+  /**
+   * Sub-options shown under the item while it is active. A child's id is passed to onNavigate
+   * as `<parent id>/<child id>`, so a page can open and scroll to that section.
+   */
+  children?: { id: string; label: string }[];
 };
 
 const KEY = 'fh-sidebar';
@@ -84,13 +89,22 @@ export function AppShell({
 
   const palette = useMemo<Command[]>(
     () => [
-      ...nav.map((n) => ({
-        id: `nav:${n.id}`,
-        label: n.label,
-        hint: n.group ?? 'Go to',
-        icon: n.icon,
-        run: () => onNavigate(n.id),
-      })),
+      ...nav.flatMap((n) => [
+        {
+          id: `nav:${n.id}`,
+          label: n.label,
+          hint: n.group ?? 'Go to',
+          icon: n.icon,
+          run: () => onNavigate(n.id),
+        },
+        ...(n.children ?? []).map((c) => ({
+          id: `nav:${n.id}/${c.id}`,
+          label: `${n.label} › ${c.label}`,
+          hint: n.group ?? 'Go to',
+          icon: n.icon,
+          run: () => onNavigate(`${n.id}/${c.id}`),
+        })),
+      ]),
       ...commands,
     ],
     [nav, commands, onNavigate],
@@ -116,54 +130,80 @@ export function AppShell({
           {brand}
         </div>
         <nav aria-label="Main" className="grid gap-1">
-          {nav.map(({ id, label, icon: Icon, group, tag }, i) => (
-            <Fragment key={id}>
-              {group && group !== nav[i - 1]?.group && (
-                <div
-                  className={cn(
-                    'px-4 pb-1 pt-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint',
-                    collapsed ? 'hidden' : 'hidden md:block',
-                  )}
-                >
-                  {group}
-                </div>
-              )}
-              <button
-                type="button"
-                title={label}
-                aria-label={label}
-                aria-current={active === id ? 'page' : undefined}
-                onClick={() => onNavigate(id)}
-                className={cn(
-                  'group relative flex h-11 items-center justify-center gap-3 rounded-pill px-3 text-sm font-medium transition-colors duration-[var(--dur-fast)] active:scale-[0.98]',
-                  !collapsed && 'md:justify-start md:px-4',
-                  active === id ? 'text-on-accent' : 'text-muted hover:bg-surface-2 hover:text-fg',
-                )}
-              >
-                {active === id && (
-                  <motion.span
-                    layoutId="nav-active"
-                    aria-hidden="true"
-                    transition={{ type: 'spring', stiffness: 460, damping: 38 }}
-                    className="absolute inset-0 rounded-pill bg-accent shadow-press"
-                  />
-                )}
-                <Icon size={19} className="relative" />
-                <span className={cn('relative hidden', !collapsed && 'md:inline')}>{label}</span>
-                {tag && (
-                  <span
+          {nav.map(({ id, label, icon: Icon, group, tag, children: subs }, i) => {
+            const here = active === id || active.startsWith(`${id}/`);
+            return (
+              <Fragment key={id}>
+                {group && group !== nav[i - 1]?.group && (
+                  <div
                     className={cn(
-                      'relative ml-auto hidden rounded-pill px-2 py-0.5 text-[11px]',
-                      active === id ? 'bg-on-accent/20' : 'bg-surface-2 text-faint',
-                      !collapsed && 'md:inline',
+                      'px-4 pb-1 pt-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint',
+                      collapsed ? 'hidden' : 'hidden md:block',
                     )}
                   >
-                    {tag}
-                  </span>
+                    {group}
+                  </div>
                 )}
-              </button>
-            </Fragment>
-          ))}
+                <button
+                  type="button"
+                  title={label}
+                  aria-label={label}
+                  aria-current={active === id ? 'page' : undefined}
+                  aria-expanded={subs ? here : undefined}
+                  onClick={() => onNavigate(id)}
+                  className={cn(
+                    'group relative flex h-11 items-center justify-center gap-3 rounded-pill px-3 text-sm font-medium transition-colors duration-[var(--dur-fast)] active:scale-[0.98]',
+                    !collapsed && 'md:justify-start md:px-4',
+                    here ? 'text-on-accent' : 'text-muted hover:bg-surface-2 hover:text-fg',
+                  )}
+                >
+                  {here && (
+                    <motion.span
+                      layoutId="nav-active"
+                      aria-hidden="true"
+                      transition={{ type: 'spring', stiffness: 460, damping: 38 }}
+                      className="absolute inset-0 rounded-pill bg-accent shadow-press"
+                    />
+                  )}
+                  <Icon size={19} className="relative" />
+                  <span className={cn('relative hidden', !collapsed && 'md:inline')}>{label}</span>
+                  {tag && (
+                    <span
+                      className={cn(
+                        'relative ml-auto hidden rounded-pill px-2 py-0.5 text-[11px]',
+                        here ? 'bg-on-accent/20' : 'bg-surface-2 text-faint',
+                        !collapsed && 'md:inline',
+                      )}
+                    >
+                      {tag}
+                    </span>
+                  )}
+                </button>
+                {subs && here && !collapsed ? (
+                  <ul className="hidden gap-0.5 pb-1 pl-5 md:grid" aria-label={`${label} sections`}>
+                    {subs.map((c) => (
+                      <li key={c.id}>
+                        <button
+                          type="button"
+                          onClick={() => onNavigate(`${id}/${c.id}`)}
+                          aria-current={active === `${id}/${c.id}` ? 'location' : undefined}
+                          className={cn(
+                            'flex h-9 w-full items-center gap-2 rounded-pill px-4 text-left text-[13px] transition-colors',
+                            active === `${id}/${c.id}`
+                              ? 'bg-accent-lo font-medium text-accent-hi'
+                              : 'text-muted hover:bg-surface-2 hover:text-fg',
+                          )}
+                        >
+                          <ChevronRight size={13} className="shrink-0" />
+                          <span className="truncate">{c.label}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </Fragment>
+            );
+          })}
         </nav>
         <button
           type="button"
@@ -234,7 +274,7 @@ export function AppShell({
           </div>
         </header>
         <motion.main
-          key={active}
+          key={active.split('/')[0]}
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}

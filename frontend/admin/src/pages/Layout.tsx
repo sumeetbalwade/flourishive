@@ -2,13 +2,20 @@ import { AppShell, BrandMark, brand, type NavItem } from '@flourishive/ui';
 import { Activity, Building2, KeyRound, Settings, ShieldCheck, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAuth } from '../lib/auth.tsx';
+import { INTEGRATION_SECTIONS } from '../lib/integration-sections.ts';
 import { go } from '../router.ts';
 
 const NAV: NavItem[] = [
   { id: 'tenants', label: 'Tenants', icon: Building2, group: 'Overview' },
   { id: 'settings', label: 'Platform defaults', icon: Settings, group: 'Platform' },
   { id: 'policy', label: 'Security policy', icon: ShieldCheck, group: 'Platform' },
-  { id: 'integrations', label: 'Integrations', icon: KeyRound, group: 'Platform' },
+  {
+    id: 'integrations',
+    label: 'Integrations',
+    icon: KeyRound,
+    group: 'Platform',
+    children: INTEGRATION_SECTIONS,
+  },
   { id: 'users', label: 'Platform staff', icon: Users, group: 'Platform' },
   { id: 'system', label: 'System checks', icon: Activity, group: 'Platform' },
 ];
@@ -40,7 +47,7 @@ export function Layout({
       onNavigate={(id) => go(`/${id}`)}
       user={{ name: auth.state.status === 'authed' ? auth.state.email : '…', role: 'Super admin' }}
       onSignOut={() => void auth.signOut()}
-      crumbs={['Console', NAV.find((n) => n.id === active)?.group ?? '']}
+      crumbs={['Console', NAV.find((n) => n.id === active.split('/')[0])?.group ?? '']}
       title={title}
       actions={actions}
     >
