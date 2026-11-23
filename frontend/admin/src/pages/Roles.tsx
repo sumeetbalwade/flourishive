@@ -115,7 +115,7 @@ function RoleCard({
       }
     >
       <p className="py-4 text-sm text-muted">
-        {role.description ?? 'No description.'}
+        {role.description ? `${role.description.replace(/\.$/, '')}.` : 'No description.'}
         {readOnly ? ' Built-in roles cannot be edited. Duplicate it to make your own.' : ''}
       </p>
       {areas.map((area) => (
