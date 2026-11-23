@@ -456,6 +456,17 @@ const NO_TENANT_DATA: Record<string, string> = {
   'GET /mail/deliveries': 'the list is filtered to the signed-in company',
   'POST /mail/deliveries/:id/resend':
     'the lookup includes the signed-in company, so another company’s id is a 404',
+  'GET /mail/templates': 'the signed-in company’s wording over the platform’s',
+  'GET /mail/templates/:event':
+    'the signed-in company only (tenantId from the token)',
+  'PUT /mail/templates/:event':
+    'the signed-in company only (tenantId from the token)',
+  'DELETE /mail/templates/:event':
+    'the signed-in company only (tenantId from the token)',
+  'POST /mail/templates/:event/preview':
+    'renders sample values only; no company data',
+  'POST /mail/templates/:event/test':
+    'sends to the signed-in admin’s own address',
   'POST /auth/mfa/passkey/options': 'own challenge token',
   'POST /auth/mfa/passkey/verify':
     'own challenge token; the passkey must belong to that person',

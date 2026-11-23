@@ -27,6 +27,7 @@ model Tenant {
   trustedDevices      TrustedDevice[]
   passkeys            Passkey[]
   mailSender          MailSender?
+  emailTemplates      EmailTemplate[]
   auditChainHead      AuditChainHead?
   files               File[]
   notifications       Notification[]

@@ -22,6 +22,7 @@ import { supportSessionKey, type OpenSupportSession } from './support-keys.js';
 import { RolePolicyService } from '../access/role-policy.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { MailService } from '../../platform/mail/mail.service.js';
+import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { OtpService } from './otp.service.js';
 import { GoogleService } from './google.service.js';
 import { MfaService, hashRecoveryCode } from './mfa.service.js';
@@ -94,6 +95,7 @@ export class AuthService {
     private readonly otp: OtpService,
     private readonly devices: TrustedDeviceService,
     private readonly mail: MailService,
+    private readonly templates: EmailTemplatesService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly runtime: RuntimeConfigService,
     private readonly passkeys: PasskeyService,
@@ -795,8 +797,10 @@ export class AuthService {
       event: `auth.otp.${purpose}`,
       tenantId: user.tenantId,
       to: user.email,
-      subject: `Your ${this.config.APP_NAME} code: ${code}`,
-      text: `Your one-time code is ${code}. It works once and expires in ${minutes} minutes.\n\nIf you did not ask for it, ignore this email and consider changing your password.`,
+      ...(await this.templates.render('auth.otp', user.tenantId, {
+        code,
+        minutes: String(minutes),
+      })),
       fromName: await this.settings.get('branding.emailSenderName', {
         tenantId: user.tenantId,
       }),

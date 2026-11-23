@@ -690,6 +690,13 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { fromName: 'hacked' },
   },
+  EmailTemplate: {
+    delegate: 'emailTemplate',
+    create: async (tenantId) => ({
+      data: { tenantId, event: 'auth.invite', subject: 'Hi', body: 'Hello' },
+    }),
+    change: { subject: 'hacked' },
+  },
   MailDelivery: {
     delegate: 'mailDelivery',
     create: async (tenantId) => ({

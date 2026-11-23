@@ -1,19 +1,13 @@
-/** One template per event. Add events here as modules need them (letters, reminders, ...). */
+/**
+ * Events sent through NotificationsService. The wording of the credential emails (invite, password reset)
+ * lives in `events.ts` so people can reword it; `general.notice` is a plain message the caller writes.
+ */
 export interface RenderedEmail {
   subject: string;
   text: string;
 }
 
-/** `app` is the product name; the notifications service adds it, callers never pass it. */
 export const TEMPLATES = {
-  'auth.password_reset': (v: { link: string; app: string }): RenderedEmail => ({
-    subject: `Reset your ${v.app} password`,
-    text: `Use this link within one hour to choose a new password:\n\n${v.link}\n\nIf you did not ask for this, you can ignore this email.`,
-  }),
-  'auth.invite': (v: { link: string; app: string }): RenderedEmail => ({
-    subject: `You have been invited to ${v.app}`,
-    text: `Choose a password to activate your account (link valid for 7 days):\n\n${v.link}`,
-  }),
   /** A plain message with no credentials in it. Safe to queue and to keep on record. */
   'general.notice': (v: { subject: string; text: string }): RenderedEmail => ({
     subject: v.subject,
@@ -21,8 +15,20 @@ export const TEMPLATES = {
   }),
 } satisfies Record<string, (vars: never) => RenderedEmail>;
 
-export type NotificationEvent = keyof typeof TEMPLATES;
-export type TemplateVars<E extends NotificationEvent> = Omit<
-  Parameters<(typeof TEMPLATES)[E]>[0],
-  'app'
->;
+/** Reworded in the template editor: the caller passes only the values. */
+export interface EditableVars {
+  'auth.invite': { link: string };
+  'auth.password_reset': { link: string };
+}
+export const EDITABLE_EXPIRES: Record<keyof EditableVars, string> = {
+  'auth.invite': '7 days',
+  'auth.password_reset': 'one hour',
+};
+
+export type NotificationEvent = keyof typeof TEMPLATES | keyof EditableVars;
+export type TemplateVars<E extends NotificationEvent> =
+  E extends keyof EditableVars
+    ? EditableVars[E]
+    : E extends keyof typeof TEMPLATES
+      ? Omit<Parameters<(typeof TEMPLATES)[E]>[0], 'app'>
+      : never;

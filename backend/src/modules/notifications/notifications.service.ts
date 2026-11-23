@@ -6,8 +6,11 @@ import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { EmailTemplatesService } from './email-templates.service.js';
 import {
+  EDITABLE_EXPIRES,
   TEMPLATES,
+  type EditableVars,
   type NotificationEvent,
   type TemplateVars,
 } from './templates.js';
@@ -32,6 +35,7 @@ export class NotificationsService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly settings: SettingsService,
+    private readonly templates: EmailTemplatesService,
     private readonly jobs: JobRecordsService,
     private readonly registry: JobHandlerRegistry,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
@@ -49,12 +53,20 @@ export class NotificationsService implements OnModuleInit {
     toEmail: string,
     vars: TemplateVars<E>,
   ) {
-    const email = (
-      TEMPLATES[event] as (v: TemplateVars<E> & { app: string }) => {
-        subject: string;
-        text: string;
-      }
-    )({ ...vars, app: this.config.APP_NAME });
+    let email: { subject: string; text: string; html?: string };
+    if (event in EDITABLE_EXPIRES) {
+      email = await this.templates.render(event, tenantId, {
+        ...(vars as unknown as Record<string, string>),
+        expires: EDITABLE_EXPIRES[event as keyof EditableVars],
+      });
+    } else {
+      email = (
+        TEMPLATES[event as keyof typeof TEMPLATES] as (v: unknown) => {
+          subject: string;
+          text: string;
+        }
+      )({ ...vars, app: this.config.APP_NAME });
+    }
     const row = await runInTenant(tenantId, async () =>
       this.prisma.db.notification.create({
         data: {
@@ -66,7 +78,7 @@ export class NotificationsService implements OnModuleInit {
         },
       }),
     );
-    return Object.assign(row, { text: email.text });
+    return Object.assign(row, { text: email.text, html: email.html });
   }
 
   /** Sends now. A failure is recorded and also thrown so the caller knows. */
@@ -81,6 +93,7 @@ export class NotificationsService implements OnModuleInit {
       tenantId,
       n.id,
       SENSITIVE_EVENTS.has(event) ? n.text : undefined,
+      SENSITIVE_EVENTS.has(event) ? n.html : undefined,
     );
     return n.id;
   }
@@ -105,6 +118,7 @@ export class NotificationsService implements OnModuleInit {
     tenantId: string,
     notificationId: string,
     text?: string,
+    html?: string,
   ): Promise<void> {
     const n = await runInTenant(
       tenantId,
@@ -124,6 +138,7 @@ export class NotificationsService implements OnModuleInit {
         to: n.toEmail,
         subject: n.subject,
         text: text ?? n.body,
+        ...(html ? { html } : {}),
         fromName,
       });
       await runInTenant(tenantId, async () => {

@@ -8,6 +8,7 @@ import { RedisService } from '../../platform/cache/redis.service.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
+import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { TrustedDeviceService } from '../identity/trusted-device.service.js';
 import { PasskeyService } from '../identity/passkey.service.js';
 import { PlatformAuditService } from './platform-audit.service.js';
@@ -40,6 +41,7 @@ export class StaffActionsService {
     private readonly passkeys: PasskeyService,
     private readonly audit: PlatformAuditService,
     private readonly mail: MailService,
+    private readonly templates: EmailTemplatesService,
   ) {}
 
   private get db() {
@@ -194,8 +196,10 @@ export class StaffActionsService {
       await this.mail.send({
         event: 'platform.account_notice',
         to: u.email,
-        subject: 'A change to your admin account',
-        text: `${SENTENCE[action]}.\n\nDone by ${actor.email}.\n\nIf you did not expect this, tell another administrator.`,
+        ...(await this.templates.render('platform.account_notice', null, {
+          change: SENTENCE[action],
+          actor: actor.email,
+        })),
       });
     } catch {
       // Audited already; a failed notice does not undo it.

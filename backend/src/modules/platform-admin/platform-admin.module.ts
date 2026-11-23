@@ -26,12 +26,14 @@ import { ConfigTestService } from './config-test.service.js';
 import { PlatformConfigController } from './platform-config.controller.js';
 import { PlatformGuard } from './platform.guard.js';
 import { PlatformMailController } from './platform-mail.controller.js';
+import { PlatformTemplatesController } from './platform-templates.controller.js';
 import { MailAdminModule } from '../mail/mail-admin.module.js';
 
 @Module({
   imports: [IdentityModule, AccessModule, SettingsModule, MailAdminModule],
   controllers: [
     PlatformMailController,
+    PlatformTemplatesController,
     PlatformAuthController,
     PlatformAdminController,
     PlatformConfigController,

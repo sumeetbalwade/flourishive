@@ -338,7 +338,7 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
 
 ### PR 6 — Email templates (D-59)
 
-- [ ] Event catalogue in code (`modules/notifications/events.ts`): key, description, allowed variables with sample values, and a default subject and body. Events:
+- [x] _(Built: the events that exist today. Sign-in from a new device, email-change notices, "letter signed", account-action notices to company users and the alert/digest mails do not exist yet or are written by the caller; add them to `events.ts` when they land. The email layout uses the product name and a default accent until PR 7 supplies the published brand.)_ Event catalogue in code (`modules/notifications/events.ts`): key, description, allowed variables with sample values, and a default subject and body. Events:
   - invite, password reset
   - two-step code, two-step reset notice
   - sign-in from a new device
@@ -347,10 +347,10 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - acceptance OTP
   - account action notices (PR 3)
   - alert and digest emails (PR 8)
-- [ ] Renderer: minimal `{{path}}` substitution, always HTML-escaped. Unknown variables fail validation at save time. No helpers or logic. Markdown-lite body (paragraphs, bold, links, buttons as `[[Button text|{{link}}]]`) rendered into the branded email layout. Plain-text part generated.
-- [ ] Data: `email_templates` (`tenantId` nullable = platform override, `event`, `subject`, `body`, `updatedBy`, `updatedAt`). Resolution order: tenant, then platform override, then code default. Lock per event (`tenantEditable`) as for settings.
-- [ ] API: list events, get the effective template, save, reset, preview (render with sample values), send a test to yourself.
-- [ ] UI: Settings, then Email, then Templates. Event list on the left; editor with a variable picker (click to insert); live preview in light and dark; "Send me a test"; "Reset to default".
+- [x] Renderer: minimal `{{path}}` substitution, always HTML-escaped. Unknown variables fail validation at save time. No helpers or logic. Markdown-lite body (paragraphs, bold, links, buttons as `[[Button text|{{link}}]]`) rendered into the branded email layout. Plain-text part generated.
+- [x] Data: `email_templates` (`tenantId` nullable = platform override, `event`, `subject`, `body`, `updatedBy`, `updatedAt`). Resolution order: tenant, then platform override, then code default. Lock per event (`tenantEditable`) as for settings.
+- [x] API: list events, get the effective template, save, reset, preview (render with sample values), send a test to yourself.
+- [x] UI: Settings, then Email, then Templates. Event list on the left; editor with a variable picker (click to insert); live preview in light and dark; "Send me a test"; "Reset to default".
 
 **Done when:** a tenant changes the invite wording and sees it in the preview. The test mail matches the preview. A placeholder that doesn't exist is rejected with a clear message.
 

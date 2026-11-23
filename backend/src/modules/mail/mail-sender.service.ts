@@ -25,6 +25,7 @@ import {
 } from '../../platform/mail/mail.service.js';
 import { resolvePublicSmtpHost } from '../../platform/mail/net-guard.js';
 import { OtpService } from '../identity/otp.service.js';
+import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { ThrottleService } from '../identity/throttle.service.js';
 
 type Row = NonNullable<Awaited<ReturnType<MailSenderService['find']>>>;
@@ -42,6 +43,7 @@ export class MailSenderService {
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly mail: MailService,
+    private readonly templates: EmailTemplatesService,
     private readonly otp: OtpService,
     private readonly throttle: ThrottleService,
     private readonly runtime: RuntimeConfigService,
@@ -176,8 +178,10 @@ export class MailSenderService {
       tenantId,
       event: 'sender.verify',
       useDefault: true,
-      subject: `Confirm this address for sending email: ${code}`,
-      text: `Your code is ${code}. It works once and expires in 10 minutes.\n\nIt confirms that you control ${s.fromAddress}, so the company can send email from it. If you did not ask for it, ignore this message.`,
+      ...(await this.templates.render('sender.verify', null, {
+        code,
+        address: s.fromAddress,
+      })),
     });
     await runAsSystem(
       async () =>

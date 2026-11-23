@@ -14,6 +14,7 @@ import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
+import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { MfaService, hashRecoveryCode } from '../identity/mfa.service.js';
 import { OtpService } from '../identity/otp.service.js';
 import { PasswordService } from '../identity/password.service.js';
@@ -65,6 +66,7 @@ export class PlatformAuthService {
     private readonly throttle: ThrottleService,
     private readonly redis: RedisService,
     private readonly mail: MailService,
+    private readonly templates: EmailTemplatesService,
     private readonly audit: PlatformAuditService,
     private readonly settings: SettingsService,
     private readonly otp: OtpService,
@@ -77,6 +79,11 @@ export class PlatformAuthService {
 
   private db() {
     return this.prisma.db;
+  }
+
+  /** A staff member's own address (where their template test goes). */
+  async emailOfStaff(id: string): Promise<string | null> {
+    return (await this.user(id))?.email ?? null;
   }
 
   private user(id: string) {
@@ -233,8 +240,10 @@ export class PlatformAuthService {
     await this.mail.send({
       event: 'platform.signin_code',
       to: user.email,
-      subject: `Your ${this.config.APP_NAME} admin code: ${code}`,
-      text: `Your one-time sign-in code is ${code}. It works once and expires in 10 minutes.\n\nIf you did not ask for it, change your password now.`,
+      ...(await this.templates.render('platform.signin_code', null, {
+        code,
+        minutes: '10',
+      })),
     });
   }
 
@@ -456,8 +465,10 @@ export class PlatformAuthService {
     await this.mail.send({
       event: 'platform.recovery_code',
       to: user.email,
-      subject: `Your ${this.config.APP_NAME} admin code: ${code}`,
-      text: `Your one-time code is ${code}. It works once and expires in 10 minutes.\n\nIf you did not ask for it, change your password now.`,
+      ...(await this.templates.render('platform.recovery_code', null, {
+        code,
+        minutes: '10',
+      })),
     });
   }
 
@@ -742,8 +753,10 @@ export class PlatformAuthService {
       await this.mail.send({
         event: 'platform.invite',
         to: address,
-        subject: `You have been invited to the ${this.config.APP_NAME} admin console`,
-        text: `Choose a password (link valid for 7 days):\n\n${link}`,
+        ...(await this.templates.render('platform.invite', null, {
+          link,
+          expires: '7 days',
+        })),
       });
     } catch {
       emailed = false;
@@ -778,11 +791,11 @@ export class PlatformAuthService {
         event:
           kind === 'invite' ? 'platform.invite' : 'platform.password_reset',
         to: user.email,
-        subject:
-          kind === 'invite'
-            ? `You have been invited to the ${this.config.APP_NAME} admin console`
-            : `Reset your ${this.config.APP_NAME} admin password`,
-        text: `Choose a password (link valid for ${kind === 'invite' ? '7 days' : 'one hour'}):\n\n${link}\n\nIf you did not expect this, tell another administrator.`,
+        ...(await this.templates.render(
+          kind === 'invite' ? 'platform.invite' : 'platform.password_reset',
+          null,
+          { link, expires: kind === 'invite' ? '7 days' : 'one hour' },
+        )),
       });
     } catch {
       emailed = false;

@@ -23,6 +23,8 @@ const EXACT: Record<string, string> = {
   'PUT /v1/settings/me/:key': 'Changed a personal preference',
   'POST /v1/files': 'Uploaded a file',
   'DELETE /v1/files/:id': 'Deleted a file',
+  'mail.template_saved': 'Changed the wording of an email',
+  'mail.template_reset': 'Put an email back to its default wording',
   'support.session_started': 'Platform support opened your company',
   'support.session_ended': 'Platform support session ended',
   'platform.tenant_created': 'Company set up by the platform team',

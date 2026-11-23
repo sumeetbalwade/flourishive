@@ -16,6 +16,7 @@ import {
   runInTenant,
 } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
+import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { StorageService } from '../../platform/storage/storage.service.js';
 import { AccessService } from '../access/access.service.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -34,6 +35,7 @@ export class DeliveryService {
     private readonly files: FilesService,
     private readonly storage: StorageService,
     private readonly mail: MailService,
+    private readonly templates: EmailTemplatesService,
     private readonly settings: SettingsService,
     private readonly access: AccessService,
     private readonly audit: AuditService,
@@ -139,14 +141,16 @@ export class DeliveryService {
       event: 'letter.delivery',
       tenantId: a.tenantId,
       to,
-      subject: `Your letter: ${doc.reference}`,
-      text: `Hello ${name},\n\nYour letter (${doc.reference}) is ready. Open this private link to see it${
-        held ? '' : ' and download it'
-      }:\n${link}\n${
-        held
-          ? '\nThe download opens once you have joined the organisation.\n'
-          : ''
-      }\nThe link works until ${expiresAt.toDateString()}. Do not forward it.`,
+      ...(await this.templates.render('letter.delivery', a.tenantId, {
+        name,
+        reference: doc.reference,
+        link,
+        action: held ? 'see it' : 'see it and download it',
+        note: held
+          ? 'The download opens once you have joined the organisation.'
+          : '',
+        expires: expiresAt.toDateString(),
+      })),
       fromName: await this.settings.get('branding.emailSenderName', {
         tenantId: a.tenantId,
       }),

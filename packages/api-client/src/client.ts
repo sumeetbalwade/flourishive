@@ -8,6 +8,12 @@ import {
   senderView,
   testResult,
   deliveriesResponse,
+  templateList,
+  templateView,
+  previewResponse,
+  type SaveTemplateBody,
+  type PreviewTemplateBody,
+  type TestTemplateBody,
   type SaveSenderBody,
   type DeliveryQuery,
   type AccountAction,
@@ -471,6 +477,23 @@ export function createApiClient(opts: Opts) {
       deliveries: (query: Partial<DeliveryQuery> = {}) =>
         http.request('GET', '/mail/deliveries', { query, schema: deliveriesResponse }),
       resend: (id: string) => http.request('POST', `/mail/deliveries/${id}/resend`),
+      /** Reword the emails (D-59). */
+      templates: {
+        list: () => http.request('GET', '/mail/templates', { schema: templateList }),
+        get: (event: string) =>
+          http.request('GET', `/mail/templates/${event}`, { schema: templateView }),
+        save: (event: string, body: SaveTemplateBody) =>
+          http.request('PUT', `/mail/templates/${event}`, { json: body, schema: templateView }),
+        reset: (event: string) =>
+          http.request('DELETE', `/mail/templates/${event}`, { schema: templateView }),
+        preview: (event: string, body: PreviewTemplateBody) =>
+          http.request('POST', `/mail/templates/${event}/preview`, {
+            json: body,
+            schema: previewResponse,
+          }),
+        test: (event: string, body: TestTemplateBody) =>
+          http.request('POST', `/mail/templates/${event}/test`, { json: body }),
+      },
     },
 
     audit: {

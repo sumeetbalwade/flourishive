@@ -7,6 +7,7 @@ import {
   KeyRound,
   Mail,
   MailCheck,
+  MailPlus,
   Settings,
   LayoutTemplate,
   Stamp,
@@ -82,6 +83,13 @@ const NAV: Item[] = [
     icon: ShieldCheck,
     group: 'Administration',
     needs: 'roles.read',
+  },
+  {
+    id: 'email-templates',
+    label: 'Email wording',
+    icon: MailPlus,
+    group: 'Administration',
+    needs: 'email.manage',
   },
   {
     id: 'email',

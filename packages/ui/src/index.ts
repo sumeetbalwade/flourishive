@@ -30,6 +30,13 @@ export {
   type DeliveryItem,
   type DeliveriesResponse,
 } from './components/email-log.tsx';
+export {
+  EmailTemplates,
+  type EmailTemplatesApi,
+  type TemplateDetail,
+  type TemplateListEntry,
+  type TemplatePreview,
+} from './components/email-templates.tsx';
 export { PasskeysCard, type PasskeyItem } from './components/passkeys-card.tsx';
 export { CollapsibleSection } from './components/collapsible-section.tsx';
 export { SearchBox } from './components/search-box.tsx';

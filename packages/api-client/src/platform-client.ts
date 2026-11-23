@@ -6,6 +6,12 @@ import {
   passkeyView,
   senderState,
   deliveriesResponse,
+  templateList,
+  templateView,
+  previewResponse,
+  type SaveTemplateBody,
+  type PreviewTemplateBody,
+  type TestTemplateBody,
   type DeliveryQuery,
   type AccountAction,
   platformRolesResponse,
@@ -172,6 +178,26 @@ export function createPlatformClient(opts: Opts) {
       deliveries: (query: Partial<DeliveryQuery> = {}) =>
         http.request('GET', '/platform/mail/deliveries', { query, schema: deliveriesResponse }),
       resend: (id: string) => http.request('POST', `/platform/mail/deliveries/${id}/resend`),
+      /** Reword the emails (D-59). */
+      templates: {
+        list: () => http.request('GET', '/platform/mail/templates', { schema: templateList }),
+        get: (event: string) =>
+          http.request('GET', `/platform/mail/templates/${event}`, { schema: templateView }),
+        save: (event: string, body: SaveTemplateBody) =>
+          http.request('PUT', `/platform/mail/templates/${event}`, {
+            json: body,
+            schema: templateView,
+          }),
+        reset: (event: string) =>
+          http.request('DELETE', `/platform/mail/templates/${event}`, { schema: templateView }),
+        preview: (event: string, body: PreviewTemplateBody) =>
+          http.request('POST', `/platform/mail/templates/${event}/preview`, {
+            json: body,
+            schema: previewResponse,
+          }),
+        test: (event: string, body: TestTemplateBody) =>
+          http.request('POST', `/platform/mail/templates/${event}/test`, { json: body }),
+      },
       tenantSender: (tenantId: string) =>
         http.request('GET', `/platform/mail/tenants/${tenantId}/sender`, { schema: senderState }),
       removeTenantSender: (tenantId: string) =>

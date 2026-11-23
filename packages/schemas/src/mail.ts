@@ -123,3 +123,72 @@ export const deliveriesResponse = z.object({
 });
 export type DeliveryItem = z.infer<typeof deliveryItem>;
 export type DeliveriesResponse = z.infer<typeof deliveriesResponse>;
+
+/** Email wording (D-59). */
+export const templateSource = z.enum(['company', 'platform', 'default']);
+
+export const templateListItem = z.object({
+  event: z.string(),
+  label: z.string(),
+  description: z.string(),
+  source: templateSource,
+  /** The platform has locked this email's wording, so a company cannot change it. */
+  locked: z.boolean(),
+  /** A company may not reword this one (platform-owned or locked). */
+  readOnly: z.boolean(),
+  updatedAt: z.string().nullable(),
+});
+export type TemplateListItem = z.infer<typeof templateListItem>;
+export const templateList = z.object({ items: z.array(templateListItem) });
+
+export const templateVariable = z.object({
+  name: z.string(),
+  description: z.string(),
+  sample: z.string(),
+});
+
+export const templateView = z.object({
+  event: z.string(),
+  label: z.string(),
+  description: z.string(),
+  source: templateSource,
+  locked: z.boolean(),
+  readOnly: z.boolean(),
+  subject: z.string(),
+  body: z.string(),
+  defaultSubject: z.string(),
+  defaultBody: z.string(),
+  variables: z.array(templateVariable),
+  required: z.array(z.string()),
+  updatedAt: z.string().nullable(),
+});
+export type TemplateView = z.infer<typeof templateView>;
+
+export const saveTemplateBody = z.object({
+  subject: z.string().trim().min(1, 'Enter a subject').max(300),
+  body: z.string().trim().min(1, 'Enter the message').max(8000),
+  /** Platform only: stop companies from rewording this email. */
+  locked: z.boolean().optional(),
+});
+export type SaveTemplateBody = z.infer<typeof saveTemplateBody>;
+
+export const previewTemplateBody = z.object({
+  subject: z.string().max(300).optional(),
+  body: z.string().max(8000).optional(),
+  scheme: z.enum(['light', 'dark']).default('light'),
+});
+export type PreviewTemplateBody = z.infer<typeof previewTemplateBody>;
+
+export const previewResponse = z.object({
+  subject: z.string(),
+  html: z.string(),
+  text: z.string(),
+  problems: z.array(z.string()),
+});
+export type PreviewResponse = z.infer<typeof previewResponse>;
+
+export const testTemplateBody = z.object({
+  subject: z.string().max(300).optional(),
+  body: z.string().max(8000).optional(),
+});
+export type TestTemplateBody = z.infer<typeof testTemplateBody>;
