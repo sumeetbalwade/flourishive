@@ -732,6 +732,45 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { enabled: true },
   },
+  CustomFieldDefinition: {
+    delegate: 'customFieldDefinition',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        entityType: 'PERSON',
+        key: 'blood_group',
+        label: 'Blood group',
+        type: 'TEXT',
+      },
+    }),
+    change: { label: 'Blood type' },
+  },
+  CustomFieldValue: {
+    delegate: 'customFieldValue',
+    create: async (tenantId) => {
+      const def = await runAsSystem(
+        async () =>
+          await db.customFieldDefinition.create({
+            data: {
+              tenantId,
+              entityType: 'PERSON',
+              key: `cfv_${crypto.randomUUID().slice(0, 8)}`,
+              label: 'V',
+              type: 'TEXT',
+            },
+          }),
+      );
+      return {
+        data: {
+          tenantId,
+          definitionId: def.id,
+          entityId: (await newPerson(tenantId)).id,
+          value: 'A+',
+        },
+      };
+    },
+    change: { value: 'B+' },
+  },
   BillingProfile: {
     delegate: 'billingProfile',
     create: async (tenantId) => ({

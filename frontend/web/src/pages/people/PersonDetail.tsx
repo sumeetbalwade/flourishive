@@ -12,6 +12,7 @@ import {
 } from '@flourishive/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
+import { CustomFieldsCard } from '../../components/CustomFieldsCard.tsx';
 import { AccountCard } from '../../components/AccountCard.tsx';
 import { useApi } from '../../lib/api.tsx';
 import { useAuth } from '../../lib/auth.tsx';
@@ -156,6 +157,18 @@ export function PersonDetail({ id }: { id: string }) {
         {p.person.userId && auth.can('users.manage') ? (
           <AccountCard userId={p.person.userId} />
         ) : null}
+        <CustomFieldsCard
+          entityType="PERSON"
+          entityId={p.personId}
+          title="Personal fields"
+          canWrite={canWrite}
+        />
+        <CustomFieldsCard
+          entityType="ENGAGEMENT"
+          entityId={p.id}
+          title="Engagement fields"
+          canWrite={canWrite}
+        />
         {p.type === 'INTERN' ? (
           <Card>
             <CardTitle>Internship</CardTitle>

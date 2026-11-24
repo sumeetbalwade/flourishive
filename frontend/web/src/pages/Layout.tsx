@@ -14,6 +14,7 @@ import {
   MailPlus,
   Palette,
   Settings,
+  ListPlus,
   CreditCard,
   LayoutTemplate,
   Stamp,
@@ -110,6 +111,13 @@ const NAV: Item[] = [
     icon: ShieldCheck,
     group: 'Access',
     needs: 'roles.read',
+  },
+  {
+    id: 'custom-fields',
+    label: 'Custom fields',
+    icon: ListPlus,
+    group: 'Company',
+    needs: 'custom_fields.manage',
   },
   {
     id: 'domains',

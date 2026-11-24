@@ -1,0 +1,60 @@
+enum CustomFieldEntity {
+  PERSON
+  ENGAGEMENT
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+  FILE
+}
+
+/// A field a company adds to people or engagements (D-29). `key` never changes once created.
+model CustomFieldDefinition {
+  id              String            @id @default(uuid(7)) @db.Char(36)
+  tenantId        String            @db.Char(36)
+  entityType      CustomFieldEntity
+  key             String            @db.VarChar(40)
+  label           String            @db.VarChar(80)
+  helpText        String            @default("") @db.VarChar(200)
+  type            CustomFieldType
+  /// SELECT: the choices, as a JSON list of strings.
+  options         Json?
+  required        Boolean           @default(false)
+  /// Role keys that may see the field. Null: everyone who can see the record. Tenant admins always can.
+  visibleToRoles  Json?
+  /// Role keys that may change the field. Null: everyone who can edit the record. Tenant admins always can.
+  editableByRoles Json?
+  sortOrder       Int               @default(0)
+  archived        Boolean           @default(false)
+  createdAt       DateTime          @default(now()) @db.DateTime(3)
+  updatedAt       DateTime          @updatedAt @db.DateTime(3)
+
+  tenant Tenant             @relation(fields: [tenantId], references: [id])
+  values CustomFieldValue[]
+
+  @@unique([tenantId, entityType, key])
+  @@index([tenantId, entityType])
+  @@map("custom_field_definitions")
+}
+
+/// One field's value for one person or engagement.
+model CustomFieldValue {
+  id           String   @id @default(uuid(7)) @db.Char(36)
+  tenantId     String   @db.Char(36)
+  definitionId String   @db.Char(36)
+  entityId     String   @db.Char(36)
+  /// Text, number, date (YYYY-MM-DD), the chosen option, or a file id.
+  value        Json
+  updatedBy    String?  @db.Char(36)
+  updatedAt    DateTime @updatedAt @db.DateTime(3)
+
+  tenant     Tenant                @relation(fields: [tenantId], references: [id])
+  definition CustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@unique([definitionId, entityId])
+  @@index([tenantId, entityId])
+  @@map("custom_field_values")
+}
