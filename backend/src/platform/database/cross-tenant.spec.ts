@@ -732,6 +732,18 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { enabled: true },
   },
+  Payment: {
+    delegate: 'payment',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        gatewayPaymentId: `pay_${tenantId}`,
+        amount: 100,
+        status: 'CAPTURED',
+      },
+    }),
+    change: { status: 'REFUNDED' },
+  },
   Subscription: {
     delegate: 'subscription',
     create: async (tenantId) => ({

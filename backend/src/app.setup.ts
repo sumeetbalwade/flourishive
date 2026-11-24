@@ -42,6 +42,16 @@ export function configureApp(app: INestApplication): void {
     exposedHeaders: ['X-Request-Id'],
   });
 
+  // Webhooks are signed over the exact bytes sent, so keep them next to the parsed JSON.
+  (app as NestExpressApplication).useBodyParser('json', {
+    verify: (
+      req: { url?: string; rawBody?: Buffer },
+      _res: unknown,
+      buf: Buffer,
+    ) => {
+      if (req.url?.includes('/webhooks/')) req.rawBody = buf;
+    },
+  } as never);
   // Raw CSV uploads (people import) arrive as text/csv.
   (app as NestExpressApplication).useBodyParser('text', {
     type: 'text/csv',

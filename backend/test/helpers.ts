@@ -13,6 +13,7 @@ export async function deleteTenantData(
     await prisma.db.tenantDomain.deleteMany({ where });
     await prisma.db.tenantFeature.deleteMany({ where });
     await prisma.db.subscription.deleteMany({ where });
+    await prisma.db.payment.deleteMany({ where });
     await prisma.db.tenantUsageDaily.deleteMany({ where });
     await prisma.db.notificationRule.deleteMany({ where });
     await prisma.db.passwordHistory.deleteMany({ where });

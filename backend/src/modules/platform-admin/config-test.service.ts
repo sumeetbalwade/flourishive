@@ -50,6 +50,8 @@ export class ConfigTestService {
           return await this.fileStorage();
         case 'Addresses':
           return await this.addresses();
+        case 'Razorpay':
+          return await this.razorpay();
       }
     } catch (e) {
       return fail(asText(e));
@@ -106,6 +108,33 @@ export class ConfigTestService {
       );
     return ok(
       `Cloudflare gave access to the zone ${body.result?.name ?? zone}.`,
+    );
+  }
+
+  private async razorpay(): Promise<TestResult> {
+    const [id, secret, hook] = await Promise.all([
+      this.runtime.get('RAZORPAY_KEY_ID'),
+      this.runtime.get('RAZORPAY_KEY_SECRET'),
+      this.runtime.get('RAZORPAY_WEBHOOK_SECRET'),
+    ]);
+    if (!id || !secret)
+      return fail('Set both the key ID and the key secret first.');
+    const res = await fetch('https://api.razorpay.com/v1/plans?count=1', {
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`,
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = (await res.json().catch(() => null)) as {
+      error?: { description?: string };
+    } | null;
+    if (!res.ok)
+      return fail(
+        `Razorpay said: ${body?.error?.description ?? `HTTP ${res.status}`}`,
+      );
+    const mode = id.startsWith('rzp_live_') ? 'LIVE' : 'test';
+    return ok(
+      `Razorpay accepted the keys (${mode} mode).${hook ? '' : ' The webhook secret is not set yet, so payment updates will be refused.'}`,
     );
   }
 

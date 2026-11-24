@@ -92,3 +92,50 @@ export const planLimitError = z.object({
   message: z.string(),
 });
 export type PlanLimitError = z.infer<typeof planLimitError>;
+
+export const billingInterval = z.enum(['MONTHLY', 'YEARLY']);
+export type BillingInterval = z.infer<typeof billingInterval>;
+
+export const checkoutBody = z.object({
+  planId: z.string().uuid(),
+  interval: billingInterval,
+});
+export type CheckoutBody = z.infer<typeof checkoutBody>;
+
+/** What the browser needs to open the payment window. */
+export const checkoutView = z.object({
+  subscriptionId: z.string(),
+  keyId: z.string(),
+  name: z.string(),
+  description: z.string(),
+});
+export type CheckoutView = z.infer<typeof checkoutView>;
+
+export const confirmBody = z.object({
+  razorpay_payment_id: z.string().min(1).max(80),
+  razorpay_subscription_id: z.string().min(1).max(80),
+  razorpay_signature: z.string().min(1).max(200),
+});
+export type ConfirmBody = z.infer<typeof confirmBody>;
+
+export const paymentView = z.object({
+  id: z.string(),
+  amount: z.number().int(),
+  currency: z.string(),
+  status: z.enum(['CAPTURED', 'FAILED', 'REFUNDED']),
+  method: z.string().nullable(),
+  failureReason: z.string().nullable(),
+  at: z.string(),
+});
+export type PaymentView = z.infer<typeof paymentView>;
+
+/** The company's billing state beyond limits: interval, renewal, whether payment is possible. */
+export const billingState = z.object({
+  paymentsEnabled: z.boolean(),
+  interval: billingInterval.nullable(),
+  renewsAt: z.string().nullable(),
+  cancelAtPeriodEnd: z.boolean(),
+  hasSubscription: z.boolean(),
+  payments: z.array(paymentView),
+});
+export type BillingState = z.infer<typeof billingState>;

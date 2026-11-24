@@ -7,6 +7,7 @@ export const INTEGRATION_SECTIONS = [
   'Error tracking',
   'File storage',
   'Addresses',
+  'Razorpay',
 ].map((label) => ({ id: slugOf(label), label }));
 
 export function slugOf(group: string): string {

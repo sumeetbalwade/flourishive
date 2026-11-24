@@ -47,21 +47,85 @@ model PlanLimit {
 
 /// Which plan a company is on, and any limits the super admin raised or lowered for it.
 model Subscription {
-  id                 String             @id @default(uuid(7)) @db.Char(36)
-  tenantId           String             @unique @db.Char(36)
-  planId             String             @db.Char(36)
-  status             SubscriptionStatus @default(ACTIVE)
+  id                    String             @id @default(uuid(7)) @db.Char(36)
+  tenantId              String             @unique @db.Char(36)
+  planId                String             @db.Char(36)
+  status                SubscriptionStatus @default(ACTIVE)
   /// { "users": 50, "storage_mb": null } replaces the plan's value for that metric (null is unlimited).
-  limitOverrides     Json?
-  currentPeriodStart DateTime?          @db.DateTime(3)
-  currentPeriodEnd   DateTime?          @db.DateTime(3)
-  updatedBy          String?            @db.Char(36)
-  createdAt          DateTime           @default(now()) @db.DateTime(3)
-  updatedAt          DateTime           @updatedAt @db.DateTime(3)
+  limitOverrides        Json?
+  currentPeriodStart    DateTime?          @db.DateTime(3)
+  currentPeriodEnd      DateTime?          @db.DateTime(3)
+  /// MONTHLY or YEARLY, for the paid plan.
+  billingInterval       BillingInterval?
+  gatewaySubscriptionId String?            @unique @db.VarChar(64)
+  /// Cancelled at the gateway; the plan stays until the paid period ends.
+  cancelAtPeriodEnd     Boolean            @default(false)
+  /// The plan the company is moving to once the checkout completes.
+  pendingPlanId         String?            @db.Char(36)
+  updatedBy             String?            @db.Char(36)
+  createdAt             DateTime           @default(now()) @db.DateTime(3)
+  updatedAt             DateTime           @updatedAt @db.DateTime(3)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   plan   Plan   @relation(fields: [planId], references: [id])
 
   @@index([planId])
   @@map("subscriptions")
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+/// The plan we created at the gateway for one of our plans, interval and price.
+model GatewayPlanRef {
+  id            String          @id @default(uuid(7)) @db.Char(36)
+  planId        String          @db.Char(36)
+  interval      BillingInterval
+  amount        Int
+  gatewayPlanId String          @db.VarChar(64)
+  createdAt     DateTime        @default(now()) @db.DateTime(3)
+
+  @@unique([planId, interval, amount])
+  @@map("gateway_plan_refs")
+}
+
+enum PaymentStatus {
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+/// One payment attempt at the gateway for a company's subscription.
+model Payment {
+  id               String        @id @default(uuid(7)) @db.Char(36)
+  tenantId         String        @db.Char(36)
+  gatewayPaymentId String        @unique @db.VarChar(64)
+  amount           Int
+  currency         String        @default("INR") @db.VarChar(3)
+  status           PaymentStatus
+  method           String?       @db.VarChar(30)
+  failureReason    String?       @db.VarChar(300)
+  paidAt           DateTime?     @db.DateTime(3)
+  createdAt        DateTime      @default(now()) @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@map("payments")
+}
+
+/// Every webhook the gateway sent, once. The gateway event id makes handling idempotent.
+model BillingEvent {
+  id             String    @id @default(uuid(7)) @db.Char(36)
+  gatewayEventId String    @unique @db.VarChar(80)
+  type           String    @db.VarChar(60)
+  payload        Json
+  processedAt    DateTime? @db.DateTime(3)
+  error          String?   @db.VarChar(500)
+  createdAt      DateTime  @default(now()) @db.DateTime(3)
+
+  @@index([type, createdAt])
+  @@map("billing_events")
 }

@@ -1,4 +1,8 @@
 import {
+  billingState,
+  checkoutBody,
+  checkoutView,
+  confirmBody,
   planView,
   subscriptionView,
   accountActionResult,
@@ -553,6 +557,12 @@ export function createApiClient(opts: Opts) {
     billing: {
       plan: () => http.request('GET', '/billing/plan', { schema: subscriptionView }),
       plans: () => http.request('GET', '/billing/plans', { schema: z.array(planView) }),
+      state: () => http.request('GET', '/billing/state', { schema: billingState }),
+      checkout: (body: z.input<typeof checkoutBody>) =>
+        http.request('POST', '/billing/checkout', { json: body, schema: checkoutView }),
+      confirm: (body: z.input<typeof confirmBody>) =>
+        http.request('POST', '/billing/confirm', { json: body, schema: billingState }),
+      cancel: () => http.request('POST', '/billing/cancel', { schema: billingState }),
     },
     setupChecklist: () => http.request('GET', '/setup/checklist', { schema: setupChecklist }),
     maintenance: () =>
