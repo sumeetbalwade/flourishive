@@ -714,6 +714,57 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { width: 99 },
   },
+  LogRequest: {
+    delegate: 'logRequest',
+    create: async (tenantId) => ({
+      data: {
+        requestId: 'r1',
+        tenantId,
+        method: 'GET',
+        routePattern: '/x',
+        status: 200,
+        durationMs: 1,
+      },
+    }),
+    change: { status: 500 },
+  },
+  LogError: {
+    delegate: 'logError',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        errorCode: 'X',
+        message: 'm',
+        story: 's',
+        fingerprint: crypto
+          .randomUUID()
+          .replaceAll('-', '')
+          .padEnd(40, '0')
+          .slice(0, 40),
+      },
+    }),
+    change: { message: 'hacked' },
+  },
+  LogSignin: {
+    delegate: 'logSignin',
+    create: async (tenantId) => ({
+      data: { tenantId, emailHash: 'a'.repeat(64), outcome: 'SUCCESS' },
+    }),
+    change: { outcome: 'LOCKED' },
+  },
+  AlertSubscription: {
+    delegate: 'alertSubscription',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        subscriberType: 'USER',
+        subscriberId: crypto.randomUUID(),
+        event: 'ERROR_SPIKE',
+        delivery: 'INSTANT',
+      },
+    }),
+    change: { delivery: 'OFF' },
+  },
   EmailTemplate: {
     delegate: 'emailTemplate',
     create: async (tenantId) => ({
