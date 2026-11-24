@@ -1,6 +1,7 @@
 import type { ConfigTestResult, RuntimeConfigEntry } from '@flourishive/schemas';
 import {
   Badge,
+  brand,
   Button,
   CollapsibleSection,
   EmptyState,
@@ -324,6 +325,20 @@ export function Integrations({ section }: { section?: string }) {
                   onDiscard={() => discard(group)}
                   actions={<TestButton group={group} />}
                 >
+                  {group === 'Razorpay' ? (
+                    <div className="mb-3 rounded-lg bg-surface-2 p-3 text-sm text-muted">
+                      <p>
+                        In Razorpay, open Account &amp; Settings, Webhooks, add a webhook with this
+                        address and the secret you save below:
+                      </p>
+                      <code className="mt-1 block break-all text-fg">{`${brand.apiUrl.replace(/\/$/, '')}/v1/webhooks/razorpay`}</code>
+                      <p className="mt-2">
+                        Tick these events: subscription.activated, subscription.charged,
+                        subscription.pending, subscription.halted, subscription.cancelled,
+                        subscription.completed.
+                      </p>
+                    </div>
+                  ) : null}
                   {items.map((e) => (
                     <Row
                       key={e.key}

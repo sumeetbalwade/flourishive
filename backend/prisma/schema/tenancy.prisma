@@ -33,6 +33,7 @@ model Tenant {
   features            TenantFeature[]
   usageDaily          TenantUsageDaily[]
   subscription        Subscription?
+  payments            Payment[]
   brandAssets         BrandAsset[]
   notificationRules   NotificationRule[]
   auditChainHead      AuditChainHead?

@@ -7,7 +7,8 @@ export type RuntimeGroup =
   | 'Time-stamping'
   | 'Error tracking'
   | 'File storage'
-  | 'Addresses';
+  | 'Addresses'
+  | 'Razorpay';
 
 export interface RuntimeKeyDefinition {
   label: string;
@@ -162,6 +163,33 @@ export const RUNTIME_KEYS = {
     schema: text,
     hint: 'A private bucket',
     restartRequired: true,
+  },
+  RAZORPAY_KEY_ID: {
+    label: 'Razorpay key ID',
+    group: 'Razorpay',
+    kind: 'text',
+    schema: z
+      .string()
+      .trim()
+      .regex(
+        /^rzp_(test|live)_[A-Za-z0-9]+$/,
+        'Expected rzp_test_… or rzp_live_…',
+      ),
+    hint: 'From Razorpay Dashboard, Account & Settings, API keys. Use a rzp_test_ key until you go live',
+  },
+  RAZORPAY_KEY_SECRET: {
+    label: 'Razorpay key secret',
+    group: 'Razorpay',
+    kind: 'secret',
+    schema: z.string().min(8).max(200),
+    hint: 'Shown by Razorpay once when the key is created. Stored encrypted',
+  },
+  RAZORPAY_WEBHOOK_SECRET: {
+    label: 'Razorpay webhook secret',
+    group: 'Razorpay',
+    kind: 'secret',
+    schema: z.string().min(8).max(200),
+    hint: 'The secret you type when adding the webhook in Razorpay. Stored encrypted',
   },
   TENANT_URL_TEMPLATE: {
     label: 'Company address pattern',

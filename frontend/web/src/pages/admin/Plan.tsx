@@ -1,6 +1,9 @@
 import { LIMIT_METRICS } from '@flourishive/schemas';
-import { Badge, Card, CardTitle, Skeleton } from '@flourishive/ui';
-import { useQuery } from '@tanstack/react-query';
+import { Badge, Button, Card, CardTitle, Skeleton, useToast } from '@flourishive/ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useAuth } from '../../lib/auth.tsx';
+import { payWithRazorpay } from '../../lib/razorpay.ts';
 import { useApi } from '../../lib/api.tsx';
 import { messageOf } from '../../lib/errors.ts';
 import { Layout } from '../Layout.tsx';
@@ -56,6 +59,51 @@ export function Plan() {
   const api = useApi();
   const sub = useQuery({ queryKey: ['billing-plan'], queryFn: () => api.billing.plan() });
   const plans = useQuery({ queryKey: ['billing-plans'], queryFn: () => api.billing.plans() });
+  const state = useQuery({ queryKey: ['billing-state'], queryFn: () => api.billing.state() });
+  const can = useAuth().can;
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const canPay = can('settings.manage') && state.data?.paymentsEnabled;
+  const refresh = () =>
+    Promise.all(
+      ['billing-plan', 'billing-state', 'billing-plans'].map((k) =>
+        qc.invalidateQueries({ queryKey: [k] }),
+      ),
+    );
+
+  async function pay(planId: string, interval: 'MONTHLY' | 'YEARLY') {
+    setBusy(`${planId}:${interval}`);
+    setError('');
+    try {
+      const c = await api.billing.checkout({ planId, interval });
+      const proof = await payWithRazorpay(c);
+      if (proof) {
+        await api.billing.confirm(proof);
+        toast({ title: 'Payment received. Your plan is updated.', tone: 'success' });
+      }
+      await refresh();
+    } catch (e) {
+      setError(messageOf(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function cancel() {
+    setBusy('cancel');
+    setError('');
+    try {
+      await api.billing.cancel();
+      toast({ title: 'Subscription will end at the close of the paid period', tone: 'success' });
+      await refresh();
+    } catch (e) {
+      setError(messageOf(e));
+    } finally {
+      setBusy(null);
+    }
+  }
   return (
     <Layout active="plan" title="Plan and usage">
       {sub.isPending ? (
@@ -85,6 +133,42 @@ export function Plan() {
               ))}
             </div>
           </Card>
+          {error ? (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          ) : null}
+          {state.data && !state.data.paymentsEnabled ? (
+            <p className="text-sm text-muted">
+              Online payment is not switched on yet. Contact support to change your plan.
+            </p>
+          ) : null}
+          {state.data?.hasSubscription ? (
+            <Card>
+              <CardTitle>Subscription</CardTitle>
+              <p className="mt-2 text-sm text-muted">
+                Billed {state.data.interval === 'YEARLY' ? 'yearly' : 'monthly'}.{' '}
+                {state.data.cancelAtPeriodEnd ? 'It ends' : 'It renews'} on{' '}
+                {state.data.renewsAt
+                  ? new Date(state.data.renewsAt).toLocaleDateString()
+                  : 'the next billing date'}
+                .
+              </p>
+              {can('settings.manage') && !state.data.cancelAtPeriodEnd ? (
+                <div className="mt-3">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={busy === 'cancel'}
+                    disabled={busy !== null}
+                    onClick={() => void cancel()}
+                  >
+                    Cancel subscription
+                  </Button>
+                </div>
+              ) : null}
+            </Card>
+          ) : null}
           {plans.data && plans.data.length > 0 ? (
             <Card>
               <CardTitle>Plans you can choose</CardTitle>
@@ -107,7 +191,49 @@ export function Plan() {
                         </li>
                       ))}
                     </ul>
-                    {p.id === sub.data.plan.id ? <Badge tone="accent">Your plan</Badge> : null}
+                    {p.id === sub.data.plan.id ? (
+                      <Badge tone="accent">Your plan</Badge>
+                    ) : canPay && p.priceMonthly > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          loading={busy === `${p.id}:MONTHLY`}
+                          disabled={busy !== null}
+                          onClick={() => void pay(p.id, 'MONTHLY')}
+                        >
+                          Pay {rupees(p.priceMonthly)} monthly
+                        </Button>
+                        {p.priceYearly > 0 ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            loading={busy === `${p.id}:YEARLY`}
+                            disabled={busy !== null}
+                            onClick={() => void pay(p.id, 'YEARLY')}
+                          >
+                            Pay {rupees(p.priceYearly)} yearly
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+          {state.data && state.data.payments.length > 0 ? (
+            <Card>
+              <CardTitle>Payments</CardTitle>
+              <ul className="mt-3 grid gap-2 text-sm">
+                {state.data.payments.map((p) => (
+                  <li key={p.id} className="flex flex-wrap justify-between gap-2">
+                    <span>{new Date(p.at).toLocaleDateString()}</span>
+                    <span>
+                      {rupees(p.amount)}{' '}
+                      <Badge tone={p.status === 'CAPTURED' ? 'success' : 'danger'}>
+                        {p.status.toLowerCase()}
+                      </Badge>
+                    </span>
                   </li>
                 ))}
               </ul>
