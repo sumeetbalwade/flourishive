@@ -7,6 +7,8 @@ import { AuditInterceptor } from '../audit/audit.interceptor.js';
 import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
+import { SsoController } from './sso.controller.js';
+import { SsoService } from './sso.service.js';
 import { GoogleService } from './google.service.js';
 import { MfaService } from './mfa.service.js';
 import { OtpService } from './otp.service.js';
@@ -23,10 +25,11 @@ import { TokenService } from './token.service.js';
 
 @Module({
   imports: [AccessModule, SettingsModule],
-  controllers: [AuthController],
+  controllers: [AuthController, SsoController],
   providers: [
     AuthService,
     GoogleService,
+    SsoService,
     MfaService,
     OtpService,
     PasswordService,

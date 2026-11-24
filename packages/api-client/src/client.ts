@@ -1,4 +1,7 @@
 import {
+  ssoConfigBody,
+  ssoConfigView,
+  ssoOptions,
   customFieldBody,
   customFieldValuesView,
   customFieldView,
@@ -269,6 +272,26 @@ export function createApiClient(opts: Opts) {
         adopt(
           await http.request('POST', '/auth/login', {
             json: body,
+            schema: loginResponse,
+            auth: false,
+          }),
+        ),
+      ssoOptions: (tenant: string) =>
+        http.request('GET', '/auth/sso/options', {
+          query: { tenant },
+          schema: ssoOptions,
+          auth: false,
+        }),
+      ssoStart: (tenant: string) =>
+        http.request('POST', '/auth/sso/start', {
+          json: { tenant },
+          schema: z.object({ url: z.string() }),
+          auth: false,
+        }),
+      ssoExchange: async (ticket: string) =>
+        adopt(
+          await http.request('POST', '/auth/sso/exchange', {
+            json: { ticket },
             schema: loginResponse,
             auth: false,
           }),
@@ -639,6 +662,14 @@ export function createApiClient(opts: Opts) {
         } = {},
       ) => http.request('GET', '/audit', { query, schema: auditListResponse }),
       verify: () => http.request('GET', '/audit/verify', { schema: chainCheck }),
+    },
+
+    /** The company's own single sign-on connection (D-16). */
+    sso: {
+      config: () => http.request('GET', '/sso/config', { schema: ssoConfigView.nullable() }),
+      save: (body: z.input<typeof ssoConfigBody>) =>
+        http.request('PUT', '/sso/config', { json: body, schema: ssoConfigView }),
+      remove: () => http.request('DELETE', '/sso/config'),
     },
 
     /** Custom fields on people and engagements (D-29). */

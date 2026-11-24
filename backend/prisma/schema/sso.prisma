@@ -1,0 +1,27 @@
+enum SsoProvider {
+  GOOGLE
+  MICROSOFT
+}
+
+/// A company's own single sign-on connection (D-16). Google Workspace or Microsoft 365, through OpenID Connect.
+/// The company registers its own app with the provider; its secret is kept encrypted.
+model SsoConnection {
+  id              String      @id @default(uuid(7)) @db.Char(36)
+  tenantId        String      @unique @db.Char(36)
+  provider        SsoProvider
+  clientId        String      @db.VarChar(200)
+  clientSecretEnc String      @db.Text
+  /// Microsoft only: the directory (tenant) id or primary domain the company's accounts live in.
+  directoryId     String?     @db.VarChar(120)
+  /// Google only: the Workspace domain that must appear in the sign-in (the "hd" claim).
+  hostedDomain    String?     @db.VarChar(120)
+  enabled         Boolean     @default(false)
+  /// Everyone except tenant admins (kept as a way back in) must use single sign-on.
+  enforce         Boolean     @default(false)
+  updatedBy       String?     @db.Char(36)
+  updatedAt       DateTime    @updatedAt @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("sso_connections")
+}

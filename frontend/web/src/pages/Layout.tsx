@@ -14,6 +14,7 @@ import {
   MailPlus,
   Palette,
   Settings,
+  LogIn,
   ListPlus,
   CreditCard,
   LayoutTemplate,
@@ -111,6 +112,13 @@ const NAV: Item[] = [
     icon: ShieldCheck,
     group: 'Access',
     needs: 'roles.read',
+  },
+  {
+    id: 'sso',
+    label: 'Single sign-on',
+    icon: LogIn,
+    group: 'Access',
+    needs: 'settings.read',
   },
   {
     id: 'custom-fields',

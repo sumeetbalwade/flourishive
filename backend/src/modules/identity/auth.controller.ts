@@ -49,6 +49,7 @@ import { DomainsService } from '../domains/domains.service.js';
 import { RequireStepUp, StepUpService } from './step-up.service.js';
 import { relyingPartyFrom, type RelyingParty } from './passkey.service.js';
 import { ZodPipe } from './zod.pipe.js';
+import { SsoService } from './sso.service.js';
 
 const COOKIE = 'fh_refresh';
 /** Holds the secret of a remembered device (D-64). httpOnly and SameSite=Strict. */
@@ -64,6 +65,7 @@ export class AuthController {
     private readonly runtime: RuntimeConfigService,
     private readonly stepUps: StepUpService,
     private readonly domains: DomainsService,
+    private readonly sso: SsoService,
   ) {}
 
   /**
@@ -176,6 +178,30 @@ export class AuthController {
       req,
       res,
       await this.auth.login(b, this.meta(req), req.cookies?.[DEVICE_COOKIE]),
+    );
+  }
+
+  /** Finishes a single sign-on: swaps the one-time ticket from the redirect for a session. */
+  @Public()
+  @Post('sso/exchange')
+  @HttpCode(200)
+  async ssoExchange(
+    @Body(body(z.object({ ticket: z.string().min(10).max(100) })))
+    b: { ticket: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const who = await this.sso.redeem(b.ticket);
+    if (!who) throw new UnauthorizedException('The sign-in link has expired');
+    return this.respondLogin(
+      req,
+      res,
+      await this.auth.completeSso(
+        who.tenantId,
+        who.userId,
+        this.meta(req),
+        req.cookies?.[DEVICE_COOKIE],
+      ),
     );
   }
 

@@ -771,6 +771,18 @@ const fixtures: Record<string, Fixture> = {
     },
     change: { value: 'B+' },
   },
+  SsoConnection: {
+    delegate: 'ssoConnection',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        provider: 'GOOGLE',
+        clientId: 'x.apps.googleusercontent.com',
+        clientSecretEnc: 'enc',
+      },
+    }),
+    change: { enabled: true },
+  },
   BillingProfile: {
     delegate: 'billingProfile',
     create: async (tenantId) => ({
