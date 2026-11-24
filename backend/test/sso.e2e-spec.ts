@@ -142,13 +142,11 @@ describe('single sign-on (D-16)', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ ...body, clientSecret: undefined, enforce: true })
       .expect(200);
-    const emp = await http()
-      .post('/v1/auth/login')
-      .send({
-        tenant: 'sso-a',
-        email: 'emp@sso-a.test',
-        password: 'correct horse battery',
-      });
+    const emp = await http().post('/v1/auth/login').send({
+      tenant: 'sso-a',
+      email: 'emp@sso-a.test',
+      password: 'correct horse battery',
+    });
     expect(emp.status).toBe(403);
     expect(emp.body.code).toBe('SSO_REQUIRED');
     expect(employeeId).toBeTruthy();
