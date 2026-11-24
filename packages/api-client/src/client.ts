@@ -8,6 +8,8 @@ import {
   senderView,
   testResult,
   alertSubscriptionsResponse,
+  ruleMatrix,
+  type SaveRulesBody,
   errorLogResponse,
   jobLogResponse,
   requestLogResponse,
@@ -523,6 +525,12 @@ export function createApiClient(opts: Opts) {
         http.request('GET', `/logs/trace/${encodeURIComponent(requestId)}/copy`, {
           schema: supportCopy,
         }),
+    },
+    /** Who is told about which event (D-69). */
+    notificationRules: {
+      get: () => http.request('GET', '/notification-rules', { schema: ruleMatrix }),
+      save: (body: SaveRulesBody) =>
+        http.request('PUT', '/notification-rules', { json: body, schema: ruleMatrix }),
     },
     alerts: {
       list: () => http.request('GET', '/alerts', { schema: alertSubscriptionsResponse }),

@@ -1,6 +1,7 @@
 import { AppShell, BrandMark, brand, type Command, type NavItem } from '@flourishive/ui';
 import {
   Bell,
+  BellRing,
   Building2,
   ScrollText,
   ClipboardList,
@@ -108,6 +109,13 @@ const NAV: Item[] = [
     icon: Mail,
     group: 'Administration',
     needs: 'email.manage',
+  },
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    icon: BellRing,
+    group: 'Administration',
+    needs: 'settings.read',
   },
   {
     id: 'company',

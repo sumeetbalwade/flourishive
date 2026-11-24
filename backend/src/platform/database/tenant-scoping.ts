@@ -51,6 +51,8 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'EmailTemplate',
   'BrandProfile',
   'BrandAsset',
+  'PasswordHistory',
+  'NotificationRule',
   'LogRequest',
   'LogError',
   'LogSignin',

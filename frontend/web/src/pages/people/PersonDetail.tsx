@@ -23,6 +23,7 @@ import { PersonForm } from './PersonForm.tsx';
 import { AccessCard } from '../../components/AccessCard.tsx';
 import { StatusBadge } from '../../components/StatusBadge.tsx';
 import { fmtDate, fullName } from '../../lib/format.ts';
+import { fmtDateTime } from '@flourishive/ui';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -182,7 +183,7 @@ export function PersonDetail({ id }: { id: string }) {
                       <span className="text-faint">· {h.actorType.toLowerCase()}</span>
                     </span>
                     <time className="text-faint" dateTime={h.createdAt}>
-                      {new Date(h.createdAt).toLocaleString('en-IN')}
+                      {fmtDateTime(h.createdAt)}
                     </time>
                   </li>
                 ))}

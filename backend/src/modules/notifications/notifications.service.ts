@@ -104,12 +104,18 @@ export class NotificationsService implements OnModuleInit {
     event: E,
     toEmail: string,
     vars: TemplateVars<E>,
+    opts: { delayMs?: number } = {},
   ): Promise<string> {
     // A queued job would have to carry the private link; send those inline with sendNow.
     if (SENSITIVE_EVENTS.has(event))
       throw new Error(`${event} must be sent with sendNow`);
     const n = await this.create(tenantId, event, toEmail, vars);
-    await this.jobs.enqueue(tenantId, SEND_JOB, { notificationId: n.id });
+    await this.jobs.enqueue(
+      tenantId,
+      SEND_JOB,
+      { notificationId: n.id },
+      opts.delayMs,
+    );
     return n.id;
   }
 

@@ -8,6 +8,7 @@ import {
 import { z } from 'zod';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { AuthService } from '../identity/auth.service.js';
 import { AccessService } from '../access/access.service.js';
 import type { AccessClaims } from '../identity/token.service.js';
@@ -36,7 +37,22 @@ export class PeopleService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly auth: AuthService,
+    private readonly settings: SettingsService,
   ) {}
+
+  /** When the company limits email domains (D-69), an address outside them is refused. */
+  private async assertDomain(tenantId: string, email?: string | null) {
+    if (!email) return;
+    const allowed = await this.settings.get('signin.allowedEmailDomains', {
+      tenantId,
+    });
+    if (allowed.length === 0) return;
+    const domain = email.split('@')[1]?.toLowerCase() ?? '';
+    if (!allowed.includes(domain))
+      throw new BadRequestException(
+        `Email addresses must end in ${allowed.map((d) => `@${d}`).join(' or ')}`,
+      );
+  }
 
   private async assertEntity(
     a: Auth,
@@ -213,6 +229,7 @@ export class PeopleService {
     const current = await this.get(a, id);
     await this.assertEntity(a, 'people.write', current.entityId);
     const e = body.engagement;
+    await this.assertDomain(a.tenantId, body.person?.workEmail);
     return runInTenant(a.tenantId, async () => {
       await this.assertRefs(this.prisma.db, e ?? {});
       if (e?.managerId === id)
@@ -272,6 +289,7 @@ export class PeopleService {
     await this.assertEntity(a, 'people.write', eng.entityId);
     const email = eng.person.workEmail;
     if (!email) throw new BadRequestException('Add a work email first');
+    await this.assertDomain(a.tenantId, email);
     if (eng.person.userId)
       throw new ConflictException('This person already has an account');
 

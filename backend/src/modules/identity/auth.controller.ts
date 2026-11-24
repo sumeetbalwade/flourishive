@@ -376,7 +376,11 @@ export class AuthController {
       .cookies;
     const presented = cookies?.[COOKIE] ?? b.refreshToken;
     if (!presented) throw new UnauthorizedException('Missing refresh token');
-    return this.respondTokens(req, res, await this.auth.refresh(presented));
+    return this.respondTokens(
+      req,
+      res,
+      await this.auth.refresh(presented, this.meta(req)),
+    );
   }
 
   @Post('logout')

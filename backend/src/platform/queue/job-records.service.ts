@@ -21,6 +21,7 @@ export class JobRecordsService {
     tenantId: string,
     name: string,
     payload: object,
+    delayMs = 0,
   ): Promise<string> {
     // Remember which request asked for this job, so a trace can show it.
     const requestId = currentRequestId();
@@ -32,13 +33,19 @@ export class JobRecordsService {
       tenantId,
       async () =>
         await this.prisma.db.jobRecord.create({
-          data: { tenantId, name, payload: stored },
+          data: {
+            tenantId,
+            name,
+            payload: stored,
+            // The reconciler only re-queues a job once its time has passed.
+            runAt: new Date(Date.now() + delayMs),
+          },
         }),
     );
     await this.queue.enqueue(
       name,
       { tenantId, ...stored },
-      { jobId: record.id },
+      { jobId: record.id, delayMs: delayMs || undefined },
     );
     return record.id;
   }

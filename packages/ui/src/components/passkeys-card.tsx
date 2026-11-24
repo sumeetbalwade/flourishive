@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Badge } from './badge.tsx';
 import { Button } from './button.tsx';
 import { Card, CardTitle } from './card.tsx';
+import { fmtDateTime } from '../format.ts';
 
 export interface PasskeyItem {
   id: string;
@@ -11,7 +12,7 @@ export interface PasskeyItem {
   lastUsedAt: string;
 }
 
-const day = (iso: string) => new Date(iso).toLocaleDateString('en-IN');
+const day = (iso: string) => fmtDateTime(iso);
 
 /**
  * Passkeys on My security (D-64): add one (Touch ID, Face ID, Windows Hello or a security key) and

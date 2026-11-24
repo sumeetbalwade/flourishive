@@ -451,7 +451,9 @@ _Built: `nestjs-pino` stdout lines, `log_requests`/`log_errors`/`log_signins`/`a
 
 ### PR 9 — Company configuration: region, sign-in rules, notification rules (D-69)
 
-- [ ] Region and formats (settings, tenant level, entity override where noted):
+_Built: region settings with `fmtDate`/`fmtDateTime`/`fmtNumber`/`fmtMoney` in `packages/ui/src/format.ts` (web and admin call them; direct `toLocale*` calls removed); password mix, expiry (blocks sign-in with “Forgot password”) and history (`password_history`); idle sign-out with a one-minute warning; allowed email domains (people create/update/invite); admin network allowlist (checked at sign-in before any second step, and on refresh); `notification_rules` with three events (letter issued, signer declined, approval reminder), reminders from `notifications.reminderHours`, and quiet hours that delay the queued job. In-app channel is stored but there is no in-app inbox yet, so the matrix is email only. Entity-level overrides exist in the registry but have no screen yet._
+
+- [x] Region and formats (settings, tenant level, entity override where noted):
   - `region.timeZone` (default Asia/Kolkata; entity)
   - `region.dateFormat` (`DD MMM YYYY`, `DD/MM/YYYY`, `YYYY-MM-DD`)
   - `region.numberGrouping` (Indian / international)
@@ -459,14 +461,14 @@ _Built: `nestjs-pino` stdout lines, `log_requests`/`log_errors`/`log_signins`/`a
   - `region.fyStartMonth` (April default; entity)
   - `region.weekStart`
   - Web and admin `lib/format.ts` read them: dates, numbers and money everywhere use the helpers. Find and replace direct `toLocaleString` and `Intl` calls.
-- [ ] Sign-in rules:
+- [x] Sign-in rules:
   - `security.passwordRequireMix` (letters + digits + symbol)
   - `security.passwordExpiryDays` (0 = never)
   - `security.passwordHistory` (0 to 10, using new table `password_history` of hashes)
   - `security.idleTimeoutMinutes` (web signs out after inactivity, with a 1-minute warning dialog)
   - `signin.allowedEmailDomains` (list; invites and email changes outside it are refused)
   - `signin.adminIpAllowlist` (list of CIDRs, applied to roles with any `*.manage` permission; checked at sign-in and on refresh; the super admin can always bypass through a support session)
-- [ ] Notification rules:
+- [x] Notification rules:
   - Data: `notification_rules` (`tenantId`, `event`, `roleKey` or `SUBJECT` meaning the person concerned, `channel` `EMAIL|IN_APP`, `enabled`)
   - `notifications.reminderHours` (list, e.g. 24 and 72)
   - `notifications.quietHours` (`{ start, end }` in the tenant time zone; non-urgent mail is held until the end; OTP, reset and security mail are never held)

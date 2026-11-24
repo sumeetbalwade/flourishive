@@ -38,6 +38,7 @@ import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
 } from '@simplewebauthn/server';
+import { PasswordPolicyService } from './password-policy.service.js';
 import { LogWriterService } from '../logs/log-writer.service.js';
 import { ThrottleService } from './throttle.service.js';
 import {
@@ -101,6 +102,7 @@ export class AuthService {
     private readonly runtime: RuntimeConfigService,
     private readonly passkeys: PasskeyService,
     private readonly signinLog: LogWriterService,
+    private readonly policy: PasswordPolicyService,
   ) {}
 
   private async tenantIdFor(slug: string): Promise<string | null> {
@@ -147,6 +149,8 @@ export class AuthService {
     via: 'password' | 'google',
     trustedToken?: string,
   ): Promise<LoginResult> {
+    // An administrator outside the company's approved networks is stopped before any second step.
+    await this.sessions.assertAdminNetwork(user.tenantId, user.id, meta.ip);
     const scope = { kind: 'tenant' as const, tenantId: user.tenantId };
     // A passkey is a second factor too, and it satisfies a REQUIRED two-step policy.
     const hasPasskey = (await this.passkeys.count(scope, user.id)) > 0;
@@ -303,6 +307,24 @@ export class AuthService {
       throw new UnauthorizedException(INVALID);
     }
     await this.throttle.clear('login', `acct:${acct}`);
+    const days = await this.settings.get('security.passwordExpiryDays', {
+      tenantId: user.tenantId,
+    });
+    if (days > 0) {
+      const set =
+        (
+          user as UserRow & {
+            passwordChangedAt?: Date | null;
+            createdAt?: Date;
+          }
+        ).passwordChangedAt ?? (user as { createdAt?: Date }).createdAt;
+      if (set && Date.now() - set.getTime() > days * 86_400_000)
+        throw new ForbiddenException({
+          message:
+            'Your password has expired. Choose “Forgot password” to set a new one.',
+          code: 'PASSWORD_EXPIRED',
+        });
+    }
     return this.afterFirstFactor(user, meta, 'password', trustedToken);
   }
 
@@ -722,8 +744,8 @@ export class AuthService {
     return { tenantId: c.tenantId, userId: c.userId };
   }
 
-  refresh(token: string) {
-    return this.sessions.rotate(token);
+  refresh(token: string, meta: ClientMeta = {}) {
+    return this.sessions.rotate(token, meta);
   }
 
   logout(who: Principal, sessionId: string) {
@@ -1013,17 +1035,24 @@ export class AuthService {
         tenantId: claim.tenantId,
       }),
     );
+    await this.policy.check(claim.tenantId, claim.userId, input.password);
     if ((await this.redis.del(key)) !== 1)
       throw new BadRequestException(
         'This reset link is invalid or has expired',
       );
     const passwordHash = await this.passwords.hash(input.password);
+    const before = await this.findUser(claim.tenantId, { id: claim.userId });
     await runInTenant(claim.tenantId, async () => {
       await this.prisma.db.user.update({
         where: { id: claim.userId },
-        data: { passwordHash, status: 'ACTIVE' },
+        data: { passwordHash, status: 'ACTIVE', passwordChangedAt: new Date() },
       });
     });
+    await this.policy.remember(
+      claim.tenantId,
+      claim.userId,
+      before?.passwordHash ?? null,
+    );
     await this.sessions.revokeAll(claim.tenantId, claim.userId);
     await this.auditUser(
       claim.tenantId,

@@ -394,9 +394,15 @@ export class AlertsService {
 
   // ----------------------------------------------------------------- digest
 
-  /** The subscriber's time zone. A company's own zone arrives with the region settings (Phase 2B PR 9). */
-  private zoneFor(_tenantId: string | null): Promise<string> {
-    return Promise.resolve(DEFAULT_ZONE);
+  /** The subscriber's time zone: their company's, or India for platform staff. */
+  private async zoneFor(tenantId: string | null): Promise<string> {
+    try {
+      return tenantId
+        ? await this.settings.get('region.timeZone', { tenantId })
+        : DEFAULT_ZONE;
+    } catch {
+      return DEFAULT_ZONE;
+    }
   }
 
   /** Sends each digest subscriber one summary after 08:00 their time, once a day. */

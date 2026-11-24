@@ -714,6 +714,30 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { width: 99 },
   },
+  PasswordHistory: {
+    delegate: 'passwordHistory',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        userId: (await newUser(tenantId)).id,
+        hash: 'x'.repeat(40),
+      },
+    }),
+    change: { hash: 'hacked' },
+  },
+  NotificationRule: {
+    delegate: 'notificationRule',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        event: 'letter.issued',
+        roleKey: 'hr_lead',
+        channel: 'EMAIL',
+        enabled: true,
+      },
+    }),
+    change: { enabled: false },
+  },
   LogRequest: {
     delegate: 'logRequest',
     create: async (tenantId) => ({

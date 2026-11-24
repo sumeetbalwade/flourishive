@@ -7,6 +7,7 @@ import { AuditWatchService } from './modules/platform-admin/audit-watch.service.
 import { StaffActionsService } from './modules/platform-admin/staff-actions.service.js';
 import { PlatformAuthService } from './modules/platform-admin/platform-auth.service.js';
 import { AlertsService } from './modules/logs/alerts.service.js';
+import { RemindersService } from './modules/notifications/reminders.service.js';
 import { LogsService } from './modules/logs/logs.service.js';
 import { JobHandlerRegistry } from './platform/queue/job-handlers.js';
 import { JobRecordsService } from './platform/queue/job-records.service.js';
@@ -148,6 +149,8 @@ async function main() {
     console.log(
       `Alerts sent: ${alerts.raised}; daily summaries sent: ${alerts.digests}`,
     );
+  const reminders = await app.get(RemindersService).tick();
+  if (reminders) console.log(`Reminders sent: ${reminders}`);
   await purgeLogsOncePerNight(app.get(LogsService), app.get(RedisService));
   const handlers = app.get(JobHandlerRegistry);
   const jobRecords = app.get(JobRecordsService);

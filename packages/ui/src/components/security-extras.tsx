@@ -5,6 +5,7 @@ import { Button } from './button.tsx';
 import { Card, CardTitle } from './card.tsx';
 import { Dialog, DialogContent } from './dialog.tsx';
 import { Field, Input } from './input.tsx';
+import { fmtDateTime } from '../format.ts';
 
 export interface SecurityData {
   mfaEnabled: boolean;
@@ -21,7 +22,7 @@ export interface SecurityData {
   }[];
 }
 
-const day = (iso: string) => new Date(iso).toLocaleDateString('en-IN');
+const day = (iso: string) => fmtDateTime(iso);
 
 /**
  * The parts of My security that follow the role's policy (D-64, D-65): remembered devices with revoke,

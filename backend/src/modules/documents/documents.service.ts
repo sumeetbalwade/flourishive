@@ -16,6 +16,7 @@ import { StorageService } from '../../platform/storage/storage.service.js';
 import { AccessService } from '../access/access.service.js';
 import { WorkflowService } from '../workflow/workflow.service.js';
 import { DocAccess, type Actor } from './doc-access.service.js';
+import { NotificationRulesService } from '../notifications/notification-rules.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { FilesService } from '../files/files.service.js';
 import { LETTER_FLOW_KEY } from '../workflow/definition.js';
@@ -41,6 +42,7 @@ export class DocumentsService {
     private readonly workflow: WorkflowService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly runtime: RuntimeConfigService,
+    private readonly rules: NotificationRulesService,
   ) {}
 
   async generate(
@@ -153,6 +155,11 @@ export class DocumentsService {
       entityType: 'document',
       entityId: doc.id,
       meta: { reference, letterType: template.letterType },
+    });
+    // People the company's notification rules choose are told, without holding up the reply.
+    void this.rules.notify(a.tenantId, 'letter.issued', {
+      subject: `Letter ${reference} was created`,
+      text: `Letter ${reference} (${template.letterType}) was created. Open Letters to see it.`,
     });
     return doc;
   }

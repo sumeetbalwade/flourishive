@@ -7,6 +7,7 @@ import { Button } from './button.tsx';
 import { Dialog, DialogContent } from './dialog.tsx';
 import { Field } from './input.tsx';
 import { item as menuItem, panel as menuPanel } from './popover-styles.ts';
+import { fmtDateTime } from '../format.ts';
 
 export type AccountActionName =
   | 'reset-password'
@@ -60,7 +61,7 @@ const COPY: Record<AccountActionName, { label: string; what: string; danger?: bo
 };
 
 const tone = { ACTIVE: 'success', INVITED: 'warning', DISABLED: 'danger' } as const;
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('en-IN') : 'Never');
+const when = (iso: string | null) => (iso ? fmtDateTime(iso) : 'Never');
 
 /**
  * One account at a glance with an Actions menu (D-63). Every action asks for a reason; the person is

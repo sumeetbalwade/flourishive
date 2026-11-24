@@ -453,6 +453,10 @@ const NO_TENANT_DATA: Record<string, string> = {
     'every lookup is pinned to the signed-in company, so another company’s request id finds nothing',
   'GET /logs/trace/:requestId/copy':
     'every lookup is pinned to the signed-in company',
+  'GET /notification-rules':
+    'the signed-in company only (tenantId from the token)',
+  'PUT /notification-rules':
+    'the signed-in company only (tenantId from the token)',
   'GET /alerts': 'the signed-in person’s own subscriptions',
   'PUT /alerts': 'the signed-in person’s own subscriptions',
   'GET /mail/sender': 'the signed-in company only (tenantId from the token)',

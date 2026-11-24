@@ -28,6 +28,7 @@ import { EmailSender } from './pages/admin/EmailSender.tsx';
 import { Brand } from './pages/admin/Brand.tsx';
 import { EmailLog } from './pages/admin/EmailLog.tsx';
 import { Alerts } from './pages/admin/Alerts.tsx';
+import { Notifications } from './pages/admin/Notifications.tsx';
 import { Logs } from './pages/admin/Logs.tsx';
 import { EmailTemplates } from './pages/admin/EmailTemplates.tsx';
 import { Org } from './pages/org/Org.tsx';
@@ -36,6 +37,7 @@ import { PersonDetail } from './pages/people/PersonDetail.tsx';
 import { People } from './pages/people/People.tsx';
 import { Security } from './pages/Security.tsx';
 const Signing = lazy(() => import('./pages/Signing.tsx').then((m) => ({ default: m.Signing })));
+import { SessionWatch } from './components/SessionWatch.tsx';
 import { go, useRoute } from './router.ts';
 
 /** Permission each real screen needs; the API enforces the same, this only avoids dead ends. */
@@ -51,6 +53,7 @@ const NEEDS: Record<string, string | undefined> = {
   '/app/brand': 'brand.manage',
   '/app/email-log': 'email.manage',
   '/app/logs': 'logs.read',
+  '/app/notifications': 'settings.read',
   '/app/alerts': 'logs.read',
   '/app/email-templates': 'email.manage',
   '/app/letters': 'documents.read',
@@ -109,6 +112,7 @@ function Routes() {
   else if (path === '/app/brand') page = <Brand />;
   else if (path === '/app/email-log') page = <EmailLog />;
   else if (path === '/app/logs') page = <Logs />;
+  else if (path === '/app/notifications') page = <Notifications />;
   else if (path === '/app/alerts') page = <Alerts />;
   else if (path === '/app/email-templates') page = <EmailTemplates />;
   else if (path === '/app/security') page = <Security />;
@@ -155,9 +159,11 @@ export default function App({
         <ToastProvider>
           <StepUpHost>
             <AuthProvider>
-              <Suspense fallback={<PageLoader fullscreen />}>
-                <Routes />
-              </Suspense>
+              <SessionWatch>
+                <Suspense fallback={<PageLoader fullscreen />}>
+                  <Routes />
+                </Suspense>
+              </SessionWatch>
             </AuthProvider>
           </StepUpHost>
         </ToastProvider>

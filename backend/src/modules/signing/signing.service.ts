@@ -15,6 +15,7 @@ import {
   runAsSystem,
   runInTenant,
 } from '../../platform/database/tenant-context.js';
+import { NotificationRulesService } from '../notifications/notification-rules.service.js';
 import { MailService } from '../../platform/mail/mail.service.js';
 import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { StorageService } from '../../platform/storage/storage.service.js';
@@ -64,6 +65,7 @@ export class SigningService {
     private readonly otp: OtpService,
     private readonly redis: RedisService,
     private readonly mail: MailService,
+    private readonly rules: NotificationRulesService,
     private readonly templates: EmailTemplatesService,
     private readonly settings: SettingsService,
     private readonly workflow: WorkflowService,
@@ -340,6 +342,11 @@ export class SigningService {
       'signing_failed',
       { asSystem: true },
     );
+    if (status === 'DECLINED' || status === 'EXPIRED')
+      void this.rules.notify(tenantId, 'letter.declined', {
+        subject: `A signing request was ${status === 'DECLINED' ? 'declined' : 'not answered in time'}`,
+        text: `A request to sign a letter was ${status === 'DECLINED' ? 'declined' : 'not answered before it expired'}. Open Letters to see what to do next.`,
+      });
   }
 
   // --------------------------------------------------------------- person side

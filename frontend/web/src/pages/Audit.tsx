@@ -18,6 +18,7 @@ import { useApi } from '../lib/api.tsx';
 import { describeAction } from '../lib/audit-labels.ts';
 import { messageOf } from '../lib/errors.ts';
 import { Layout } from './Layout.tsx';
+import { fmtDateTime } from '@flourishive/ui';
 
 export function Audit() {
   const api = useApi();
@@ -92,9 +93,7 @@ export function Audit() {
                     {s.mode === 'WRITE' ? 'Could change' : 'View only'}
                   </Badge>
                   {s.active ? <Badge tone="success">Open now</Badge> : null}
-                  <span className="ml-auto text-xs text-faint">
-                    {new Date(s.startedAt).toLocaleString('en-IN')}
-                  </span>
+                  <span className="ml-auto text-xs text-faint">{fmtDateTime(s.startedAt)}</span>
                 </div>
                 <p className="mt-1 text-muted">“{s.reason}”</p>
               </li>
@@ -143,9 +142,7 @@ export function Audit() {
             <TBody>
               {list.data.items.map((r) => (
                 <TR key={r.seq}>
-                  <TD className="whitespace-nowrap text-xs">
-                    {new Date(r.createdAt).toLocaleString('en-IN')}
-                  </TD>
+                  <TD className="whitespace-nowrap text-xs">{fmtDateTime(r.createdAt)}</TD>
                   <TD title={r.action}>{describeAction(r.action)}</TD>
                   <TD>
                     <Badge tone={r.actorType === 'USER' ? 'neutral' : 'accent'}>

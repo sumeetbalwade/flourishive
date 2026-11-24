@@ -6,6 +6,7 @@ import { Input } from './input.tsx';
 import { Select } from './select.tsx';
 import { Skeleton } from './skeleton.tsx';
 import { Table, TBody, TD, TH, THead, TR } from './table.tsx';
+import { fmtDateTime } from '../format.ts';
 
 export interface DeliveryItem {
   id: string;
@@ -148,9 +149,7 @@ export function EmailLog({
             <TBody>
               {data.items.map((r) => (
                 <TR key={r.id}>
-                  <TD className="whitespace-nowrap text-xs">
-                    {new Date(r.createdAt).toLocaleString('en-IN')}
-                  </TD>
+                  <TD className="whitespace-nowrap text-xs">{fmtDateTime(r.createdAt)}</TD>
                   {showCompany ? <TD>{r.tenantName ?? 'Platform'}</TD> : null}
                   <TD title={r.event}>{describeMailEvent(r.event)}</TD>
                   <TD className="font-mono text-xs">{r.to}</TD>

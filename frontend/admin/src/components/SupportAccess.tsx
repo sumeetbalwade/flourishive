@@ -16,8 +16,9 @@ import { useState } from 'react';
 import { useApi } from '../lib/api.tsx';
 import { useCan } from '../lib/auth.tsx';
 import { messageOf } from '../lib/errors.ts';
+import { fmtDateTime } from '@flourishive/ui';
 
-const when = (iso: string) => new Date(iso).toLocaleString('en-IN');
+const when = (iso: string) => fmtDateTime(iso);
 
 /** "Open as support" (D-56): a reason, a mode and a time limit, then the company opens in a new tab. */
 export function OpenAsSupport({ tenantId }: { tenantId: string }) {

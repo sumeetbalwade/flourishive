@@ -4,6 +4,7 @@ import { cn } from '../cn.ts';
 import { Button } from './button.tsx';
 import { Input } from './input.tsx';
 import { Select } from './select.tsx';
+import { fmtDateTime } from '../format.ts';
 import { Switch } from './switch.tsx';
 
 export type SettingKind =
@@ -187,9 +188,7 @@ function SecretControl({
           ••••••••••
         </span>
         <span className="text-xs text-faint">
-          {secret?.updatedAt
-            ? `set ${new Date(secret.updatedAt).toLocaleDateString()}`
-            : 'set in the server file'}
+          {secret?.updatedAt ? `set ${fmtDateTime(secret.updatedAt)}` : 'set in the server file'}
         </span>
         <Button
           size="sm"

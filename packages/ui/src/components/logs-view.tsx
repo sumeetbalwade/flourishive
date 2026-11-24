@@ -19,6 +19,7 @@ import { Skeleton } from './skeleton.tsx';
 import { Table, TBody, TD, TH, THead, TR } from './table.tsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs.tsx';
 import { useToast } from './toast.tsx';
+import { fmtDateTime } from '../format.ts';
 
 /** Filters live in the web address so a view can be shared; the host app keeps them there. */
 export type LogParams = Record<string, string | undefined>;
@@ -43,7 +44,7 @@ export interface LogsViewProps {
   readError: (e: unknown) => string;
 }
 
-const when = (iso: string) => new Date(iso).toLocaleString('en-IN');
+const when = (iso: string) => fmtDateTime(iso);
 
 /** Loads once per key; shows loading and error states. */
 function useLoad<T>(load: () => Promise<T>, key: string, readError: (e: unknown) => string) {

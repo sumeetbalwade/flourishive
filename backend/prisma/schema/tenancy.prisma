@@ -30,6 +30,7 @@ model Tenant {
   emailTemplates      EmailTemplate[]
   brandProfiles       BrandProfile[]
   brandAssets         BrandAsset[]
+  notificationRules   NotificationRule[]
   auditChainHead      AuditChainHead?
   files               File[]
   notifications       Notification[]
