@@ -1,4 +1,6 @@
 import {
+  invoiceLinkView,
+  invoiceView,
   planBody,
   assignPlanBody,
   planView,
@@ -415,6 +417,14 @@ export function createPlatformClient(opts: Opts) {
       subscription: (tenantId: string) =>
         http.request('GET', `/platform/tenants/${tenantId}/subscription`, {
           schema: subscriptionView,
+        }),
+      invoices: (tenantId: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/invoices`, {
+          schema: z.array(invoiceView),
+        }),
+      invoiceLink: (tenantId: string, id: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/invoices/${id}/link`, {
+          schema: invoiceLinkView,
         }),
       assign: (tenantId: string, body: z.input<typeof assignPlanBody>) =>
         http.request('PUT', `/platform/tenants/${tenantId}/subscription`, {

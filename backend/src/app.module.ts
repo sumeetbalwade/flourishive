@@ -16,6 +16,7 @@ import { FilesModule } from './modules/files/files.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { CompanyModule } from './modules/company/company.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
+import { BillingOpsModule } from './modules/billing/billing-ops.module.js';
 import { ControlsModule } from './modules/controls/controls.module.js';
 import { DomainsModule } from './modules/domains/domains.module.js';
 import { AccessModule } from './modules/access/access.module.js';
@@ -60,6 +61,7 @@ import { StorageModule } from './platform/storage/storage.module.js';
     DesktopModule,
     ControlsModule,
     BillingModule,
+    BillingOpsModule,
   ],
   controllers: [HealthController],
 })

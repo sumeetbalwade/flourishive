@@ -1,11 +1,12 @@
 import { LIMIT_METRICS } from '@flourishive/schemas';
-import { Badge, Button, Card, CardTitle, Skeleton, useToast } from '@flourishive/ui';
+import { Badge, brand, Button, Card, CardTitle, Skeleton, useToast } from '@flourishive/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useAuth } from '../../lib/auth.tsx';
 import { payWithRazorpay } from '../../lib/razorpay.ts';
 import { useApi } from '../../lib/api.tsx';
 import { messageOf } from '../../lib/errors.ts';
+import { BillingDetails } from './BillingDetails.tsx';
 import { Layout } from '../Layout.tsx';
 
 const rupees = (paise: number) =>
@@ -57,15 +58,21 @@ function Meter({
 /** The company's plan, what it allows and how much is used (D-20). */
 export function Plan() {
   const api = useApi();
+  const can = useAuth().can;
   const sub = useQuery({ queryKey: ['billing-plan'], queryFn: () => api.billing.plan() });
   const plans = useQuery({ queryKey: ['billing-plans'], queryFn: () => api.billing.plans() });
+  const invoices = useQuery({
+    queryKey: ['billing-invoices'],
+    queryFn: () => api.billing.invoices(),
+    enabled: can('settings.read'),
+  });
   const state = useQuery({ queryKey: ['billing-state'], queryFn: () => api.billing.state() });
-  const can = useAuth().can;
   const toast = useToast();
   const qc = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const canPay = can('settings.manage') && state.data?.paymentsEnabled;
+  const canPay =
+    can('settings.manage') && state.data?.paymentsEnabled && state.data.profileComplete;
   const refresh = () =>
     Promise.all(
       ['billing-plan', 'billing-state', 'billing-plans'].map((k) =>
@@ -137,6 +144,24 @@ export function Plan() {
             <p role="alert" className="text-sm text-danger">
               {error}
             </p>
+          ) : null}
+          {sub.data.status === 'PAST_DUE' || sub.data.status === 'READ_ONLY' ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm"
+            >
+              {sub.data.status === 'READ_ONLY'
+                ? 'Your account is read-only because a payment is overdue. Pay to switch editing back on.'
+                : `A payment did not go through.${
+                    state.data?.graceEndsAt
+                      ? ` Fix it by ${new Date(state.data.graceEndsAt).toLocaleDateString()} to avoid read-only mode.`
+                      : ''
+                  }`}
+            </div>
+          ) : null}
+          {can('settings.read') ? <BillingDetails canEdit={can('settings.manage')} /> : null}
+          {state.data?.paymentsEnabled && !state.data.profileComplete ? (
+            <p className="text-sm text-muted">Save your billing details to unlock payment.</p>
           ) : null}
           {state.data && !state.data.paymentsEnabled ? (
             <p className="text-sm text-muted">
@@ -233,6 +258,38 @@ export function Plan() {
                       <Badge tone={p.status === 'CAPTURED' ? 'success' : 'danger'}>
                         {p.status.toLowerCase()}
                       </Badge>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+          {invoices.data && invoices.data.length > 0 ? (
+            <Card>
+              <CardTitle>Invoices</CardTitle>
+              <ul className="mt-3 grid gap-2 text-sm">
+                {invoices.data.map((i) => (
+                  <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      {i.number}{' '}
+                      <span className="text-muted">
+                        {new Date(i.issuedAt).toLocaleDateString()}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-3">
+                      {rupees(i.total)}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          void api.billing
+                            .invoiceLink(i.id)
+                            .then((l) => window.open(`${brand.apiUrl}${l.url}`, '_blank'))
+                            .catch((e) => setError(messageOf(e)))
+                        }
+                      >
+                        Download PDF
+                      </Button>
                     </span>
                   </li>
                 ))}

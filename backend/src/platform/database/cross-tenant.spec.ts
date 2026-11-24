@@ -732,6 +732,37 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { enabled: true },
   },
+  BillingProfile: {
+    delegate: 'billingProfile',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        legalName: 'Acme Pvt Ltd',
+        address: '1 Main Road',
+        stateCode: '27',
+        billingEmail: 'bill@acme.test',
+      },
+    }),
+    change: { legalName: 'Acme Limited' },
+  },
+  Invoice: {
+    delegate: 'invoice',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        paymentId: `00000000-0000-7000-8000-${tenantId.slice(-12)}`,
+        number: `T/${tenantId}`,
+        description: 'Plan',
+        sacCode: '998314',
+        gstRate: 18,
+        taxableValue: 100,
+        total: 118,
+        seller: {},
+        buyer: {},
+      },
+    }),
+    change: { description: 'Changed' },
+  },
   Payment: {
     delegate: 'payment',
     create: async (tenantId) => ({

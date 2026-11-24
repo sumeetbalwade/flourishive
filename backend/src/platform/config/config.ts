@@ -85,6 +85,17 @@ const base = z.object({
     .string()
     .regex(/^[0-9a-f]{32}$/i)
     .optional(),
+  // Billing (D-20, D-21): the seller on GST invoices and the grace periods. Placeholders until the
+  // real entity is known; the super admin changes them from Integrations > Billing.
+  BILLING_SELLER_NAME: z.string().default('Flourishive (test seller)'),
+  BILLING_SELLER_GSTIN: z.string().default('27AAAAA0000A1Z5'),
+  BILLING_SELLER_ADDRESS: z.string().default('Mumbai, Maharashtra, India'),
+  BILLING_SELLER_STATE_CODE: z.string().default('27'),
+  BILLING_INVOICE_PREFIX: z.string().default('FH'),
+  BILLING_SAC_CODE: z.string().default('998314'),
+  BILLING_GST_RATE: z.coerce.number().int().default(18),
+  BILLING_GRACE_DAYS: z.coerce.number().int().default(7),
+  BILLING_SUSPEND_DAYS: z.coerce.number().int().default(30),
   // The server's public IPv4 address that company names point at.
   DNS_TARGET_IP: z.ipv4().optional(),
   // true = traffic goes through Cloudflare's proxy (orange cloud).

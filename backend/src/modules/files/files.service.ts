@@ -146,9 +146,12 @@ export class FilesService {
       name: string;
       ownerType: string;
       ownerId?: string;
+      /** For files the company is owed, such as its own invoices: never refused for lack of space. */
+      skipLimit?: boolean;
     },
   ) {
-    await this.limits.assert(a.tenantId, 'storage_mb', input.body.length);
+    if (!input.skipLimit)
+      await this.limits.assert(a.tenantId, 'storage_mb', input.body.length);
     const id = randomUUID();
     const storageKey = `${a.tenantId}/${new Date().getUTCFullYear()}/${id}`;
     await this.storage.save(storageKey, Readable.from(input.body));

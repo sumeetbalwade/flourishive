@@ -180,7 +180,8 @@ export class Http {
       } catch {
         // not JSON; keep the status text
       }
-      if (res.status === 402 && code === 'PLAN_LIMIT') this.opts.onPlanLimit?.(message);
+      if (res.status === 402 && (code === 'PLAN_LIMIT' || code === 'READ_ONLY'))
+        this.opts.onPlanLimit?.(message);
       throw new ApiError(res.status, message, details, code, requestId);
     }
     if (res.status === 204) return undefined as T;

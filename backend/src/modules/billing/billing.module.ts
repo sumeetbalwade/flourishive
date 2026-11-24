@@ -1,22 +1,14 @@
 import { Global, Module } from '@nestjs/common';
-import { BillingController } from './billing.controller.js';
-import { CheckoutService } from './checkout.service.js';
-import { PAYMENT_GATEWAY } from './gateway/payment-gateway.js';
-import { RazorpayGateway } from './gateway/razorpay.gateway.js';
 import { LimitsService } from './limits.service.js';
 import { PlansService } from './plans.service.js';
-import { BillingWebhookController } from './webhook.controller.js';
 
-/** Plans, limits and paid subscriptions (D-20, D-21). Global so any module can check a limit. */
+/**
+ * Plans and limits (D-20). Global and free of other modules, so files, people and signing can all
+ * check a limit without a module cycle. Payments, invoices and reminders are in BillingOpsModule.
+ */
 @Global()
 @Module({
-  controllers: [BillingController, BillingWebhookController],
-  providers: [
-    LimitsService,
-    PlansService,
-    CheckoutService,
-    { provide: PAYMENT_GATEWAY, useClass: RazorpayGateway },
-  ],
-  exports: [LimitsService, PlansService, CheckoutService, PAYMENT_GATEWAY],
+  providers: [LimitsService, PlansService],
+  exports: [LimitsService, PlansService],
 })
 export class BillingModule {}

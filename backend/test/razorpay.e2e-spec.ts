@@ -131,6 +131,22 @@ const activated = {
 };
 
 describe('Razorpay subscriptions (D-21)', () => {
+  it('asks for billing details before a checkout', async () => {
+    await post('/billing/checkout', token)
+      .send({ planId: starterId, interval: 'MONTHLY' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .put('/v1/billing/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        legalName: 'RZP A Pvt Ltd',
+        address: '1 Main Road, Pune',
+        stateCode: '27',
+        billingEmail: 'accounts@rzp-a.test',
+      })
+      .expect(200);
+  });
+
   it('starts a checkout and refuses a free plan', async () => {
     const r = await post('/billing/checkout', token)
       .send({ planId: starterId, interval: 'MONTHLY' })
@@ -183,6 +199,23 @@ describe('Razorpay subscriptions (D-21)', () => {
     expect(state.payments).toHaveLength(1);
     expect(state.payments[0].amount).toBe(99900);
     expect(state.hasSubscription).toBe(true);
+    const inv = (
+      await request(app.getHttpServer())
+        .get('/v1/billing/invoices')
+        .set('Authorization', `Bearer ${token}`)
+    ).body;
+    expect(inv).toHaveLength(1);
+    expect(inv[0].number).toMatch(/^FH\/\d{4}-\d{2}\/\d{5}$/);
+    expect(inv[0].total).toBe(99900);
+    expect(inv[0].taxableValue + inv[0].cgst + inv[0].sgst + inv[0].igst).toBe(
+      99900,
+    );
+    expect(inv[0].igst).toBe(0);
+    const link = await request(app.getHttpServer())
+      .get(`/v1/billing/invoices/${inv[0].id}/link`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(link.body.url).toContain('/v1/files/');
   });
 
   it('handles a repeated webhook once', async () => {
@@ -192,6 +225,9 @@ describe('Razorpay subscriptions (D-21)', () => {
       prisma.db.payment.count(),
     );
     expect(n).toBe(1);
+    expect(
+      await runInTenant(tenantId, async () => prisma.db.invoice.count()),
+    ).toBe(1);
   });
 
   it('marks a missed charge past due, then falls back to the default plan when it ends', async () => {

@@ -52,6 +52,8 @@ export class ConfigTestService {
           return await this.addresses();
         case 'Razorpay':
           return await this.razorpay();
+        case 'Billing':
+          return await this.billing();
       }
     } catch (e) {
       return fail(asText(e));
@@ -135,6 +137,22 @@ export class ConfigTestService {
     const mode = id.startsWith('rzp_live_') ? 'LIVE' : 'test';
     return ok(
       `Razorpay accepted the keys (${mode} mode).${hook ? '' : ' The webhook secret is not set yet, so payment updates will be refused.'}`,
+    );
+  }
+
+  private async billing(): Promise<TestResult> {
+    const [name, gstin, state, rate] = await Promise.all([
+      this.runtime.get('BILLING_SELLER_NAME'),
+      this.runtime.get('BILLING_SELLER_GSTIN'),
+      this.runtime.get('BILLING_SELLER_STATE_CODE'),
+      this.runtime.get('BILLING_GST_RATE'),
+    ]);
+    if (gstin && state && !gstin.startsWith(state))
+      return fail(
+        `The GSTIN starts with ${gstin.slice(0, 2)} but the state code is ${state}. They must match.`,
+      );
+    return ok(
+      `Invoices will be issued by ${name} (GSTIN ${gstin}) at ${rate}% GST.`,
     );
   }
 

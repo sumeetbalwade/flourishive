@@ -34,6 +34,8 @@ model Tenant {
   usageDaily          TenantUsageDaily[]
   subscription        Subscription?
   payments            Payment[]
+  billingProfile      BillingProfile?
+  invoices            Invoice[]
   brandAssets         BrandAsset[]
   notificationRules   NotificationRule[]
   auditChainHead      AuditChainHead?

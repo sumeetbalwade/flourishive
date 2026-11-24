@@ -8,7 +8,8 @@ export type RuntimeGroup =
   | 'Error tracking'
   | 'File storage'
   | 'Addresses'
-  | 'Razorpay';
+  | 'Razorpay'
+  | 'Billing';
 
 export interface RuntimeKeyDefinition {
   label: string;
@@ -190,6 +191,78 @@ export const RUNTIME_KEYS = {
     kind: 'secret',
     schema: z.string().min(8).max(200),
     hint: 'The secret you type when adding the webhook in Razorpay. Stored encrypted',
+  },
+  BILLING_SELLER_NAME: {
+    label: 'Seller legal name',
+    group: 'Billing',
+    kind: 'text',
+    schema: text,
+    hint: 'The legal entity that sells Flourishive and issues GST invoices',
+  },
+  BILLING_SELLER_GSTIN: {
+    label: 'Seller GSTIN',
+    group: 'Billing',
+    kind: 'text',
+    schema: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/, 'Not a valid GSTIN'),
+    hint: '15 characters, for example 27AAAAA0000A1Z5',
+  },
+  BILLING_SELLER_ADDRESS: {
+    label: 'Seller address',
+    group: 'Billing',
+    kind: 'text',
+    schema: text,
+    hint: 'Printed on every invoice',
+  },
+  BILLING_SELLER_STATE_CODE: {
+    label: 'Seller GST state code',
+    group: 'Billing',
+    kind: 'text',
+    schema: z.string().regex(/^\d{2}$/, 'Two digits, for example 27'),
+    hint: 'Companies in this state pay CGST and SGST; others pay IGST',
+  },
+  BILLING_INVOICE_PREFIX: {
+    label: 'Invoice number prefix',
+    group: 'Billing',
+    kind: 'text',
+    schema: z
+      .string()
+      .regex(
+        /^[A-Z0-9-]{1,10}$/,
+        'Capital letters, digits and dashes, up to 10',
+      ),
+    hint: 'Numbers look like FH/2026-27/00001 and restart each financial year',
+  },
+  BILLING_SAC_CODE: {
+    label: 'SAC code',
+    group: 'Billing',
+    kind: 'text',
+    schema: z.string().regex(/^\d{6}$/, 'Six digits'),
+    hint: 'Service accounting code for the subscription',
+  },
+  BILLING_GST_RATE: {
+    label: 'GST rate (%)',
+    group: 'Billing',
+    kind: 'number',
+    schema: z.number().int().min(0).max(40),
+    hint: 'Plan prices include this tax',
+  },
+  BILLING_GRACE_DAYS: {
+    label: 'Days before read-only after a failed payment',
+    group: 'Billing',
+    kind: 'number',
+    schema: z.number().int().min(0).max(60),
+    hint: 'Reminders go out during this time. After it the company can look but not change anything',
+  },
+  BILLING_SUSPEND_DAYS: {
+    label: 'Days before suspension after a failed payment',
+    group: 'Billing',
+    kind: 'number',
+    schema: z.number().int().min(1).max(180),
+    hint: 'After this the company is suspended until it pays',
   },
   TENANT_URL_TEMPLATE: {
     label: 'Company address pattern',
