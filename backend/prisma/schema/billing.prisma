@@ -62,6 +62,10 @@ model Subscription {
   cancelAtPeriodEnd     Boolean            @default(false)
   /// The plan the company is moving to once the checkout completes.
   pendingPlanId         String?            @db.Char(36)
+  /// When a payment first failed. Drives reminders, read-only mode and suspension.
+  pastDueSince          DateTime?          @db.DateTime(3)
+  lastReminderAt        DateTime?          @db.DateTime(3)
+  reminderCount         Int                @default(0)
   updatedBy             String?            @db.Char(36)
   createdAt             DateTime           @default(now()) @db.DateTime(3)
   updatedAt             DateTime           @updatedAt @db.DateTime(3)
@@ -128,4 +132,58 @@ model BillingEvent {
 
   @@index([type, createdAt])
   @@map("billing_events")
+}
+
+/// Who a company's invoices are made out to. Needed before the first payment.
+model BillingProfile {
+  id           String   @id @default(uuid(7)) @db.Char(36)
+  tenantId     String   @unique @db.Char(36)
+  legalName    String   @db.VarChar(191)
+  /// Optional. A registered buyer's GSTIN lets them claim input credit.
+  gstin        String?  @db.VarChar(15)
+  address      String   @db.VarChar(500)
+  /// GST state code, two digits ("27" Maharashtra). Decides CGST+SGST or IGST.
+  stateCode    String   @db.Char(2)
+  billingEmail String   @db.VarChar(191)
+  updatedAt    DateTime @updatedAt @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("billing_profiles")
+}
+
+/// One tax invoice per captured payment. Amounts are in paise. Seller and buyer are copied in, so
+/// an invoice never changes when someone later edits their details.
+model Invoice {
+  id           String    @id @default(uuid(7)) @db.Char(36)
+  tenantId     String    @db.Char(36)
+  paymentId    String    @unique @db.Char(36)
+  number       String    @unique @db.VarChar(40)
+  description  String    @db.VarChar(300)
+  periodStart  DateTime? @db.DateTime(3)
+  periodEnd    DateTime? @db.DateTime(3)
+  sacCode      String    @db.VarChar(10)
+  gstRate      Int
+  taxableValue Int
+  cgst         Int       @default(0)
+  sgst         Int       @default(0)
+  igst         Int       @default(0)
+  total        Int
+  seller       Json
+  buyer        Json
+  fileId       String?   @db.Char(36)
+  issuedAt     DateTime  @default(now()) @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, issuedAt])
+  @@map("invoices")
+}
+
+/// The last invoice number used in each financial year (April to March), so numbers never skip.
+model InvoiceCounter {
+  fy      String @id @db.VarChar(9)
+  lastSeq Int    @default(0)
+
+  @@map("invoice_counters")
 }

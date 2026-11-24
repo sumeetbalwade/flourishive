@@ -1,3 +1,4 @@
+import { DunningService } from './modules/billing/dunning.service.js';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { StorageMigrateService } from './modules/files/storage-migrate.service.js';
@@ -153,6 +154,8 @@ async function main() {
     );
   const snapped = await app.get(UsageService).nightly();
   if (snapped) console.log(`Usage snapshot written for ${snapped} companies`);
+  const dunned = await app.get(DunningService).tick();
+  if (dunned) console.log(`Billing reminders and status changes: ${dunned}`);
   const checked = await app.get(DomainsService).tick();
   if (checked) console.log(`Custom addresses checked: ${checked}`);
   const reminders = await app.get(RemindersService).tick();

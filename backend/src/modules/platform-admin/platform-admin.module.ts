@@ -31,10 +31,17 @@ import { PlatformTemplatesController } from './platform-templates.controller.js'
 import { PlatformLogsController } from './platform-logs.controller.js';
 import { PlatformControlsController } from './platform-controls.controller.js';
 import { PlatformBillingController } from './platform-billing.controller.js';
+import { BillingOpsModule } from '../billing/billing-ops.module.js';
 import { MailAdminModule } from '../mail/mail-admin.module.js';
 
 @Module({
-  imports: [IdentityModule, AccessModule, SettingsModule, MailAdminModule],
+  imports: [
+    BillingOpsModule,
+    IdentityModule,
+    AccessModule,
+    SettingsModule,
+    MailAdminModule,
+  ],
   controllers: [
     PlatformBillingController,
     PlatformControlsController,

@@ -1,5 +1,15 @@
 import { LIMIT_METRICS, type LimitMap, type LimitMetric } from '@flourishive/schemas';
-import { Badge, Button, Card, CardTitle, Field, Input, Skeleton, useToast } from '@flourishive/ui';
+import {
+  Badge,
+  brand,
+  Button,
+  Card,
+  CardTitle,
+  Field,
+  Input,
+  Skeleton,
+  useToast,
+} from '@flourishive/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useApi } from '../lib/api.tsx';
@@ -21,6 +31,10 @@ export function TenantPlan({ tenantId }: { tenantId: string }) {
     queryFn: () => api.billing.subscription(tenantId),
   });
   const plans = useQuery({ queryKey: ['plans'], queryFn: () => api.billing.plans() });
+  const invoices = useQuery({
+    queryKey: ['tenant-invoices', tenantId],
+    queryFn: () => api.billing.invoices(tenantId),
+  });
   const [planId, setPlanId] = useState('');
   const [over, setOver] = useState<Partial<Record<LimitMetric, number | null>>>({});
   const [busy, setBusy] = useState(false);
@@ -134,6 +148,38 @@ export function TenantPlan({ tenantId }: { tenantId: string }) {
             <p role="alert" className="text-sm text-danger">
               {error}
             </p>
+          ) : null}
+          {invoices.data && invoices.data.length > 0 ? (
+            <div>
+              <div className="text-sm font-medium">Invoices</div>
+              <ul className="mt-2 grid gap-1 text-sm">
+                {invoices.data.map((i) => (
+                  <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      {i.number}{' '}
+                      <span className="text-muted">
+                        {new Date(i.issuedAt).toLocaleDateString()}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      ₹{(i.total / 100).toLocaleString('en-IN')}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          void api.billing
+                            .invoiceLink(tenantId, i.id)
+                            .then((l) => window.open(`${brand.apiUrl}${l.url}`, '_blank'))
+                            .catch((e) => setError(messageOf(e)))
+                        }
+                      >
+                        PDF
+                      </Button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
           {canEdit ? (
             <div>

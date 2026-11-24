@@ -65,7 +65,86 @@ const app: EventVariable = {
   sample: 'Flourishive',
 };
 
+const company: EventVariable = {
+  name: 'company',
+  description: 'The company name',
+  sample: 'Acme Pvt Ltd',
+};
+const planLink: EventVariable = {
+  name: 'link',
+  description: 'Where to see the plan and pay',
+  sample: 'https://acme.example.com/#/app/plan',
+};
+
 export const EMAIL_EVENTS: EmailEventDef[] = [
+  {
+    key: 'billing.invoice',
+    label: 'Invoice for a payment',
+    description: 'Sent to the billing contact after each successful payment.',
+    audience: 'platform',
+    tenantEditable: false,
+    variables: [
+      app,
+      company,
+      {
+        name: 'number',
+        description: 'Invoice number',
+        sample: 'FH/2026-27/00001',
+      },
+      { name: 'amount', description: 'Amount paid', sample: 'Rs. 999.00' },
+      planLink,
+    ],
+    required: ['number'],
+    sensitive: false,
+    subject: 'Your {{app}} invoice {{number}}',
+    body: 'Thank you, {{company}}. We received {{amount}}.\n\nYour tax invoice **{{number}}** is ready to download:\n\n[[Open billing|{{link}}]]',
+  },
+  {
+    key: 'billing.payment_failed',
+    label: 'Payment failed',
+    description:
+      'Reminder while a payment is overdue, before the account turns read-only.',
+    audience: 'platform',
+    tenantEditable: false,
+    variables: [
+      app,
+      company,
+      {
+        name: 'date',
+        description: 'When the account turns read-only',
+        sample: 'Monday 1 December 2026',
+      },
+      planLink,
+    ],
+    required: ['date'],
+    sensitive: false,
+    subject: 'Action needed: your {{app}} payment did not go through',
+    body: 'Hello {{company}},\n\nWe could not collect your subscription payment. Please update your payment method.\n\nIf it is not fixed by **{{date}}**, your account becomes read-only: people can look at records but not change anything.\n\n[[Fix payment|{{link}}]]',
+  },
+  {
+    key: 'billing.read_only',
+    label: 'Account is read-only',
+    description: 'Sent when an overdue payment turns the account read-only.',
+    audience: 'platform',
+    tenantEditable: false,
+    variables: [app, company, planLink],
+    required: [],
+    sensitive: false,
+    subject: 'Your {{app}} account is now read-only',
+    body: 'Hello {{company}},\n\nBecause the subscription payment is still overdue, your account is now read-only. Nothing is lost. Pay to switch editing back on straight away.\n\n[[Pay now|{{link}}]]',
+  },
+  {
+    key: 'billing.suspended',
+    label: 'Account suspended',
+    description: 'Sent when a long overdue payment suspends the account.',
+    audience: 'platform',
+    tenantEditable: false,
+    variables: [app, company, planLink],
+    required: [],
+    sensitive: false,
+    subject: 'Your {{app}} account is suspended',
+    body: 'Hello {{company}},\n\nYour account is suspended because the subscription payment stayed overdue. Your data is kept safely. Contact us to restore access.\n\n[[Contact billing|{{link}}]]',
+  },
   {
     key: 'auth.invite',
     label: 'Invitation to join',

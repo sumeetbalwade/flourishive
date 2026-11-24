@@ -18,6 +18,7 @@ import {
 } from '@nestjs/common';
 import { Public } from '../identity/auth.context.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
+import { InvoiceService } from '../billing/invoice.service.js';
 import { LimitsService } from '../billing/limits.service.js';
 import { PlansService } from '../billing/plans.service.js';
 import { PlatformAuditService } from './platform-audit.service.js';
@@ -35,6 +36,7 @@ export class PlatformBillingController {
   constructor(
     private readonly plans: PlansService,
     private readonly limits: LimitsService,
+    private readonly invoiceService: InvoiceService,
     private readonly audit: PlatformAuditService,
   ) {}
 
@@ -98,6 +100,18 @@ export class PlatformBillingController {
   @Get('tenants/:id/subscription')
   subscription(@Param('id') id: string) {
     return this.limits.view(id);
+  }
+
+  @RequirePlatformPermission('tenants.read')
+  @Get('tenants/:id/invoices')
+  invoices(@Param('id') id: string) {
+    return this.invoiceService.list(id);
+  }
+
+  @RequirePlatformPermission('tenants.read')
+  @Get('tenants/:id/invoices/:invoiceId/link')
+  invoiceLink(@Param('id') id: string, @Param('invoiceId') invoiceId: string) {
+    return this.invoiceService.link(id, invoiceId);
   }
 
   @RequirePlatformPermission('billing.manage')

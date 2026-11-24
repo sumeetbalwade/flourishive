@@ -17,6 +17,9 @@ import {
   runAsSystem,
   runInTenant,
 } from '../../platform/database/tenant-context.js';
+import { RedisService } from '../../platform/cache/redis.service.js';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
+import { InvoiceService } from './invoice.service.js';
 import { LimitsService } from './limits.service.js';
 import { PlansService } from './plans.service.js';
 import {
@@ -59,11 +62,14 @@ export class CheckoutService {
     private readonly prisma: PrismaService,
     private readonly plans: PlansService,
     private readonly limits: LimitsService,
+    private readonly invoices: InvoiceService,
+    private readonly redis: RedisService,
+    private readonly runtime: RuntimeConfigService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
   ) {}
 
   async state(tenantId: string): Promise<BillingState> {
-    const [sub, payments, enabled] = await Promise.all([
+    const [sub, payments, enabled, profile, graceDays] = await Promise.all([
       runInTenant(tenantId, async () =>
         this.prisma.db.subscription.findUnique({ where: { tenantId } }),
       ),
@@ -74,6 +80,8 @@ export class CheckoutService {
         }),
       ),
       this.gateway.configured(),
+      this.invoices.profile(tenantId),
+      this.runtime.get('BILLING_GRACE_DAYS'),
     ]);
     return {
       paymentsEnabled: enabled,
@@ -83,6 +91,13 @@ export class CheckoutService {
       hasSubscription: Boolean(
         sub?.gatewaySubscriptionId && !sub.pendingPlanId,
       ),
+      profileComplete: Boolean(profile),
+      graceEndsAt:
+        sub?.status === 'PAST_DUE' && sub.pastDueSince
+          ? new Date(
+              sub.pastDueSince.getTime() + (graceDays ?? 7) * 86_400_000,
+            ).toISOString()
+          : null,
       payments: payments.map((p) => ({
         id: p.id,
         amount: p.amount,
@@ -105,6 +120,10 @@ export class CheckoutService {
     if (amount <= 0)
       throw new BadRequestException(
         'That plan is free. Ask your administrator to switch to it.',
+      );
+    if (!(await this.invoices.profile(tenantId)))
+      throw new BadRequestException(
+        'Add your billing details first, so we can issue a GST invoice',
       );
     const current = await runInTenant(tenantId, async () =>
       this.prisma.db.subscription.findUnique({ where: { tenantId } }),
@@ -302,6 +321,9 @@ export class CheckoutService {
           planId: row.pendingPlanId ?? row.planId,
           pendingPlanId: null,
           status: 'ACTIVE',
+          pastDueSince: null,
+          lastReminderAt: null,
+          reminderCount: 0,
           currentPeriodStart:
             fromUnix(x.sub?.current_start) ?? row.currentPeriodStart,
           currentPeriodEnd:
@@ -309,8 +331,8 @@ export class CheckoutService {
         },
       }),
     );
-    if (x.payment)
-      await runAsSystem(async () =>
+    if (x.payment) {
+      const paid = await runAsSystem(async () =>
         this.prisma.db.payment.upsert({
           where: { gatewayPaymentId: x.payment!.id },
           update: {},
@@ -325,7 +347,21 @@ export class CheckoutService {
           },
         }),
       );
+      await this.invoices.issueForPayment(paid.id);
+    }
+    if (row.status === 'SUSPENDED') await this.unsuspend(row.tenantId);
     await this.limits.clear(row.tenantId);
+  }
+
+  /** Payment came in after a billing suspension: let the company back in. */
+  async unsuspend(tenantId: string): Promise<void> {
+    await runAsSystem(async () =>
+      this.prisma.db.tenant.update({
+        where: { id: tenantId },
+        data: { status: 'ACTIVE' },
+      }),
+    );
+    await this.redis.del(`tenant:suspended:${tenantId}`);
   }
 
   private async setStatus(
@@ -337,7 +373,7 @@ export class CheckoutService {
     await runAsSystem(async () =>
       this.prisma.db.subscription.update({
         where: { id: row.id },
-        data: { status },
+        data: { status, pastDueSince: row.pastDueSince ?? new Date() },
       }),
     );
     await this.limits.clear(row.tenantId);

@@ -136,6 +136,42 @@ export const billingState = z.object({
   renewsAt: z.string().nullable(),
   cancelAtPeriodEnd: z.boolean(),
   hasSubscription: z.boolean(),
+  /** Set once the company has told us who to invoice. Needed before paying. */
+  profileComplete: z.boolean(),
+  /** Days left before read-only mode while a payment is overdue. */
+  graceEndsAt: z.string().nullable(),
   payments: z.array(paymentView),
 });
 export type BillingState = z.infer<typeof billingState>;
+
+/** Who invoices are made out to. */
+export const billingProfileBody = z.object({
+  legalName: z.string().trim().min(2).max(191),
+  gstin: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/, 'Not a valid GSTIN')
+    .nullable()
+    .or(z.literal('').transform(() => null))
+    .default(null),
+  address: z.string().trim().min(5).max(500),
+  stateCode: z.string().regex(/^\d{2}$/, 'Two digits, for example 27'),
+  billingEmail: z.string().trim().toLowerCase().email().max(191),
+});
+export type BillingProfileBody = z.infer<typeof billingProfileBody>;
+
+export const invoiceView = z.object({
+  id: z.string(),
+  number: z.string(),
+  description: z.string(),
+  issuedAt: z.string(),
+  taxableValue: z.number().int(),
+  cgst: z.number().int(),
+  sgst: z.number().int(),
+  igst: z.number().int(),
+  total: z.number().int(),
+});
+export type InvoiceView = z.infer<typeof invoiceView>;
+
+export const invoiceLinkView = z.object({ url: z.string(), expiresAt: z.string() });

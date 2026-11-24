@@ -1,4 +1,7 @@
 import {
+  billingProfileBody,
+  invoiceLinkView,
+  invoiceView,
   billingState,
   checkoutBody,
   checkoutView,
@@ -563,6 +566,13 @@ export function createApiClient(opts: Opts) {
       confirm: (body: z.input<typeof confirmBody>) =>
         http.request('POST', '/billing/confirm', { json: body, schema: billingState }),
       cancel: () => http.request('POST', '/billing/cancel', { schema: billingState }),
+      profile: () =>
+        http.request('GET', '/billing/profile', { schema: billingProfileBody.nullable() }),
+      saveProfile: (body: z.input<typeof billingProfileBody>) =>
+        http.request('PUT', '/billing/profile', { json: body, schema: billingProfileBody }),
+      invoices: () => http.request('GET', '/billing/invoices', { schema: z.array(invoiceView) }),
+      invoiceLink: (id: string) =>
+        http.request('GET', `/billing/invoices/${id}/link`, { schema: invoiceLinkView }),
     },
     setupChecklist: () => http.request('GET', '/setup/checklist', { schema: setupChecklist }),
     maintenance: () =>
