@@ -6,6 +6,7 @@ import {
   passkeyView,
   senderState,
   domainView,
+  setupChecklist,
   activeAnnouncement,
   maintenanceState,
   domainsState,
@@ -546,6 +547,7 @@ export function createApiClient(opts: Opts) {
       active: () =>
         http.request('GET', '/announcements/active', { schema: z.array(activeAnnouncement) }),
     },
+    setupChecklist: () => http.request('GET', '/setup/checklist', { schema: setupChecklist }),
     maintenance: () =>
       http.request('GET', '/public/maintenance', { schema: maintenanceState, auth: false }),
     /** The company's own web addresses, such as hr.company.com (D-69). */

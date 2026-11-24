@@ -7,6 +7,7 @@ import {
   AnnouncementsController,
   MaintenancePublicController,
 } from './controls.controller.js';
+import { SetupChecklistController } from './setup-checklist.controller.js';
 import { FeaturesService } from './features.service.js';
 import { MaintenanceService } from './maintenance.service.js';
 import { FeatureGuard } from './require-feature.js';
@@ -17,7 +18,11 @@ import { UsageService } from './usage.service.js';
 @Global()
 @Module({
   imports: [SettingsModule, BrandModule],
-  controllers: [AnnouncementsController, MaintenancePublicController],
+  controllers: [
+    AnnouncementsController,
+    MaintenancePublicController,
+    SetupChecklistController,
+  ],
   providers: [
     FeaturesService,
     AnnouncementsService,

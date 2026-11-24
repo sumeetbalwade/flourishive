@@ -1,4 +1,6 @@
-import { AppShell, BrandMark, brand, type NavItem } from '@flourishive/ui';
+import { AppShell, BrandMark, brand, type Command, type NavItem } from '@flourishive/ui';
+import { useQuery } from '@tanstack/react-query';
+import { useApi } from '../lib/api.tsx';
 import {
   Activity,
   BarChart3,
@@ -120,6 +122,21 @@ export function Layout({
   const auth = useAuth();
   const can = useCan();
   const nav = NAV.filter((n) => !n.needs || can(...n.needs));
+  const api = useApi();
+  const settings = useQuery({
+    queryKey: ['platform-settings'],
+    queryFn: () => api.settings.list(),
+    enabled: can('config.read'),
+    staleTime: 5 * 60_000,
+  });
+  const commands: Command[] = (settings.data ?? []).map((s) => ({
+    id: `setting:${s.key}`,
+    label: s.label,
+    hint: `Setting · ${s.group}`,
+    keywords: `${s.key} ${s.description}`,
+    icon: Settings,
+    run: () => go(`/settings?focus=${encodeURIComponent(s.key)}`),
+  }));
   return (
     <AppShell
       brand={
@@ -131,6 +148,7 @@ export function Layout({
         </span>
       }
       nav={nav}
+      commands={commands}
       active={active}
       onNavigate={(id) => go(`/${id}`)}
       user={{

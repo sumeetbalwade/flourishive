@@ -3,11 +3,27 @@ import { Dialog as D } from 'radix-ui';
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { cn } from '../cn.ts';
 
+/** Every word typed must appear (loosely: "expiry" finds "expire") in the label, hint or keywords. */
+export function matches(c: Pick<Command, 'label' | 'hint' | 'keywords'>, query: string): boolean {
+  const hay = `${c.label} ${c.hint ?? ''} ${c.keywords ?? ''}`.toLowerCase();
+  const squashed = hay.replace(/[^a-z0-9]/g, '');
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((w) => {
+      const stem = w.length > 4 ? w.replace(/(ies|ing|ed|es|s|y|e)$/, '') : w;
+      return hay.includes(w) || squashed.includes(stem);
+    });
+}
+
 export interface Command {
   id: string;
   label: string;
   /** Shown on the right, e.g. the menu group or "Action". */
   hint?: string;
+  /** Extra words the search also matches (a setting's key and description). */
+  keywords?: string;
   icon?: ComponentType<{ size?: number }>;
   run: () => void;
 }
@@ -28,7 +44,7 @@ export function CommandPalette({
   const [sel, setSel] = useState(0);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? commands.filter((c) => c.label.toLowerCase().includes(q)) : commands;
+    return q ? commands.filter((c) => matches(c, q)) : commands;
   }, [commands, query]);
 
   useEffect(() => {

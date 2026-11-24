@@ -1,5 +1,5 @@
 import { Lock } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '../cn.ts';
 import { Badge } from './badge.tsx';
 import { Button } from './button.tsx';
@@ -29,6 +29,8 @@ export interface SettingItem {
   lockable?: boolean;
   /** Platform view only: the current lock, editable. */
   lockedByPlatform?: boolean;
+  /** Where today's value comes from, in plain words: "Default", "Set by the platform", "Set by you". */
+  source?: string;
 }
 
 export interface SettingChange {
@@ -58,15 +60,37 @@ export function SettingsEditor({
   items,
   mode,
   onSave,
+  focusKey,
 }: {
   items: SettingItem[];
   mode: 'platform' | 'tenant';
   onSave: (changes: SettingChange[]) => Promise<void>;
+  /** Jump to this setting and highlight it (from Ctrl+K). */
+  focusKey?: string;
 }) {
   const groups = useMemo(() => [...new Set(items.map((i) => i.group))], [items]);
   const [tab, setTab] = useState(groups[0] ?? '');
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [busy, setBusy] = useState(false);
+  const [flash, setFlash] = useState('');
+
+  // Ctrl+K sends people here with ?focus=<key>: open its tab, scroll to it and highlight it for a moment.
+  useEffect(() => {
+    const target = focusKey ? items.find((i) => i.key === focusKey) : undefined;
+    if (!target) return;
+    setTab(target.group);
+    setFlash(target.key);
+    const t = setTimeout(() => {
+      document
+        .getElementById(`setting-${target.key}`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 60);
+    const off = setTimeout(() => setFlash(''), 2800);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(off);
+    };
+  }, [focusKey, items.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const active = groups.includes(tab) ? tab : (groups[0] ?? '');
   const set = (key: string, patch: Draft) =>
@@ -138,7 +162,11 @@ export function SettingsEditor({
             return (
               <div
                 key={i.key}
-                className="grid items-center gap-x-6 gap-y-3 border-b border-line py-4 last:border-0 md:grid-cols-[1fr_minmax(160px,240px)_270px]"
+                id={`setting-${i.key}`}
+                className={cn(
+                  'grid items-center gap-x-6 gap-y-3 border-b border-line py-4 transition-colors last:border-0 md:grid-cols-[1fr_minmax(160px,240px)_270px]',
+                  flash === i.key && '-mx-3 rounded-lg bg-accent-lo px-3 ring-2 ring-accent',
+                )}
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -152,6 +180,13 @@ export function SettingsEditor({
                     )}
                   </div>
                   <p className="mt-0.5 text-sm text-muted">{i.description}</p>
+                  {lockedByPlatform ? (
+                    <p className="mt-1 text-xs text-muted">
+                      Locked for every company by the platform team, so it cannot be changed here.
+                      Ask support if you need it changed.
+                    </p>
+                  ) : null}
+                  {i.source ? <p className="mt-1 text-xs text-muted">Source: {i.source}</p> : null}
                 </div>
                 <SettingControl
                   kind={i.kind}

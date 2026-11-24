@@ -433,6 +433,8 @@ const NO_TENANT_DATA: Record<string, string> = {
     'device credential; only a job held by this device',
   'GET /public/seal-certificate':
     'public certificate of the organisation seal, no tenant data',
+  'GET /setup/checklist':
+    'the signed-in company only (tenantId from the token)',
   'GET /announcements/active': 'banners for the signed-in company only',
   'GET /public/maintenance': 'public: the platform-wide maintenance switch',
   'GET /domains': 'the signed-in company only (tenantId from the token)',
