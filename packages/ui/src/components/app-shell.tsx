@@ -178,6 +178,7 @@ export function AppShell({
                   {group && group !== nav[i - 1]?.group && (
                     <button
                       type="button"
+                      aria-label={`${group} group`}
                       aria-expanded={isOpen(group)}
                       onClick={() => toggleGroup(group, isOpen(group))}
                       className={cn(
