@@ -25,6 +25,8 @@ export const PERMISSIONS = {
     'See the company’s activity, sign-in, error and background-job logs, and trace a request',
   'files.read': 'Download files',
   'files.write': 'Upload and delete files',
+  'custom_fields.manage':
+    'Add custom fields to people and choose who sees and edits them',
   'documents.read': 'View issued documents and templates',
   'documents.manage': 'Manage letterheads, numbering and templates',
   'documents.generate': 'Generate documents from templates',

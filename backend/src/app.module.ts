@@ -15,6 +15,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { FilesModule } from './modules/files/files.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { CompanyModule } from './modules/company/company.module.js';
+import { CustomFieldsModule } from './modules/custom-fields/custom-fields.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { BillingOpsModule } from './modules/billing/billing-ops.module.js';
 import { ControlsModule } from './modules/controls/controls.module.js';
@@ -62,6 +63,7 @@ import { StorageModule } from './platform/storage/storage.module.js';
     ControlsModule,
     BillingModule,
     BillingOpsModule,
+    CustomFieldsModule,
   ],
   controllers: [HealthController],
 })

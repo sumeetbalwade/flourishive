@@ -1,4 +1,7 @@
 import {
+  customFieldBody,
+  customFieldValuesView,
+  customFieldView,
   billingProfileBody,
   invoiceLinkView,
   invoiceView,
@@ -636,6 +639,37 @@ export function createApiClient(opts: Opts) {
         } = {},
       ) => http.request('GET', '/audit', { query, schema: auditListResponse }),
       verify: () => http.request('GET', '/audit/verify', { schema: chainCheck }),
+    },
+
+    /** Custom fields on people and engagements (D-29). */
+    customFields: {
+      definitions: (entityType?: 'PERSON' | 'ENGAGEMENT') =>
+        http.request('GET', '/custom-fields/definitions', {
+          query: entityType ? { entityType } : undefined,
+          schema: z.array(customFieldView),
+        }),
+      create: (body: z.input<typeof customFieldBody>) =>
+        http.request('POST', '/custom-fields/definitions', { json: body, schema: customFieldView }),
+      update: (id: string, body: z.input<typeof customFieldBody>) =>
+        http.request('PUT', `/custom-fields/definitions/${id}`, {
+          json: body,
+          schema: customFieldView,
+        }),
+      archive: (id: string) => http.request('POST', `/custom-fields/definitions/${id}/archive`),
+      restore: (id: string) => http.request('POST', `/custom-fields/definitions/${id}/restore`),
+      values: (entityType: 'PERSON' | 'ENGAGEMENT', entityId: string) =>
+        http.request('GET', `/custom-fields/values/${entityType}/${entityId}`, {
+          schema: customFieldValuesView,
+        }),
+      saveValues: (
+        entityType: 'PERSON' | 'ENGAGEMENT',
+        entityId: string,
+        values: Record<string, string | number | null>,
+      ) =>
+        http.request('PUT', `/custom-fields/values/${entityType}/${entityId}`, {
+          json: { values },
+          schema: customFieldValuesView,
+        }),
     },
 
     files: {

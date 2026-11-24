@@ -26,6 +26,7 @@ import { Company } from './pages/admin/Company.tsx';
 import { Policy } from './pages/admin/Policy.tsx';
 import { Roles } from './pages/admin/Roles.tsx';
 import { Domains } from './pages/admin/Domains.tsx';
+import { CustomFields } from './pages/admin/CustomFields.tsx';
 import { Plan } from './pages/admin/Plan.tsx';
 import { EmailSender } from './pages/admin/EmailSender.tsx';
 import { Brand } from './pages/admin/Brand.tsx';
@@ -117,6 +118,7 @@ function Routes() {
   else if (path === '/app/brand') page = <Brand />;
   else if (path === '/app/domains') page = <Domains />;
   else if (path === '/app/plan') page = <Plan />;
+  else if (path === '/app/custom-fields') page = <CustomFields />;
   else if (path === '/app/email-log') page = <EmailLog />;
   else if (path === '/app/logs') page = <Logs />;
   else if (path === '/app/notifications') page = <Notifications />;
