@@ -53,6 +53,13 @@ const NAV: Item[] = [
     needs: ['brand.manage'],
   },
   {
+    id: 'controls',
+    label: 'Platform controls',
+    icon: Megaphone,
+    group: 'Settings',
+    needs: ['platform.controls'],
+  },
+  {
     id: 'email-log',
     label: 'Email log',
     icon: MailCheck,
@@ -72,13 +79,6 @@ const NAV: Item[] = [
     icon: BarChart3,
     group: 'Monitoring',
     needs: ['tenants.read'],
-  },
-  {
-    id: 'controls',
-    label: 'Platform controls',
-    icon: Megaphone,
-    group: 'Settings',
-    needs: ['platform.controls'],
   },
   {
     id: 'logs',
