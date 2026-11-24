@@ -113,6 +113,12 @@ export class BrandController {
     });
   }
 
+  /** The brand the signed-in person's company is showing: anyone signed in can read it. */
+  @Get('current')
+  current(@CurrentAuth() a: AccessClaims) {
+    return this.brand.effective(a.tenantId);
+  }
+
   @RequirePermission('brand.manage')
   @Get()
   state(@CurrentAuth() a: AccessClaims) {

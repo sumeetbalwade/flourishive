@@ -160,7 +160,9 @@ export async function loadBrand(
   }
   // The product's brand from the API wins over brand.json, which stays as the fallback (D-62).
   try {
-    const res = await fetch(`${brand.apiUrl.replace(/\/$/, '')}/v1/public/brand`);
+    const res = await fetch(`${brand.apiUrl.replace(/\/$/, '')}/v1/public/brand`, {
+      cache: 'no-cache',
+    });
     if (res.ok && (res.headers.get('content-type') ?? '').includes('json')) {
       const data = (await res.json()) as BrandData;
       if (data?.displayName && data.theme && data.signIn) {

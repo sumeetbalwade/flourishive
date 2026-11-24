@@ -207,6 +207,12 @@ describe('branding (D-61, D-62)', () => {
     expect(r.body.html).toContain('#1f6fb2');
   });
 
+  it('shows a signed-in person their own company brand, whatever their role', async () => {
+    const r = await call('get', '/brand/current', empA).expect(200);
+    expect(r.body.theme.preset).toBe('ocean');
+    await call('get', '/brand/current').expect(401);
+  });
+
   it('returns 404 for an unknown company', async () => {
     await call('get', '/public/company/nope-nope/brand').expect(404);
   });

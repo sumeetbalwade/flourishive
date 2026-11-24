@@ -1,4 +1,4 @@
-import { BrandEditor, useToast } from '@flourishive/ui';
+import { BrandEditor, applyBrand, useToast } from '@flourishive/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../lib/api.tsx';
 import { messageOf } from '../lib/errors.ts';
@@ -15,6 +15,9 @@ export function ProductBrand() {
     try {
       const next = await fn();
       qc.setQueryData(['brand'], next);
+      // Show the result on this page straight away (published changes only; a draft is only previewed).
+      const st = next as { hasDraft?: boolean; working?: Parameters<typeof applyBrand>[0] };
+      if (st?.working && !st.hasDraft) applyBrand(st.working, { remember: true });
       if (done) toast({ title: done, tone: 'success' });
     } catch (e) {
       throw new Error(messageOf(e));

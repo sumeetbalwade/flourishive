@@ -377,6 +377,8 @@ export function createApiClient(opts: Opts) {
           schema: brandData,
           auth: false,
         }),
+      /** The brand this company is showing right now. */
+      current: () => http.request('GET', '/brand/current', { schema: brandData }),
       state: () => http.request('GET', '/brand', { schema: brandEditorState }),
       /** Uploads a PNG, JPEG or WebP; returns the picture's id to put in the draft. */
       uploadImage: (kind: BrandAssetKind, file: Blob) =>

@@ -467,6 +467,7 @@ const NO_TENANT_DATA: Record<string, string> = {
     'renders sample values only; no company data',
   'POST /mail/templates/:event/test':
     'sends to the signed-in admin’s own address',
+  'GET /brand/current': 'the signed-in company only (tenantId from the token)',
   'GET /brand': 'the signed-in company only (tenantId from the token)',
   'PUT /brand/draft': 'the signed-in company only (tenantId from the token)',
   'DELETE /brand/draft': 'the signed-in company only (tenantId from the token)',

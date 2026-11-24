@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { applyBrand, applyProductBrand } from '@flourishive/ui';
 import { go } from '../router.ts';
 import { useApi } from './api.tsx';
 
@@ -30,7 +31,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadMe = useCallback(async () => {
     try {
-      setState({ status: 'authed', me: await api.auth.me() });
+      const me = await api.auth.me();
+      setState({ status: 'authed', me });
+      // Signed in: show this company's brand (the sign-in page's one was dropped when it closed).
+      if (!me.support)
+        api.brand
+          .current()
+          .then((b) => applyBrand(b, { remember: false }))
+          .catch(() => undefined);
     } catch {
       setState({ status: 'anon' });
     }
@@ -60,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await api.auth.logout();
         } finally {
           setState({ status: 'anon' });
+          applyProductBrand();
           go('/login');
         }
       },
