@@ -298,6 +298,20 @@ export const SETTINGS = {
     description:
       'Every change, every failure and every slow request is kept. Of the quick successful page loads, this percentage is kept too',
   }),
+  'platform.maintenance': def({
+    schema: z.object({
+      enabled: z.boolean(),
+      message: z.string().max(500),
+      until: z.string().nullable(),
+    }),
+    default: { enabled: false, message: '', until: null },
+    levels: [],
+    label: 'Maintenance mode',
+    group: 'Platform',
+    kind: 'json',
+    description:
+      'While on, companies see a maintenance page and cannot sign in. Platform staff can. Use the Platform controls screen',
+  }),
   'logs.retentionDays': def({
     schema: z.number().int().min(7).max(180),
     default: 30,

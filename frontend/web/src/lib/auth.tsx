@@ -20,6 +20,8 @@ interface AuthValue {
   onSignedIn: () => Promise<void>;
   signOut: () => Promise<void>;
   can: (permission: string) => boolean;
+  /** False when the platform switched this module off for the company. */
+  featureOn: (feature: string) => boolean;
   reloadMe: () => Promise<void>;
 }
 
@@ -73,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       can: (p) => state.status === 'authed' && state.me.permissions.includes(p),
+      featureOn: (f) => state.status !== 'authed' || !state.me.disabledFeatures.includes(f),
     }),
     [state, api, loadMe],
   );

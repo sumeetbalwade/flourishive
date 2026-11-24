@@ -1,3 +1,4 @@
+import { RequireFeature } from '../controls/require-feature.js';
 import {
   BadRequestException,
   Body,
@@ -44,6 +45,7 @@ export class PeopleController {
    * Body is the raw CSV (Content-Type: text/csv). `dryRun` defaults to true: nothing is
    * written until the caller sends dryRun=false after reviewing the preview.
    */
+  @RequireFeature('people.import')
   @Post('import')
   @HttpCode(200)
   @RequirePermission('people.import')

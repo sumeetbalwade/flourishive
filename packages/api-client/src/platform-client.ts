@@ -1,4 +1,13 @@
 import {
+  announcementBody,
+  announcementView,
+  featureStateView,
+  maintenanceState,
+  setupImportResult,
+  tenantExport,
+  usageDetail,
+  usageOverview,
+  type TenantExport,
   accountActionResult,
   accountListItem,
   accountView,
@@ -349,6 +358,46 @@ export function createPlatformClient(opts: Opts) {
         http.request('PUT', `/platform/tenants/${id}/settings/${key}`, { json: { value } }),
       clearSetting: (id: string, key: string) =>
         http.request('DELETE', `/platform/tenants/${id}/settings/${key}`),
+    },
+
+    /** Platform controls (D-70). */
+    controls: {
+      announcements: () =>
+        http.request('GET', '/platform/announcements', { schema: z.array(announcementView) }),
+      createAnnouncement: (body: z.input<typeof announcementBody>) =>
+        http.request('POST', '/platform/announcements', { json: body, schema: announcementView }),
+      updateAnnouncement: (id: string, body: z.input<typeof announcementBody>) =>
+        http.request('PUT', `/platform/announcements/${id}`, {
+          json: body,
+          schema: announcementView,
+        }),
+      removeAnnouncement: (id: string) => http.request('DELETE', `/platform/announcements/${id}`),
+      maintenance: () => http.request('GET', '/platform/maintenance', { schema: maintenanceState }),
+      setMaintenance: (body: z.infer<typeof maintenanceState>) =>
+        http.request('PUT', '/platform/maintenance', { json: body, schema: maintenanceState }),
+      features: (tenantId: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/features`, { schema: featureStateView }),
+      setFeature: (tenantId: string, key: string, enabled: boolean) =>
+        http.request('PUT', `/platform/tenants/${tenantId}/features/${encodeURIComponent(key)}`, {
+          json: { enabled },
+          schema: featureStateView,
+        }),
+      usage: () => http.request('GET', '/platform/usage', { schema: usageOverview }),
+      usageDetail: (tenantId: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/usage`, { schema: usageDetail }),
+      refreshUsage: () => http.request('POST', '/platform/usage/refresh'),
+      exportSetup: (tenantId: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/export`, { schema: tenantExport }),
+      previewImport: (tenantId: string, file: TenantExport) =>
+        http.request('POST', `/platform/tenants/${tenantId}/import/preview`, {
+          json: { file },
+          schema: setupImportResult,
+        }),
+      applyImport: (tenantId: string, file: TenantExport) =>
+        http.request('POST', `/platform/tenants/${tenantId}/import`, {
+          json: { file, dryRun: false },
+          schema: setupImportResult,
+        }),
     },
 
     staff: {

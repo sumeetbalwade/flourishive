@@ -725,6 +725,29 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { status: 'FAILED' },
   },
+  TenantFeature: {
+    delegate: 'tenantFeature',
+    create: async (tenantId) => ({
+      data: { tenantId, feature: 'letters.bulk', enabled: false },
+    }),
+    change: { enabled: true },
+  },
+  TenantUsageDaily: {
+    delegate: 'tenantUsageDaily',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        day: new Date('2026-01-01'),
+        users: 1,
+        activeUsers30d: 1,
+        people: 1,
+        lettersMonth: 0,
+        storageBytes: 0,
+        emailsSent: 0,
+      },
+    }),
+    change: { users: 99 },
+  },
   PasswordHistory: {
     delegate: 'passwordHistory',
     create: async (tenantId) => ({

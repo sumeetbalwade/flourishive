@@ -12,6 +12,7 @@ import { LogsService } from './modules/logs/logs.service.js';
 import { JobHandlerRegistry } from './platform/queue/job-handlers.js';
 import { JobRecordsService } from './platform/queue/job-records.service.js';
 import { RedisService } from './platform/cache/redis.service.js';
+import { UsageService } from './modules/controls/usage.service.js';
 import { DomainsService } from './modules/domains/domains.service.js';
 import { QueueService } from './platform/queue/queue.service.js';
 
@@ -150,6 +151,8 @@ async function main() {
     console.log(
       `Alerts sent: ${alerts.raised}; daily summaries sent: ${alerts.digests}`,
     );
+  const snapped = await app.get(UsageService).nightly();
+  if (snapped) console.log(`Usage snapshot written for ${snapped} companies`);
   const checked = await app.get(DomainsService).tick();
   if (checked) console.log(`Custom addresses checked: ${checked}`);
   const reminders = await app.get(RemindersService).tick();

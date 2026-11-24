@@ -29,11 +29,13 @@ import { PlatformBrandController } from './platform-brand.controller.js';
 import { PlatformMailController } from './platform-mail.controller.js';
 import { PlatformTemplatesController } from './platform-templates.controller.js';
 import { PlatformLogsController } from './platform-logs.controller.js';
+import { PlatformControlsController } from './platform-controls.controller.js';
 import { MailAdminModule } from '../mail/mail-admin.module.js';
 
 @Module({
   imports: [IdentityModule, AccessModule, SettingsModule, MailAdminModule],
   controllers: [
+    PlatformControlsController,
     PlatformLogsController,
     PlatformMailController,
     PlatformBrandController,

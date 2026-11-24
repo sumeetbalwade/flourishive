@@ -496,16 +496,16 @@ _Built: region settings with `fmtDate`/`fmtDateTime`/`fmtNumber`/`fmtMoney` in `
 
 ### PR 11 — Platform controls (D-70)
 
-- [ ] Announcement banner:
+- [x] Announcement banner:
   - Data: `announcements` (`message`, `tone` info/warning/critical, `audience` all or a tenant list, `startsAt`, `endsAt`, `dismissible`).
   - The web app shows it above the page header; dismissal is remembered per user.
-- [ ] Maintenance mode: the platform setting `platform.maintenance` (`{ enabled, message, until }`). The API returns 503 with the message for tenant routes, except sign-in by platform staff and support sessions. Web shows a friendly full-page screen with the message and time. Verify stays up.
-- [ ] Feature switches per tenant:
+- [x] Maintenance mode: the platform setting `platform.maintenance` (`{ enabled, message, until }`). The API returns 503 with the message for tenant routes, except sign-in by platform staff and support sessions. Web shows a friendly full-page screen with the message and time. Verify stays up.
+- [x] Feature switches per tenant:
   - Data: `tenant_features` (`tenantId`, `feature`, `enabled`). The catalogue is in code (`documents`, `letters.bulk`, `signing.dsc`, `signing.otp`, `signing.aadhaar`, `people.import`, `org`, plus later modules).
-  - Guard `@RequireFeature()` on endpoints; web navigation hides disabled modules.
+  - _(Built: the guard covers documents, bulk letters, people import and organisation; the signing methods are checked when a request is created, so a switched-off method cannot be started. Recipients' public accept pages are not separately blocked.)_ Guard `@RequireFeature()` on endpoints; web navigation hides disabled modules.
   - Phase 3's plan limits will layer on top of this.
-- [ ] Usage overview: a nightly job writes `tenant_usage_daily` (users, active users in 30 days, people, letters this month, storage bytes, emails sent, last activity). The admin dashboard shows a table with sparklines (use the `dataviz` guidance) and a per-tenant detail.
-- [ ] Settings import/export:
+- [x] Usage overview: a nightly job writes `tenant_usage_daily` (users, active users in 30 days, people, letters this month, storage bytes, emails sent, last activity). The admin dashboard shows a table with sparklines (use the `dataviz` guidance) and a per-tenant detail.
+- [x] Settings import/export:
   - `GET /v1/platform/tenants/:id/export` gives JSON with settings, published brand (assets embedded as base64, maximum 5 MB total), email templates, notification rules, role policies and feature switches. Never secrets, sender SMTP passwords or user data.
   - `POST …/import` shows a dry-run diff and needs confirmation and step-up.
 

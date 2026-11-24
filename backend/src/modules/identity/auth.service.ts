@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
+import { FeaturesService } from '../controls/features.service.js';
 import { DomainsService } from '../domains/domains.service.js';
 import { RedisService } from '../../platform/cache/redis.service.js';
 import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
@@ -105,6 +106,7 @@ export class AuthService {
     private readonly signinLog: LogWriterService,
     private readonly policy: PasswordPolicyService,
     private readonly domains: DomainsService,
+    private readonly features: FeaturesService,
   ) {}
 
   private async tenantIdFor(slug: string): Promise<string | null> {
@@ -794,6 +796,7 @@ export class AuthService {
       mfaRequired: await this.mfaIsRequired(user),
       mfaLevel: (await this.policies.effectiveFor(user.tenantId, user.id))
         .mfaLevel,
+      disabledFeatures: await this.features.disabled(user.tenantId),
       permissions: Object.keys(
         await this.access.permissionsFor(who.tenantId, who.userId),
       ).sort(),

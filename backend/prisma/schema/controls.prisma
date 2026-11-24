@@ -1,0 +1,58 @@
+enum AnnouncementTone {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+/// A banner the platform shows above every page of the web app for a while (D-70). `tenantIds` is null for
+/// every company, or a JSON list of company ids. Not tied to one company, so it has no tenantId column.
+model Announcement {
+  id          String           @id @default(uuid(7)) @db.Char(36)
+  message     String           @db.VarChar(500)
+  tone        AnnouncementTone @default(INFO)
+  tenantIds   Json?
+  startsAt    DateTime         @db.DateTime(3)
+  endsAt      DateTime         @db.DateTime(3)
+  dismissible Boolean          @default(true)
+  createdBy   String?          @db.Char(36)
+  createdAt   DateTime         @default(now()) @db.DateTime(3)
+  updatedAt   DateTime         @updatedAt @db.DateTime(3)
+
+  @@index([startsAt, endsAt])
+  @@map("announcements")
+}
+
+/// A module the super admin switched off (or back on) for one company (D-70). A missing row means "on".
+model TenantFeature {
+  id        String   @id @default(uuid(7)) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  feature   String   @db.VarChar(60)
+  enabled   Boolean
+  updatedBy String?  @db.Char(36)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, feature])
+  @@map("tenant_features")
+}
+
+/// One row per company per day, written by the nightly job, for the platform usage overview (D-70).
+model TenantUsageDaily {
+  id             String    @id @default(uuid(7)) @db.Char(36)
+  tenantId       String    @db.Char(36)
+  day            DateTime  @db.Date
+  users          Int
+  activeUsers30d Int
+  people         Int
+  lettersMonth   Int
+  storageBytes   BigInt
+  emailsSent     Int
+  lastActivityAt DateTime? @db.DateTime(3)
+  createdAt      DateTime  @default(now()) @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, day])
+  @@map("tenant_usage_daily")
+}

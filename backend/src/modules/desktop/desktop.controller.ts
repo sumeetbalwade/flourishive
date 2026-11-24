@@ -1,3 +1,4 @@
+import { RequireFeature } from '../controls/require-feature.js';
 import {
   BadRequestException,
   Body,
@@ -37,6 +38,7 @@ const platformOf = (v: unknown): 'windows' | 'macos' =>
 const failBody = z.object({ reason: z.string().trim().min(1).max(300) });
 
 /** For the signatory in the web app: pair a computer, see and unpair computers. */
+@RequireFeature('signing.dsc')
 @Controller('desktop')
 export class DesktopStaffController {
   constructor(

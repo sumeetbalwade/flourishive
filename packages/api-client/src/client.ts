@@ -6,6 +6,8 @@ import {
   passkeyView,
   senderState,
   domainView,
+  activeAnnouncement,
+  maintenanceState,
   domainsState,
   senderView,
   testResult,
@@ -539,6 +541,13 @@ export function createApiClient(opts: Opts) {
       save: (body: SaveAlertsBody) =>
         http.request('PUT', '/alerts', { json: body, schema: alertSubscriptionsResponse }),
     },
+    /** Banners and the maintenance switch (D-70). */
+    announcements: {
+      active: () =>
+        http.request('GET', '/announcements/active', { schema: z.array(activeAnnouncement) }),
+    },
+    maintenance: () =>
+      http.request('GET', '/public/maintenance', { schema: maintenanceState, auth: false }),
     /** The company's own web addresses, such as hr.company.com (D-69). */
     domains: {
       state: () => http.request('GET', '/domains', { schema: domainsState }),

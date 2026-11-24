@@ -14,6 +14,7 @@ import { requestLogMiddleware } from './platform/http/request-log.js';
 import { ErrorLogService } from './modules/logs/error-log.service.js';
 import { LogWriterService } from './modules/logs/log-writer.service.js';
 import { corsOrigins } from './platform/config/config.js';
+import { MaintenanceService } from './modules/controls/maintenance.service.js';
 import { originMatcher } from './modules/company/tenant-host.js';
 
 /**
@@ -59,6 +60,7 @@ export function configureApp(app: INestApplication): void {
     limit: '20mb',
   });
   app.use(requestIdMiddleware);
+  app.use(app.get(MaintenanceService).middleware());
   app.use(requestLogMiddleware(app.get(LogWriterService)));
   app.useGlobalFilters(new RequestIdExceptionFilter(app.get(ErrorLogService)));
   app.use(cookieParser());
