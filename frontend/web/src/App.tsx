@@ -38,6 +38,7 @@ import { PersonDetail } from './pages/people/PersonDetail.tsx';
 import { People } from './pages/people/People.tsx';
 import { Security } from './pages/Security.tsx';
 const Signing = lazy(() => import('./pages/Signing.tsx').then((m) => ({ default: m.Signing })));
+import { MaintenanceGate } from './components/MaintenanceGate.tsx';
 import { SessionWatch } from './components/SessionWatch.tsx';
 import { go, useRoute } from './router.ts';
 
@@ -163,9 +164,11 @@ export default function App({
           <StepUpHost>
             <AuthProvider>
               <SessionWatch>
-                <Suspense fallback={<PageLoader fullscreen />}>
-                  <Routes />
-                </Suspense>
+                <MaintenanceGate>
+                  <Suspense fallback={<PageLoader fullscreen />}>
+                    <Routes />
+                  </Suspense>
+                </MaintenanceGate>
               </SessionWatch>
             </AuthProvider>
           </StepUpHost>

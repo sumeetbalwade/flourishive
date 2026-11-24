@@ -11,6 +11,8 @@ export async function deleteTenantData(
     if (!tenant) return;
     const where = { tenantId: tenant.id };
     await prisma.db.tenantDomain.deleteMany({ where });
+    await prisma.db.tenantFeature.deleteMany({ where });
+    await prisma.db.tenantUsageDaily.deleteMany({ where });
     await prisma.db.notificationRule.deleteMany({ where });
     await prisma.db.passwordHistory.deleteMany({ where });
     await prisma.db.logRequest.deleteMany({ where });

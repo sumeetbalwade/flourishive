@@ -1,3 +1,4 @@
+import { RequireFeature } from '../controls/require-feature.js';
 import {
   actionBody,
   bulkBody,
@@ -45,6 +46,7 @@ const deliverBody = z.object({
 });
 const listQuery = pageQuery.extend({ personId: z.string().uuid().optional() });
 
+@RequireFeature('documents')
 @Controller('documents')
 export class DocumentsController {
   constructor(
@@ -164,18 +166,21 @@ export class DocumentsController {
     return this.docs.generate(a, new ZodPipe(generateBody).transform(body));
   }
 
+  @RequireFeature('letters.bulk')
   @Post('bulk')
   @RequirePermission('documents.generate')
   startBulk(@CurrentAuth() a: AccessClaims, @Body() body: unknown) {
     return this.bulk.create(a, new ZodPipe(bulkBody).transform(body));
   }
 
+  @RequireFeature('letters.bulk')
   @Post('bulk/:id/deliver')
   @RequirePermission('documents.generate')
   deliverBatch(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {
     return this.delivery.deliverBatch(a, id);
   }
 
+  @RequireFeature('letters.bulk')
   @Get('bulk/:id')
   @RequirePermission('documents.generate')
   getBulk(@CurrentAuth() a: AccessClaims, @Param('id') id: string) {

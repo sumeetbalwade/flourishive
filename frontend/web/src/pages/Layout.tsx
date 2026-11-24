@@ -23,11 +23,12 @@ import {
   Users,
 } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
+import { AnnouncementBanners } from '../components/AnnouncementBanners.tsx';
 import { SupportBanner } from '../components/SupportBanner.tsx';
 import { useAuth } from '../lib/auth.tsx';
 import { go } from '../router.ts';
 
-type Item = NavItem & { needs?: string };
+type Item = NavItem & { needs?: string; feature?: string };
 
 /**
  * One menu for everyone, trimmed by what the person's permissions allow, so an employee sees a
@@ -36,14 +37,29 @@ type Item = NavItem & { needs?: string };
 const NAV: Item[] = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'people', label: 'People', icon: Users, group: 'People', needs: 'people.read' },
-  { id: 'import', label: 'Import', icon: Upload, group: 'People', needs: 'people.import' },
-  { id: 'org', label: 'Organisation', icon: Building2, group: 'People', needs: 'org.read' },
+  {
+    id: 'import',
+    label: 'Import',
+    icon: Upload,
+    group: 'People',
+    needs: 'people.import',
+    feature: 'people.import',
+  },
+  {
+    id: 'org',
+    label: 'Organisation',
+    icon: Building2,
+    group: 'People',
+    needs: 'org.read',
+    feature: 'org',
+  },
   {
     id: 'templates',
     label: 'Templates',
     icon: LayoutTemplate,
     group: 'Documents',
     needs: 'documents.read',
+    feature: 'documents',
   },
   {
     id: 'letters',
@@ -51,6 +67,7 @@ const NAV: Item[] = [
     icon: FileText,
     group: 'Documents',
     needs: 'documents.read',
+    feature: 'documents',
   },
   {
     id: 'letter-setup',
@@ -58,6 +75,7 @@ const NAV: Item[] = [
     icon: Stamp,
     group: 'Documents',
     needs: 'documents.manage',
+    feature: 'documents',
   },
   {
     id: 'signing',
@@ -151,7 +169,13 @@ export function Layout({
 }) {
   const auth = useAuth();
   const me = auth.state.status === 'authed' ? auth.state.me : null;
-  const nav = useMemo(() => NAV.filter((n) => !n.needs || auth.can(n.needs)), [auth]);
+  const nav = useMemo(
+    () =>
+      NAV.filter(
+        (n) => (!n.needs || auth.can(n.needs)) && (!n.feature || auth.featureOn(n.feature)),
+      ),
+    [auth],
+  );
   const commands = useMemo<Command[]>(
     () =>
       auth.can('people.write')
@@ -171,7 +195,12 @@ export function Layout({
   const section = group ?? undefined;
   return (
     <AppShell
-      banner={me?.support ? <SupportBanner support={me.support} staff={me.email} /> : undefined}
+      banner={
+        <>
+          {me?.support ? <SupportBanner support={me.support} staff={me.email} /> : null}
+          <AnnouncementBanners userId={me?.id ?? ''} />
+        </>
+      }
       brand={
         <span className="flex items-center gap-3" title={brand.appName}>
           <BrandMark />

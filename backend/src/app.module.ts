@@ -15,6 +15,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { FilesModule } from './modules/files/files.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { CompanyModule } from './modules/company/company.module.js';
+import { ControlsModule } from './modules/controls/controls.module.js';
 import { DomainsModule } from './modules/domains/domains.module.js';
 import { AccessModule } from './modules/access/access.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
@@ -56,6 +57,7 @@ import { StorageModule } from './platform/storage/storage.module.js';
     SigningModule,
     VerifyModule,
     DesktopModule,
+    ControlsModule,
   ],
   controllers: [HealthController],
 })

@@ -71,6 +71,8 @@ export const meResponse = z.object({
   mfaRequired: z.boolean(),
   mfaLevel: mfaLevel,
   permissions: z.array(z.string()),
+  /** Modules the platform switched off for this company (D-70). */
+  disabledFeatures: z.array(z.string()).default([]),
   /** Present when the person is platform staff in a support session rather than a company user. */
   support: z
     .object({

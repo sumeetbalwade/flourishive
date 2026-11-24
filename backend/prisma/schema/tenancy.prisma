@@ -30,6 +30,8 @@ model Tenant {
   emailTemplates      EmailTemplate[]
   brandProfiles       BrandProfile[]
   domains             TenantDomain[]
+  features            TenantFeature[]
+  usageDaily          TenantUsageDaily[]
   brandAssets         BrandAsset[]
   notificationRules   NotificationRule[]
   auditChainHead      AuditChainHead?

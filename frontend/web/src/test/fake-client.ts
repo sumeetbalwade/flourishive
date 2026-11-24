@@ -9,6 +9,7 @@ export const ME: MeResponse = {
   mfaEnabled: true,
   mfaRequired: true,
   mfaLevel: 'REQUIRED',
+  disabledFeatures: [],
   permissions: [
     'self.read',
     'people.read',
@@ -57,6 +58,8 @@ export function fakeClient(over: Record<string, unknown> = {}) {
       current: vi.fn().mockRejectedValue(new Error('no brand')),
       company: vi.fn().mockRejectedValue(new Error('no brand')),
     },
+    announcements: { active: vi.fn().mockResolvedValue([]) },
+    maintenance: vi.fn().mockResolvedValue({ enabled: false, message: '', until: null }),
     company: {
       get: vi.fn().mockRejectedValue(new Error('no company')),
       find: vi.fn().mockResolvedValue(undefined),

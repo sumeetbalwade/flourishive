@@ -1,3 +1,4 @@
+import { RequireFeature } from '../controls/require-feature.js';
 import {
   orgBodies as bodies,
   ORG_KINDS,
@@ -26,6 +27,7 @@ function kindOf(raw: string): OrgKind {
   return raw as OrgKind;
 }
 
+@RequireFeature('org')
 @Controller('org')
 export class OrgController {
   constructor(private readonly org: OrgService) {}

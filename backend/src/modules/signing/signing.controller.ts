@@ -1,3 +1,5 @@
+import { FeaturesService } from '../controls/features.service.js';
+import { RequireFeature } from '../controls/require-feature.js';
 import {
   Body,
   Controller,
@@ -50,16 +52,26 @@ export class SigningStaffController {
   constructor(
     private readonly signing: SigningService,
     private readonly dsc: DscJobsService,
+    private readonly features: FeaturesService,
   ) {}
 
   @Post()
   @RequirePermission('documents.generate')
-  request(
+  async request(
     @CurrentAuth() a: AccessClaims,
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
-    if ((body as { method?: string } | null)?.method === 'DSC')
+    const method = (body as { method?: string } | null)?.method;
+    await this.features.assert(
+      a.tenantId,
+      method === 'DSC'
+        ? 'signing.dsc'
+        : method === 'AADHAAR'
+          ? 'signing.aadhaar'
+          : 'signing.otp',
+    );
+    if (method === 'DSC')
       return this.dsc.request(a, id, new ZodPipe(dscBody).transform(body));
     return this.signing.requestOtp(
       a,
