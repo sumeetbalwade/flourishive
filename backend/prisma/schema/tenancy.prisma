@@ -28,6 +28,7 @@ model Tenant {
   passkeys            Passkey[]
   mailSender          MailSender?
   emailTemplates      EmailTemplate[]
+  brandProfiles       BrandProfile[]
   auditChainHead      AuditChainHead?
   files               File[]
   notifications       Notification[]

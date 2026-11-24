@@ -1,0 +1,143 @@
+import { brandPatch, saveBrandDraftBody } from '@flourishive/schemas';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Post,
+  Put,
+  Req,
+  Res,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { z } from 'zod';
+import { RequirePermission } from '../access/require-permission.js';
+import { AuditService } from '../audit/audit.service.js';
+import { CurrentAuth, Public } from '../identity/auth.context.js';
+import type { AccessClaims } from '../identity/token.service.js';
+import { ZodPipe } from '../identity/zod.pipe.js';
+import { EmailTemplatesService } from '../notifications/email-templates.service.js';
+import { BrandService } from './brand.service.js';
+
+const previewBody = z.object({
+  draft: brandPatch,
+  scheme: z.enum(['light', 'dark']).default('light'),
+});
+
+const FIVE_MINUTES = 'public, max-age=300';
+
+/** Open: the brand the sign-in pages and every app load first. Express adds the ETag. */
+@Public()
+@Controller('public')
+export class PublicBrandController {
+  constructor(private readonly brand: BrandService) {}
+
+  @Get('brand')
+  async product(@Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', FIVE_MINUTES);
+    return this.brand.effective(null);
+  }
+
+  @Get('company/:slug/brand')
+  async company(
+    @Param('slug') slug: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const b = await this.brand.bySlug(slug);
+    if (!b) throw new NotFoundException('Company not found');
+    res.setHeader('Cache-Control', FIVE_MINUTES);
+    return b;
+  }
+}
+
+/** Company side: edit a draft, preview, publish, go back (D-61). */
+@Controller('brand')
+export class BrandController {
+  constructor(
+    private readonly brand: BrandService,
+    private readonly audit: AuditService,
+    private readonly templates: EmailTemplatesService,
+  ) {}
+
+  private note(
+    a: AccessClaims,
+    action: string,
+    req: Request,
+    meta?: Record<string, unknown>,
+  ) {
+    return this.audit.recordSafely({
+      tenantId: a.tenantId,
+      actorType: 'USER',
+      actorId: a.userId,
+      action,
+      entityType: 'brand_profiles',
+      entityId: null,
+      meta: meta ?? null,
+      ip: req.ip,
+    });
+  }
+
+  @RequirePermission('brand.manage')
+  @Get()
+  state(@CurrentAuth() a: AccessClaims) {
+    return this.brand.state(a.tenantId);
+  }
+
+  @RequirePermission('brand.manage')
+  @Put('draft')
+  async save(
+    @CurrentAuth() a: AccessClaims,
+    @Body(new ZodPipe(saveBrandDraftBody))
+    b: z.infer<typeof saveBrandDraftBody>,
+    @Req() req: Request,
+  ) {
+    const s = await this.brand.saveDraft(a.tenantId, a.userId, b.draft);
+    await this.note(a, 'brand.draft_saved', req);
+    return s;
+  }
+
+  @RequirePermission('brand.manage')
+  @Delete('draft')
+  async discard(@CurrentAuth() a: AccessClaims, @Req() req: Request) {
+    const s = await this.brand.discardDraft(a.tenantId);
+    await this.note(a, 'brand.draft_discarded', req);
+    return s;
+  }
+
+  /** The invitation email as it would look with this draft: the Email tab of the editor. */
+  @RequirePermission('brand.manage')
+  @Post('preview/email')
+  @HttpCode(200)
+  async previewEmail(
+    @CurrentAuth() a: AccessClaims,
+    @Body(new ZodPipe(previewBody)) b: z.infer<typeof previewBody>,
+  ) {
+    return this.templates.preview(
+      'auth.invite',
+      a.tenantId,
+      { scheme: b.scheme },
+      await this.brand.withDraft(a.tenantId, b.draft),
+    );
+  }
+
+  @RequirePermission('brand.manage')
+  @Post('publish')
+  @HttpCode(200)
+  async publish(@CurrentAuth() a: AccessClaims, @Req() req: Request) {
+    const s = await this.brand.publish(a.tenantId, a.userId);
+    await this.note(a, 'brand.published', req, { version: s.publishedVersion });
+    return s;
+  }
+
+  @RequirePermission('brand.manage')
+  @Post('revert')
+  @HttpCode(200)
+  async revert(@CurrentAuth() a: AccessClaims, @Req() req: Request) {
+    const s = await this.brand.revert(a.tenantId, a.userId);
+    await this.note(a, 'brand.reverted', req, { version: s.publishedVersion });
+    return s;
+  }
+}

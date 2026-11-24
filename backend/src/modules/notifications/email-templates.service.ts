@@ -18,12 +18,13 @@ import {
 } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
 import {
-  DEFAULT_BRAND,
   renderEmail,
   validateTemplate,
   type Brand,
   type RenderedMail,
 } from './email-renderer.js';
+import { BrandService } from '../brand/brand.service.js';
+import { accentOf, type BrandData } from '@flourishive/schemas';
 import { EMAIL_EVENTS, eventDef, type EmailEventDef } from './events.js';
 
 type Row = {
@@ -52,6 +53,7 @@ export class EmailTemplatesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly brands: BrandService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -121,8 +123,18 @@ export class EmailTemplatesService {
     };
   }
 
-  private brand(): Brand {
-    return { name: this.config.APP_NAME, ...DEFAULT_BRAND };
+  /** The published brand for this company (or the product): name, accent colour, footer. */
+  private async brand(
+    tenantId: string | null,
+    override?: BrandData,
+  ): Promise<Brand> {
+    const b = override ?? (await this.brands.effective(tenantId));
+    return {
+      name: b.displayName,
+      accent: accentOf(b.theme),
+      footerText: b.email.footerText,
+      address: b.email.address,
+    };
   }
 
   private sample(def: EmailEventDef): Record<string, string> {
@@ -141,13 +153,14 @@ export class EmailTemplatesService {
   ): Promise<RenderedMail> {
     const def = this.def(event);
     const r = await this.resolve(def, tenantId);
-    const all = { app: this.config.APP_NAME, ...vars };
+    const brand = await this.brand(tenantId);
+    const all = { app: brand.name, ...vars };
     const fits = validateTemplate(def, r.subject, r.body).length === 0;
     return renderEmail(
       fits ? r.subject : def.subject,
       fits ? r.body : def.body,
       all,
-      this.brand(),
+      brand,
     );
   }
 
@@ -290,6 +303,7 @@ export class EmailTemplatesService {
     event: string,
     tenantId: string | null,
     input: { subject?: string; body?: string; scheme: 'light' | 'dark' },
+    brandOverride?: BrandData,
   ): Promise<PreviewResponse> {
     const def = this.def(event);
     const cur = await this.resolve(def, tenantId);
@@ -297,11 +311,12 @@ export class EmailTemplatesService {
     const body = input.body ?? cur.body;
     const problems = validateTemplate(def, subject, body);
     // Render even a draft with problems, using only the placeholders that exist, so typing stays smooth.
+    const brand = await this.brand(tenantId, brandOverride);
     const r = renderEmail(
       subject,
       body,
-      { app: this.config.APP_NAME, ...this.sample(def) },
-      this.brand(),
+      { app: brand.name, ...this.sample(def) },
+      brand,
       input.scheme,
     );
     return { ...r, problems };
@@ -319,11 +334,12 @@ export class EmailTemplatesService {
     const subject = input.subject ?? cur.subject;
     const body = input.body ?? cur.body;
     this.check(def, subject, body);
+    const brand = await this.brand(tenantId);
     const r = renderEmail(
       subject,
       body,
-      { app: this.config.APP_NAME, ...this.sample(def) },
-      this.brand(),
+      { app: brand.name, ...this.sample(def) },
+      brand,
     );
     await this.mail.send({
       event: 'template.test',

@@ -5,6 +5,7 @@ import {
   KeyRound,
   MailCheck,
   MailPlus,
+  Palette,
   Settings,
   ShieldCheck,
   UserCog,
@@ -46,6 +47,13 @@ const NAV: Item[] = [
     icon: MailCheck,
     group: 'Platform',
     needs: ['email.manage'],
+  },
+  {
+    id: 'product-brand',
+    label: 'Product brand',
+    icon: Palette,
+    group: 'Platform',
+    needs: ['brand.manage'],
   },
   {
     id: 'email-templates',

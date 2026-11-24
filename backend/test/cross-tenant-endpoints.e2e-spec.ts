@@ -38,7 +38,7 @@ const A_SECRETS = {
   email: 'secret@xa.test',
   file: 'a-secret.pdf',
   role: 'A Only Role',
-  accent: '#aa0000',
+  accent: 'Secret Sender A',
   letterhead: 'A-Letterhead-Secret',
   template: 'A-Template-Secret',
   reference: 'ASECRET/',
@@ -328,7 +328,7 @@ beforeAll(async () => {
     )
   ).key;
   await made(
-    await call('a', 'put', '/settings/tenant/branding.accentColor').send({
+    await call('a', 'put', '/settings/tenant/branding.emailSenderName').send({
       value: A_SECRETS.accent,
     }),
     204,
@@ -467,6 +467,16 @@ const NO_TENANT_DATA: Record<string, string> = {
     'renders sample values only; no company data',
   'POST /mail/templates/:event/test':
     'sends to the signed-in admin’s own address',
+  'GET /brand': 'the signed-in company only (tenantId from the token)',
+  'PUT /brand/draft': 'the signed-in company only (tenantId from the token)',
+  'DELETE /brand/draft': 'the signed-in company only (tenantId from the token)',
+  'POST /brand/preview/email':
+    'renders sample values only, for the signed-in company',
+  'POST /brand/publish': 'the signed-in company only (tenantId from the token)',
+  'POST /brand/revert': 'the signed-in company only (tenantId from the token)',
+  'GET /public/brand': 'public: the product brand, no company data',
+  'GET /public/company/:slug/brand':
+    'public: a company’s published brand, by its address',
   'POST /auth/mfa/passkey/options': 'own challenge token',
   'POST /auth/mfa/passkey/verify':
     'own challenge token; the passkey must belong to that person',
@@ -570,19 +580,22 @@ const PROBES = (): Record<string, Probe> => ({
   'PUT /settings/tenant/:key': {
     mode: 'contained',
     send: () =>
-      as('put', '/settings/tenant/branding.accentColor').send({
-        value: '#00ff00',
+      as('put', '/settings/tenant/branding.emailSenderName').send({
+        value: 'Other Name',
       }),
   },
   'DELETE /settings/tenant/:key': {
     mode: 'contained',
-    send: () => as('delete', '/settings/tenant/branding.accentColor'),
+    send: () => as('delete', '/settings/tenant/branding.emailSenderName'),
   },
   'PUT /settings/entity/:entityId/:key': {
     mode: 'refuse',
     send: () =>
-      as('put', `/settings/entity/${ids.entityA}/branding.accentColor`).send({
-        value: '#00ff00',
+      as(
+        'put',
+        `/settings/entity/${ids.entityA}/branding.emailSenderName`,
+      ).send({
+        value: 'Other Name',
       }),
   },
   'GET /org/entities': {

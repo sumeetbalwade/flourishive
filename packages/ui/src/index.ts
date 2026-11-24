@@ -37,6 +37,7 @@ export {
   type TemplateListEntry,
   type TemplatePreview,
 } from './components/email-templates.tsx';
+export { BrandEditor, type BrandEditorProps } from './components/brand-editor.tsx';
 export { PasskeysCard, type PasskeyItem } from './components/passkeys-card.tsx';
 export { CollapsibleSection } from './components/collapsible-section.tsx';
 export { SearchBox } from './components/search-box.tsx';
@@ -59,6 +60,14 @@ export {
   type SettingItem,
   type SettingChange,
 } from './components/settings-editor.tsx';
-export { brand, brandSlug, loadBrand, type Brand } from './brand.ts';
+export {
+  brand,
+  brandExtras,
+  brandSlug,
+  loadBrand,
+  applyBrand,
+  applyProductBrand,
+  type Brand,
+} from './brand.ts';
 export { AuthFrame, BrandMark } from './components/auth-frame.tsx';
 export { PageLoader } from './components/page-loader.tsx';

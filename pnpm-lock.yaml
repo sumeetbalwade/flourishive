@@ -611,6 +611,9 @@ importers:
       '@flourishive/design-tokens':
         specifier: workspace:*
         version: link:../design-tokens
+      '@flourishive/schemas':
+        specifier: workspace:*
+        version: link:../schemas
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

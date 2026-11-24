@@ -195,11 +195,11 @@ const fixtures: Record<string, Fixture> = {
         tenantId,
         scope: 'TENANT',
         scopeId: tenantId,
-        key: 'branding.accentColor',
-        value: '#112233',
+        key: 'branding.emailSenderName',
+        value: 'Acme Mail',
       },
     }),
-    change: { value: '#ffffff' },
+    change: { value: 'Hacked' },
   },
   Location: {
     delegate: 'location',
@@ -689,6 +689,13 @@ const fixtures: Record<string, Fixture> = {
       },
     }),
     change: { fromName: 'hacked' },
+  },
+  BrandProfile: {
+    delegate: 'brandProfile',
+    create: async (tenantId) => ({
+      data: { scope: 'TENANT', tenantId, status: 'DRAFT', data: {} },
+    }),
+    change: { status: 'ARCHIVED' },
   },
   EmailTemplate: {
     delegate: 'emailTemplate',

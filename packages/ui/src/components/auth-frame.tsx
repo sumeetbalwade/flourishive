@@ -1,13 +1,20 @@
 import { FileSignature, ShieldCheck, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { ReactNode } from 'react';
-import { brand } from '../brand.ts';
+import { brand, brandExtras } from '../brand.ts';
 
 const POINTS = [
   { icon: Users, text: 'One home for every employee and intern record' },
   { icon: FileSignature, text: 'Letters drafted, approved and e-signed in minutes' },
   { icon: ShieldCheck, text: 'Role-based access with two-step sign-in' },
 ];
+
+/** The brand's sign-in bullets (with a rotating icon), or the built-in ones until it has any. */
+const ICONS = [Users, FileSignature, ShieldCheck, Users];
+const points = () =>
+  brandExtras.bullets.length
+    ? brandExtras.bullets.map((text, i) => ({ icon: ICONS[i % ICONS.length]!, text }))
+    : POINTS;
 
 const YEAR = new Date().getFullYear();
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -55,7 +62,7 @@ export function AuthFrame({ children }: { children: ReactNode }) {
             {brand.tagline}
           </motion.h2>
           <ul className="mt-10 grid gap-3">
-            {POINTS.map(({ icon: Icon, text }, i) => (
+            {points().map(({ icon: Icon, text }, i) => (
               <motion.li
                 key={text}
                 initial={{ opacity: 0, x: -16 }}

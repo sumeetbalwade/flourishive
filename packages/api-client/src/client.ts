@@ -9,6 +9,9 @@ import {
   testResult,
   deliveriesResponse,
   templateList,
+  brandData,
+  brandEditorState,
+  type BrandPatch,
   templateView,
   previewResponse,
   type SaveTemplateBody,
@@ -364,6 +367,26 @@ export function createApiClient(opts: Opts) {
     },
 
     /** Open endpoints for the signed-out screens. */
+    /** The brand every screen loads first (D-62), and a company's published brand (D-61). */
+    brand: {
+      product: () => http.request('GET', '/public/brand', { schema: brandData, auth: false }),
+      company: (slug: string) =>
+        http.request('GET', `/public/company/${encodeURIComponent(slug)}/brand`, {
+          schema: brandData,
+          auth: false,
+        }),
+      state: () => http.request('GET', '/brand', { schema: brandEditorState }),
+      saveDraft: (draft: BrandPatch) =>
+        http.request('PUT', '/brand/draft', { json: { draft }, schema: brandEditorState }),
+      discardDraft: () => http.request('DELETE', '/brand/draft', { schema: brandEditorState }),
+      previewEmail: (draft: BrandPatch, scheme: 'light' | 'dark') =>
+        http.request('POST', '/brand/preview/email', {
+          json: { draft, scheme },
+          schema: previewResponse,
+        }),
+      publish: () => http.request('POST', '/brand/publish', { schema: brandEditorState }),
+      revert: () => http.request('POST', '/brand/revert', { schema: brandEditorState }),
+    },
     company: {
       get: (slug: string) =>
         http.request('GET', `/public/company/${encodeURIComponent(slug)}`, {

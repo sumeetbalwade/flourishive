@@ -45,21 +45,14 @@ function def<T>(d: SettingDefinition<T>): SettingDefinition<T> {
 
 /** Every setting is declared once here. Add new ones as modules need them. */
 export const SETTINGS = {
-  'branding.accentColor': def({
-    schema: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-    default: '#2a9158',
-    levels: ['tenant', 'entity'],
-    label: 'Accent colour',
-    group: 'Branding',
-    description: 'Accent colour used across the tenant’s screens',
-  }),
+  /** A person's own light/dark choice. The company's default comes from its published brand. */
   'branding.defaultTheme': def({
     schema: z.enum(['dark', 'light', 'system']),
     default: 'dark',
-    levels: ['tenant', 'user'],
-    label: 'Default theme',
+    levels: ['user'],
+    label: 'My colour theme',
     group: 'Branding',
-    description: 'Default colour theme',
+    description: 'Your own choice of light or dark',
   }),
   'branding.emailSenderName': def({
     schema: z.string().min(1).max(80),

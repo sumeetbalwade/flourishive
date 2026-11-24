@@ -356,8 +356,8 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
 
 ### PR 7 — Branding: product and tenant, draft and publish (D-61, D-62)
 
-**Backend**
-- [ ] Data:
+**Backend** _(PR 7 is built in two stacked PRs. 7a, done here: everything below except logo/favicon/panel-image uploads. 7b: uploads, the sign-in panel image, and the logo in the email header and app.)_
+- [x] Data:
   - `brand_profiles`: `scope` `PLATFORM | TENANT`, `tenantId`, `status` `DRAFT | PUBLISHED | ARCHIVED`, `version`, `data` JSON, `publishedBy`, `publishedAt`. Publishing archives the previous version; revert republishes the previous version as a new version.
   - The JSON shape lives in `packages/schemas/src/brand.ts`:
     - `displayName`
@@ -368,16 +368,16 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
     - `email`: `{ headerLogo: 'light'|'dark', bandColor, footerText, address }`
     - `support`: `{ email, phone, url }`
     - `legal`: `{ termsUrl, privacyUrl }` (platform only)
-- [ ] Assets through the files module:
+- [ ] Assets through the files module: _(7b)_
   - PNG, JPEG and WebP, plus SVG sanitised with DOMPurify server-side. Files are served with `Content-Security-Policy: sandbox` and `nosniff`.
   - Maximum 2 MB. Raster images are resized to 512 px for logos and 64/32 px PNG plus ICO for favicons.
   - Content type is checked by magic bytes.
-- [ ] Theme engine (`packages/design-tokens/src/theme.ts`, shared by backend validation and frontend):
+- [x] _(Built in `packages/schemas/src/theme.ts`, because the API imports it and that package is built. Presets skip the contrast rule: Mint, the existing look, reaches 4.3:1 against the 4.5 AA mark. Custom colours are held to it.)_ Theme engine (`packages/design-tokens/src/theme.ts`, shared by backend validation and frontend):
   - From one accent, generate `--accent-hi` and `--accent-lo` for light and dark (OKLCH lightness steps).
   - Choose `--on-accent` (white or near-black) by contrast.
   - Reject the accent if neither text colour reaches 4.5:1 on the accent, or the accent reaches less than 3:1 on the surface (WCAG AA).
   - Presets: Mint (current), Bronze (the old D-08 palette), Ocean, Plum, Slate. Each is a full light and dark set.
-- [ ] Font pairs (curated, checked with Indian names and ₹ amounts):
+- [x] Font pairs (curated, checked with Indian names and ₹ amounts):
   - Outfit / Hanken Grotesk
   - Inter / Inter
   - Manrope / Manrope
@@ -387,21 +387,21 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - Source Serif 4 / Source Sans 3
   - Noto Sans / Noto Sans (Devanagari-safe)
   - Loaded from Google Fonts, falling back to system fonts.
-- [ ] Public endpoints, cacheable for 5 minutes with an ETag:
+- [x] _(Served at `/v1/public/brand` and `/v1/public/company/:slug/brand`, matching the existing public routes. Tenant-detail brand editing by the super admin is not built.)_ Public endpoints, cacheable for 5 minutes with an ETag:
   - `GET /v1/brand` (platform brand)
   - `GET /v1/company/:slug/brand` (published tenant brand, merged over the platform brand)
   - Draft and preview endpoints need `brand.manage` (tenant: new permission `brand.manage`; platform: `brand.manage`).
-- [ ] Remove `branding.accentColor` and `branding.defaultTheme` from the registry after migrating their values into each tenant's first published brand profile. Keep `branding.emailSenderName` (it moves into the sender settings in PR 5).
+- [x] _(`branding.defaultTheme` stays as a personal, per-user choice; the company default is the brand's `defaultMode`. Values were migrated in SQL.)_ Remove `branding.accentColor` and `branding.defaultTheme` from the registry after migrating their values into each tenant's first published brand profile. Keep `branding.emailSenderName` (it moves into the sender settings in PR 5).
 
 **Frontend**
-- [ ] `packages/ui/src/brand.ts` loads `/v1/brand` first, with `brand.json` as the fallback. Add `applyBrand(profile)`, which sets CSS variables, injects the font link, swaps the favicon, sets the title and exposes logo URLs.
-- [ ] `AuthFrame` and `BrandMark` show the logo when one is set (else the initial) and use the sign-in panel content and colour.
-- [ ] Web `lib/company.ts` replaces today's accent-only override with `applyBrand`. Tenant brand wins over platform brand.
-- [ ] Brand editor (web Settings, then Brand, for tenants; admin, then Product brand, and Tenant detail, then Brand, for the super admin):
+- [x] `packages/ui/src/brand.ts` loads `/v1/brand` first, with `brand.json` as the fallback. Add `applyBrand(profile)`, which sets CSS variables, injects the font link, swaps the favicon, sets the title and exposes logo URLs.
+- [x] `AuthFrame` and `BrandMark` show the logo when one is set (else the initial) and use the sign-in panel content and colour.
+- [x] Web `lib/company.ts` replaces today's accent-only override with `applyBrand`. Tenant brand wins over platform brand.
+- [x] Brand editor (web Settings, then Brand, for tenants; admin, then Product brand, and Tenant detail, then Brand, for the super admin):
   - Form on the left: uploads, preset cards, accent picker with live contrast badge, font pair cards with sample text.
   - Preview on the right, with tabs for App, Sign-in and Email, and a light/dark switch. It renders the real components in an isolated container with the draft variables.
   - Buttons: Save draft, Publish, Revert to previous; "Unpublished changes" badge.
-- [ ] Email layout uses the published brand (PR 6 renderer).
+- [x] Email layout uses the published brand (PR 6 renderer).
 
 **Done when:** a tenant uploads a logo, picks Ocean, then a custom accent (an unreadable yellow is blocked with an explanation), picks Manrope, previews sign-in and an email in dark mode, publishes, then reverts. The super admin changes the product tagline in the console and every app shows it without a deploy.
 

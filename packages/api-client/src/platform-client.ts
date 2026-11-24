@@ -7,6 +7,9 @@ import {
   senderState,
   deliveriesResponse,
   templateList,
+  brandData,
+  brandEditorState,
+  type BrandPatch,
   templateView,
   previewResponse,
   type SaveTemplateBody,
@@ -173,6 +176,21 @@ export function createPlatformClient(opts: Opts) {
       },
     },
 
+    /** The product's own brand (D-62). */
+    brand: {
+      state: () => http.request('GET', '/platform/brand', { schema: brandEditorState }),
+      saveDraft: (draft: BrandPatch) =>
+        http.request('PUT', '/platform/brand/draft', { json: { draft }, schema: brandEditorState }),
+      discardDraft: () =>
+        http.request('DELETE', '/platform/brand/draft', { schema: brandEditorState }),
+      previewEmail: (draft: BrandPatch, scheme: 'light' | 'dark') =>
+        http.request('POST', '/platform/brand/preview/email', {
+          json: { draft, scheme },
+          schema: previewResponse,
+        }),
+      publish: () => http.request('POST', '/platform/brand/publish', { schema: brandEditorState }),
+      revert: () => http.request('POST', '/platform/brand/revert', { schema: brandEditorState }),
+    },
     /** The email log across companies, and a company's sender (D-58, D-60). */
     mail: {
       deliveries: (query: Partial<DeliveryQuery> = {}) =>

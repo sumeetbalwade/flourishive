@@ -6,14 +6,15 @@ import { runAsSystem } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
 import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { ThrottleService } from '../identity/throttle.service.js';
-import { SettingsService } from '../settings/settings.service.js';
+import { BrandService } from '../brand/brand.service.js';
+import { accentOf } from '@flourishive/schemas';
 import { tenantUrl } from './tenant-host.js';
 
 @Injectable()
 export class CompanyService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly settings: SettingsService,
+    private readonly brand: BrandService,
     private readonly throttle: ThrottleService,
     private readonly mail: MailService,
     private readonly templates: EmailTemplatesService,
@@ -30,12 +31,11 @@ export class CompanyService {
     );
     if (!tenant || tenant.status !== 'ACTIVE' || tenant.slug.startsWith('_'))
       return null;
+    const brandData = await this.brand.effective(tenant.id);
     return {
       slug: tenant.slug,
       name: tenant.name,
-      accentColor: await this.settings.get('branding.accentColor', {
-        tenantId: tenant.id,
-      }),
+      accentColor: accentOf(brandData.theme),
     };
   }
 

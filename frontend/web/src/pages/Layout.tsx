@@ -8,6 +8,7 @@ import {
   Mail,
   MailCheck,
   MailPlus,
+  Palette,
   Settings,
   LayoutTemplate,
   Stamp,
@@ -83,6 +84,13 @@ const NAV: Item[] = [
     icon: ShieldCheck,
     group: 'Administration',
     needs: 'roles.read',
+  },
+  {
+    id: 'brand',
+    label: 'Brand',
+    icon: Palette,
+    group: 'Administration',
+    needs: 'brand.manage',
   },
   {
     id: 'email-templates',
