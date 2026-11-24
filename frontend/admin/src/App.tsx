@@ -11,6 +11,7 @@ import { Policy } from './pages/Policy.tsx';
 import { Login, SetPassword } from './pages/Login.tsx';
 import { Alerts } from './pages/Alerts.tsx';
 import { Controls } from './pages/Controls.tsx';
+import { Plans } from './pages/Plans.tsx';
 import { Usage } from './pages/Usage.tsx';
 import { Logs } from './pages/Logs.tsx';
 import { EmailLog } from './pages/EmailLog.tsx';
@@ -53,6 +54,7 @@ function Routes() {
   else if (path === '/logs') page = <Logs />;
   else if (path === '/controls') page = <Controls />;
   else if (path === '/usage') page = <Usage />;
+  else if (path === '/plans') page = <Plans />;
   else if (path === '/alerts') page = <Alerts />;
   else if (path === '/email-log') page = <EmailLog />;
   else if (path === '/product-brand') page = <ProductBrand />;

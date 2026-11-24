@@ -5,6 +5,7 @@ import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import { ApiProvider, makeClient } from './lib/api.tsx';
 import { AuthProvider, useAuth } from './lib/auth.tsx';
 import { requestStepUp, StepUpHost } from './lib/step-up.tsx';
+import { announcePlanLimit, PlanLimitHost } from './lib/plan-limit.tsx';
 import type { ApiClient } from '@flourishive/api-client';
 const Desktop = lazy(() => import('./pages/Desktop.tsx'));
 const Gallery = lazy(() => import('./pages/Gallery.tsx'));
@@ -25,6 +26,7 @@ import { Company } from './pages/admin/Company.tsx';
 import { Policy } from './pages/admin/Policy.tsx';
 import { Roles } from './pages/admin/Roles.tsx';
 import { Domains } from './pages/admin/Domains.tsx';
+import { Plan } from './pages/admin/Plan.tsx';
 import { EmailSender } from './pages/admin/EmailSender.tsx';
 import { Brand } from './pages/admin/Brand.tsx';
 import { EmailLog } from './pages/admin/EmailLog.tsx';
@@ -114,6 +116,7 @@ function Routes() {
   else if (path === '/app/email') page = <EmailSender />;
   else if (path === '/app/brand') page = <Brand />;
   else if (path === '/app/domains') page = <Domains />;
+  else if (path === '/app/plan') page = <Plan />;
   else if (path === '/app/email-log') page = <EmailLog />;
   else if (path === '/app/logs') page = <Logs />;
   else if (path === '/app/notifications') page = <Notifications />;
@@ -140,7 +143,7 @@ export default function App({
   retryDelay,
 }: { client?: ApiClient; retryDelay?: number } = {}) {
   const client = useMemo(
-    () => injected ?? makeClient(() => go('/login'), requestStepUp),
+    () => injected ?? makeClient(() => go('/login'), requestStepUp, announcePlanLimit),
     [injected],
   );
   const queryClient = useMemo(
@@ -161,17 +164,19 @@ export default function App({
     <ApiProvider client={client}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <StepUpHost>
-            <AuthProvider>
-              <SessionWatch>
-                <MaintenanceGate>
-                  <Suspense fallback={<PageLoader fullscreen />}>
-                    <Routes />
-                  </Suspense>
-                </MaintenanceGate>
-              </SessionWatch>
-            </AuthProvider>
-          </StepUpHost>
+          <PlanLimitHost>
+            <StepUpHost>
+              <AuthProvider>
+                <SessionWatch>
+                  <MaintenanceGate>
+                    <Suspense fallback={<PageLoader fullscreen />}>
+                      <Routes />
+                    </Suspense>
+                  </MaintenanceGate>
+                </SessionWatch>
+              </AuthProvider>
+            </StepUpHost>
+          </PlanLimitHost>
         </ToastProvider>
       </QueryClientProvider>
     </ApiProvider>

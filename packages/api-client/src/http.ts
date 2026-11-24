@@ -42,6 +42,8 @@ export interface HttpOptions {
    * they have confirmed and the request is retried, or false if they cancelled.
    */
   onStepUp?: () => Promise<boolean>;
+  /** Called when the API refuses because the company's plan limit is reached (HTTP 402, PLAN_LIMIT). */
+  onPlanLimit?: (message: string) => void;
 }
 
 export interface RequestOptions<T> {
@@ -178,6 +180,7 @@ export class Http {
       } catch {
         // not JSON; keep the status text
       }
+      if (res.status === 402 && code === 'PLAN_LIMIT') this.opts.onPlanLimit?.(message);
       throw new ApiError(res.status, message, details, code, requestId);
     }
     if (res.status === 204) return undefined as T;

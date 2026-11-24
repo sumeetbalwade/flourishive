@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { LimitsService } from '../billing/limits.service.js';
 import { AuthService } from '../identity/auth.service.js';
 import { AccessService } from '../access/access.service.js';
 import type { AccessClaims } from '../identity/token.service.js';
@@ -38,6 +39,7 @@ export class PeopleService {
     private readonly access: AccessService,
     private readonly auth: AuthService,
     private readonly settings: SettingsService,
+    private readonly limits: LimitsService,
   ) {}
 
   /** When the company limits email domains (D-69), an address outside them is refused. */
@@ -293,6 +295,7 @@ export class PeopleService {
     if (eng.person.userId)
       throw new ConflictException('This person already has an account');
 
+    await this.limits.assert(a.tenantId, 'users');
     const userId = await runInTenant(a.tenantId, async () => {
       try {
         return await this.prisma.db.$transaction(async (tx) => {

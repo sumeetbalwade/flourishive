@@ -732,6 +732,17 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { enabled: true },
   },
+  Subscription: {
+    delegate: 'subscription',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        planId: '00000000-0000-7000-8000-0000000000a1',
+        status: 'ACTIVE',
+      },
+    }),
+    change: { status: 'PAST_DUE' },
+  },
   TenantUsageDaily: {
     delegate: 'tenantUsageDaily',
     create: async (tenantId) => ({

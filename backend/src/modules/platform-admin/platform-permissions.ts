@@ -83,6 +83,11 @@ export const PLATFORM_PERMISSIONS = {
     label: 'Read the platform audit trail',
     hint: 'Who changed what on the platform',
   },
+  'billing.manage': {
+    area: 'Platform',
+    label: 'Manage plans and billing',
+    hint: 'Edit plans and limits, and move a company to another plan',
+  },
   'platform.controls': {
     area: 'Platform',
     label: 'Use platform controls',

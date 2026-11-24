@@ -8,6 +8,7 @@ import {
 import { createHash, randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { PrismaService } from '../../platform/database/prisma.service.js';
+import { LimitsService } from '../billing/limits.service.js';
 import {
   runAsSystem,
   runInTenant,
@@ -45,6 +46,7 @@ export class FilesService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly settings: SettingsService,
+    private readonly limits: LimitsService,
   ) {}
 
   /**
@@ -104,6 +106,7 @@ export class FilesService {
       );
     }
     await this.assertOwner(a.tenantId, input.ownerType, input.ownerId);
+    await this.limits.assert(a.tenantId, 'storage_mb', input.body.length);
     const id = randomUUID();
     const year = new Date().getUTCFullYear();
     const storageKey = `${a.tenantId}/${year}/${id}`;
@@ -145,6 +148,7 @@ export class FilesService {
       ownerId?: string;
     },
   ) {
+    await this.limits.assert(a.tenantId, 'storage_mb', input.body.length);
     const id = randomUUID();
     const storageKey = `${a.tenantId}/${new Date().getUTCFullYear()}/${id}`;
     await this.storage.save(storageKey, Readable.from(input.body));
