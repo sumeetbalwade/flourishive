@@ -18,6 +18,8 @@ import {
 } from '@nestjs/common';
 import { Public } from '../identity/auth.context.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
+import { CheckoutService } from '../billing/checkout.service.js';
+import { OverviewService } from '../billing/overview.service.js';
 import { InvoiceService } from '../billing/invoice.service.js';
 import { LimitsService } from '../billing/limits.service.js';
 import { PlansService } from '../billing/plans.service.js';
@@ -37,6 +39,8 @@ export class PlatformBillingController {
     private readonly plans: PlansService,
     private readonly limits: LimitsService,
     private readonly invoiceService: InvoiceService,
+    private readonly overviewService: OverviewService,
+    private readonly checkout: CheckoutService,
     private readonly audit: PlatformAuditService,
   ) {}
 
@@ -54,6 +58,21 @@ export class PlatformBillingController {
       ip: req.ip,
       tenantId,
     });
+  }
+
+  @RequirePlatformPermission('tenants.read')
+  @Get('billing/overview')
+  overview() {
+    return this.overviewService.overview();
+  }
+
+  @RequirePlatformPermission('billing.manage')
+  @HttpCode(200)
+  @Post('billing/events/:id/retry')
+  async retry(@Param('id') id: string, @Req() req: PlatformRequest) {
+    await this.checkout.retryEvent(id);
+    await this.note(req, 'platform.billing_event_retried', { id });
+    return this.overviewService.overview();
   }
 
   @RequirePlatformPermission('tenants.read')

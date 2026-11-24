@@ -13,6 +13,7 @@ import {
   MailPlus,
   Palette,
   CreditCard,
+  Wallet,
   Settings,
   ShieldCheck,
   UserCog,
@@ -75,6 +76,13 @@ const NAV: Item[] = [
     icon: MailPlus,
     group: 'Email',
     needs: ['email.manage'],
+  },
+  {
+    id: 'billing',
+    label: 'Billing',
+    icon: Wallet,
+    group: 'Overview',
+    needs: ['tenants.read'],
   },
   {
     id: 'plans',

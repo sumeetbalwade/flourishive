@@ -1,4 +1,5 @@
 import {
+  billingOverview,
   invoiceLinkView,
   invoiceView,
   planBody,
@@ -418,6 +419,10 @@ export function createPlatformClient(opts: Opts) {
         http.request('GET', `/platform/tenants/${tenantId}/subscription`, {
           schema: subscriptionView,
         }),
+      overview: () =>
+        http.request('GET', '/platform/billing/overview', { schema: billingOverview }),
+      retryEvent: (id: string) =>
+        http.request('POST', `/platform/billing/events/${id}/retry`, { schema: billingOverview }),
       invoices: (tenantId: string) =>
         http.request('GET', `/platform/tenants/${tenantId}/invoices`, {
           schema: z.array(invoiceView),

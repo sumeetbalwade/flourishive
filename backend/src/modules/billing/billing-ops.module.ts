@@ -7,6 +7,7 @@ import { CheckoutService } from './checkout.service.js';
 import { DunningService } from './dunning.service.js';
 import { PAYMENT_GATEWAY } from './gateway/payment-gateway.js';
 import { RazorpayGateway } from './gateway/razorpay.gateway.js';
+import { OverviewService } from './overview.service.js';
 import { InvoiceService } from './invoice.service.js';
 import { BillingWebhookController } from './webhook.controller.js';
 
@@ -18,9 +19,16 @@ import { BillingWebhookController } from './webhook.controller.js';
     CheckoutService,
     InvoiceService,
     DunningService,
+    OverviewService,
     { provide: APP_GUARD, useClass: BillingStatusGuard },
     { provide: PAYMENT_GATEWAY, useClass: RazorpayGateway },
   ],
-  exports: [CheckoutService, InvoiceService, DunningService, PAYMENT_GATEWAY],
+  exports: [
+    CheckoutService,
+    InvoiceService,
+    DunningService,
+    OverviewService,
+    PAYMENT_GATEWAY,
+  ],
 })
 export class BillingOpsModule {}
