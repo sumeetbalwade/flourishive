@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../../platform/database/prisma.service.js';
+import { LimitsService } from '../billing/limits.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
 import { PDFDocument } from 'pdf-lib';
 import { RedisService } from '../../platform/cache/redis.service.js';
@@ -64,6 +65,7 @@ export class DscJobsService {
     private readonly validator: DscValidator,
     private readonly seal: SealService,
     private readonly mfa: MfaService,
+    private readonly limits: LimitsService,
     private readonly settings: SettingsService,
     private readonly redis: RedisService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
@@ -102,6 +104,7 @@ export class DscJobsService {
     const name = who.person
       ? `${who.person.firstName} ${who.person.lastName}`.trim()
       : who.email;
+    await this.limits.assert(a.tenantId, 'signatures_month');
     const req = await runInTenant(a.tenantId, async () =>
       this.prisma.db.signatureRequest.create({
         data: {

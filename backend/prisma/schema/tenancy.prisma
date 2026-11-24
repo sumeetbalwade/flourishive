@@ -32,6 +32,7 @@ model Tenant {
   domains             TenantDomain[]
   features            TenantFeature[]
   usageDaily          TenantUsageDaily[]
+  subscription        Subscription?
   brandAssets         BrandAsset[]
   notificationRules   NotificationRule[]
   auditChainHead      AuditChainHead?

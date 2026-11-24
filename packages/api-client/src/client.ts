@@ -1,4 +1,6 @@
 import {
+  planView,
+  subscriptionView,
   accountActionResult,
   accountListItem,
   accountView,
@@ -546,6 +548,11 @@ export function createApiClient(opts: Opts) {
     announcements: {
       active: () =>
         http.request('GET', '/announcements/active', { schema: z.array(activeAnnouncement) }),
+    },
+    /** The company's plan, its limits and what it has used (D-20). */
+    billing: {
+      plan: () => http.request('GET', '/billing/plan', { schema: subscriptionView }),
+      plans: () => http.request('GET', '/billing/plans', { schema: z.array(planView) }),
     },
     setupChecklist: () => http.request('GET', '/setup/checklist', { schema: setupChecklist }),
     maintenance: () =>

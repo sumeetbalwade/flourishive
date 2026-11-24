@@ -60,6 +60,7 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'TenantDomain',
   'TenantFeature',
   'TenantUsageDaily',
+  'Subscription',
 ]);
 
 /** The tenants table itself is scoped by its own id. */

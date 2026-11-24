@@ -11,6 +11,7 @@ import { RuntimeConfigService } from '../../platform/config/runtime-config.servi
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { RedisService } from '../../platform/cache/redis.service.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
+import { LimitsService } from '../billing/limits.service.js';
 import {
   runAsSystem,
   runInTenant,
@@ -73,6 +74,7 @@ export class SigningService {
     private readonly audit: AuditService,
     private readonly seal: SealService,
     private readonly esign: EsignGateway,
+    private readonly limits: LimitsService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly runtime: RuntimeConfigService,
   ) {}
@@ -206,6 +208,7 @@ export class SigningService {
     );
     if (accepted)
       throw new ConflictException('This document was already accepted');
+    await this.limits.assert(a.tenantId, 'signatures_month');
     const token = randomBytes(32).toString('base64url');
     const req = await runInTenant(a.tenantId, async () =>
       this.prisma.db.signatureRequest.create({

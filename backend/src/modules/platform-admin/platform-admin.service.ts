@@ -15,6 +15,7 @@ import {
   runAsSystem,
   runInTenant,
 } from '../../platform/database/tenant-context.js';
+import { PlansService } from '../billing/plans.service.js';
 import { AccessService } from '../access/access.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AuthService } from '../identity/auth.service.js';
@@ -40,6 +41,7 @@ export const suspendedKey = (tenantId: string) =>
 export class PlatformAdminService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly plans: PlansService,
     private readonly access: AccessService,
     private readonly auth: AuthService,
     private readonly settings: SettingsService,
@@ -164,6 +166,13 @@ export class PlatformAdminService {
       }
     });
     await this.access.provisionTenantRoles(tenant.id);
+    const planId = body.planId ?? (await this.plans.defaultPlanId());
+    if (planId)
+      await this.plans.assign(
+        tenant.id,
+        { planId, limitOverrides: null, status: 'ACTIVE' },
+        actorId,
+      );
     await runInTenant(tenant.id, async () => {
       const role = await this.db.role.findUnique({
         where: { tenantId_key: { tenantId: tenant.id, key: 'tenant_admin' } },

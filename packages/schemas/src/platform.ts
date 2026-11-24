@@ -69,6 +69,8 @@ export const createTenantBody = z.object({
   companyName: z.string().trim().min(1).max(191),
   legalName: z.string().trim().min(1).max(191),
   adminEmail: z.string().trim().toLowerCase().email().max(191),
+  /** The plan to start on. Left out: the default plan. */
+  planId: z.string().uuid().optional(),
 });
 export const patchTenantBody = z.object({
   name: z.string().trim().min(1).max(191).optional(),

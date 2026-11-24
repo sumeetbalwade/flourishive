@@ -1,4 +1,8 @@
 import {
+  planBody,
+  assignPlanBody,
+  planView,
+  subscriptionView,
   announcementBody,
   announcementView,
   featureStateView,
@@ -397,6 +401,25 @@ export function createPlatformClient(opts: Opts) {
         http.request('POST', `/platform/tenants/${tenantId}/import`, {
           json: { file, dryRun: false },
           schema: setupImportResult,
+        }),
+    },
+
+    /** Plans, limits and which company is on which plan (D-20). */
+    billing: {
+      plans: () => http.request('GET', '/platform/plans', { schema: z.array(planView) }),
+      createPlan: (body: z.input<typeof planBody>) =>
+        http.request('POST', '/platform/plans', { json: body, schema: planView }),
+      updatePlan: (id: string, body: z.input<typeof planBody>) =>
+        http.request('PUT', `/platform/plans/${id}`, { json: body, schema: planView }),
+      removePlan: (id: string) => http.request('DELETE', `/platform/plans/${id}`),
+      subscription: (tenantId: string) =>
+        http.request('GET', `/platform/tenants/${tenantId}/subscription`, {
+          schema: subscriptionView,
+        }),
+      assign: (tenantId: string, body: z.input<typeof assignPlanBody>) =>
+        http.request('PUT', `/platform/tenants/${tenantId}/subscription`, {
+          json: body,
+          schema: subscriptionView,
         }),
     },
 

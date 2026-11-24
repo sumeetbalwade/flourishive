@@ -1,0 +1,67 @@
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  READ_ONLY
+  SUSPENDED
+  CANCELLED
+}
+
+/// A plan the super admin sells (D-20). Prices are in paise. Not tied to one company, so no tenantId.
+model Plan {
+  id           String   @id @default(uuid(7)) @db.Char(36)
+  key          String   @unique @db.VarChar(40)
+  name         String   @db.VarChar(80)
+  description  String   @default("") @db.VarChar(300)
+  priceMonthly Int      @default(0)
+  priceYearly  Int      @default(0)
+  currency     String   @default("INR") @db.VarChar(3)
+  /// Shown to a company choosing a plan. Internal plans (for example Flourisense itself) are not.
+  isPublic     Boolean  @default(true)
+  /// New companies start on this plan. Exactly one plan carries it.
+  isDefault    Boolean  @default(false)
+  active       Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now()) @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @db.DateTime(3)
+
+  limits        PlanLimit[]
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+/// One limit of a plan. A missing row, or a null value, means unlimited.
+model PlanLimit {
+  id     String @id @default(uuid(7)) @db.Char(36)
+  planId String @db.Char(36)
+  /// users, storage_mb or signatures_month
+  metric String @db.VarChar(40)
+  value  Int?
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, metric])
+  @@map("plan_limits")
+}
+
+/// Which plan a company is on, and any limits the super admin raised or lowered for it.
+model Subscription {
+  id                 String             @id @default(uuid(7)) @db.Char(36)
+  tenantId           String             @unique @db.Char(36)
+  planId             String             @db.Char(36)
+  status             SubscriptionStatus @default(ACTIVE)
+  /// { "users": 50, "storage_mb": null } replaces the plan's value for that metric (null is unlimited).
+  limitOverrides     Json?
+  currentPeriodStart DateTime?          @db.DateTime(3)
+  currentPeriodEnd   DateTime?          @db.DateTime(3)
+  updatedBy          String?            @db.Char(36)
+  createdAt          DateTime           @default(now()) @db.DateTime(3)
+  updatedAt          DateTime           @updatedAt @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@index([planId])
+  @@map("subscriptions")
+}
