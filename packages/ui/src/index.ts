@@ -74,6 +74,7 @@ export {
   brandExtras,
   assetUrl,
   brandSlug,
+  isCustomHost,
   loadBrand,
   applyBrand,
   applyProductBrand,

@@ -141,6 +141,16 @@ export const SETTINGS = {
     group: 'Platform',
     description: 'Let platform staff recover access with an emailed code',
   }),
+  'domains.primary': def({
+    schema: z.string().max(253),
+    default: '',
+    levels: ['tenant'],
+    label: 'Address used in emails',
+    group: 'Brand',
+    kind: 'text',
+    description:
+      'The verified company address that links in emails start with. Empty uses the address on our domain. Change it on the Web address screen',
+  }),
   'region.timeZone': def({
     schema: z.string().refine(isTimeZone, 'Not a known time zone'),
     default: 'Asia/Kolkata',

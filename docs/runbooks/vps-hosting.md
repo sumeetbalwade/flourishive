@@ -20,8 +20,20 @@ If any is missing the API leaves DNS alone.
 2. Repeat it: `POST /v1/platform/tenants/<id>/dns` (safe to repeat; fixes a wrong record too).
 3. The reason is in the platform audit log as `platform.tenant_dns_failed`.
 
+## A company's own address (hr.company.com)
+One-time setup:
+1. In Cloudflare add `custom` as an **A record to the server's IPv4, DNS only (grey cloud, not proxied)**. Companies point their CNAME here, and Caddy must see the real visitor to get a certificate.
+2. Deploy the Caddyfile (`infra/vps/caddy/Caddyfile`) and reload Caddy. It has an `on_demand_tls` block that asks the API (`/v1/internal/domains/allowed`) before getting any certificate, and a catch-all site for these addresses.
+
+How a company adds one: Settings, then Web address. They add two DNS records at their own provider: `CNAME hr.company.com -> custom.flourishive.in` and `TXT _flourishive.hr.company.com = <token>`. The worker re-checks every 10 minutes for 48 hours; "Check now" does it at once. When both match the address is VERIFIED. The first HTTPS visit gets a certificate and the address becomes ACTIVE.
+
+If it does not work:
+- No certificate: the address is not VERIFIED (open the company's Web address screen), or Let's Encrypt rate-limited us (`journalctl -u caddy`).
+- Sign-in fails on the address: the browser must be calling `/v1/...` on the same address; the catch-all site proxies that to the API.
+- To stop serving an address, remove it on the Web address screen (or delete its row in `tenant_domains`); Caddy refuses new certificates for it at once.
+
 ## Moving the server (new IP)
-Change `DNS_TARGET_IP`, restart the API, then call the endpoint above for each company; also update `@`, `app`, `admin`, `api`, `verify`, `www` by hand.
+Change `DNS_TARGET_IP`, restart the API, then call the endpoint above for each company; also update `@`, `app`, `admin`, `api`, `verify`, `www`, `custom` by hand.
 
 ## A staff member is locked out of two-step (break-glass)
 

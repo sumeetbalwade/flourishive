@@ -133,6 +133,18 @@ export const brandSlug = (): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '') || 'app';
 
+/**
+ * True when the page is on a company's own address (hr.company.com) rather than on our domain or on a
+ * developer machine. Such a page talks to the API on its own address, which Caddy forwards.
+ */
+export function isCustomHost(hostname: string, tenantDomain: string): boolean {
+  const h = hostname.toLowerCase();
+  if (!h || h === 'localhost' || h.endsWith('.localhost')) return false;
+  if (/^[\d.]+$/.test(h) || h.includes(':')) return false;
+  const d = tenantDomain.toLowerCase();
+  return !(h === d || h.endsWith(`.${d}`));
+}
+
 const text = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
 
 function apply(source: Partial<Record<keyof Brand, unknown>>) {
@@ -148,7 +160,7 @@ function apply(source: Partial<Record<keyof Brand, unknown>>) {
  */
 export async function loadBrand(
   buildDefaults: Partial<Record<keyof Brand, string | undefined>> = {},
-  options: { url?: string; titleSuffix?: string } = {},
+  options: { url?: string; titleSuffix?: string; ownOriginForApi?: boolean } = {},
 ): Promise<Brand> {
   apply(buildDefaults);
   try {
@@ -158,6 +170,12 @@ export async function loadBrand(
   } catch {
     // no brand.json: the defaults stand
   }
+  if (
+    options.ownOriginForApi &&
+    typeof location !== 'undefined' &&
+    isCustomHost(location.hostname, brand.tenantDomain)
+  )
+    brand.apiUrl = location.origin;
   // The product's brand from the API wins over brand.json, which stays as the fallback (D-62).
   try {
     const res = await fetch(`${brand.apiUrl.replace(/\/$/, '')}/v1/public/brand`, {

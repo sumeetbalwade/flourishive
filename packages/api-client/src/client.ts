@@ -5,6 +5,8 @@ import {
   securityInfo,
   passkeyView,
   senderState,
+  domainView,
+  domainsState,
   senderView,
   testResult,
   alertSubscriptionsResponse,
@@ -536,6 +538,16 @@ export function createApiClient(opts: Opts) {
       list: () => http.request('GET', '/alerts', { schema: alertSubscriptionsResponse }),
       save: (body: SaveAlertsBody) =>
         http.request('PUT', '/alerts', { json: body, schema: alertSubscriptionsResponse }),
+    },
+    /** The company's own web addresses, such as hr.company.com (D-69). */
+    domains: {
+      state: () => http.request('GET', '/domains', { schema: domainsState }),
+      add: (hostname: string) =>
+        http.request('POST', '/domains', { json: { hostname }, schema: domainView }),
+      check: (id: string) => http.request('POST', `/domains/${id}/check`, { schema: domainView }),
+      setPrimary: (hostname: string | null) =>
+        http.request('PUT', '/domains/primary', { json: { hostname }, schema: domainsState }),
+      remove: (id: string) => http.request('DELETE', `/domains/${id}`, { schema: domainsState }),
     },
     /** Who company email comes from, and the email log (D-58, D-60). */
     mail: {

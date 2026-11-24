@@ -57,6 +57,7 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'LogError',
   'LogSignin',
   'AlertSubscription',
+  'TenantDomain',
 ]);
 
 /** The tenants table itself is scoped by its own id. */

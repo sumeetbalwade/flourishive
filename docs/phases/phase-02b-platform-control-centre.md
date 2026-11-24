@@ -478,19 +478,19 @@ _Built: region settings with `fmtDate`/`fmtDateTime`/`fmtNumber`/`fmtMoney` in `
 
 ### PR 10 — Custom domains (D-69)
 
-- [ ] Data: `tenant_domains` (`tenantId`, `hostname` unique, `status` `PENDING_DNS | VERIFIED | ACTIVE | FAILED`, `verificationToken`, `checkedAt`, `error`).
-- [ ] Flow:
+- [x] Data: `tenant_domains` (`tenantId`, `hostname` unique, `status` `PENDING_DNS | VERIFIED | ACTIVE | FAILED`, `verificationToken`, `checkedAt`, `error`).
+- [x] Flow:
   1. The admin enters `hr.company.com`.
   2. We show two DNS records: `CNAME hr.company.com → custom.flourishive.in` and `TXT _flourishive.hr.company.com = <token>`.
   3. "Check now" (and a job every 10 minutes for 48 hours) resolves both.
   4. When both match, the domain is VERIFIED.
   5. The first HTTPS request issues the certificate, and the domain becomes ACTIVE.
-- [ ] Infrastructure (`infra/vps/caddy/Caddyfile` and the runbook):
+- [x] Infrastructure (`infra/vps/caddy/Caddyfile` and the runbook):
   - `custom.flourishive.in` is an A record to the VPS, DNS-only (not proxied).
   - A Caddy `on_demand_tls` block with `ask http://127.0.0.1:3000/v1/internal/domains/allowed?domain=…`, which returns 200 only for VERIFIED or ACTIVE hostnames (so certificates cannot be requested for arbitrary names).
   - Rate-limit the endpoint.
-- [ ] Tenant resolution (`modules/company/tenant-host.ts`) also matches active custom hostnames (cached). CORS, cookie domain, the passkey relying-party ID (PR 4) and email links use the tenant's primary domain.
-- [ ] Setting `domains.primary` chooses which address links in emails use.
+- [x] _(Built differently: Caddy serves the company app and forwards `/v1/*` on the custom address itself, so the browser talks to the API on its own address. That makes cookies and passkeys belong to that address and needs no CORS change or cross-site cookie. Resolution is in `modules/domains`; a custom address may only sign in to its own company.)_ Tenant resolution (`modules/company/tenant-host.ts`) also matches active custom hostnames (cached). CORS, cookie domain, the passkey relying-party ID (PR 4) and email links use the tenant's primary domain.
+- [x] Setting `domains.primary` chooses which address links in emails use.
 
 **Done when:** a test domain points to us, verifies, gets HTTPS automatically, and sign-in, passkeys and email links all work on it. An unverified hostname gets no certificate.
 

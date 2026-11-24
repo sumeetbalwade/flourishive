@@ -1,5 +1,5 @@
 import { RESERVED_SLUGS } from '@flourishive/schemas';
-import { applyBrand, applyProductBrand, brand } from '@flourishive/ui';
+import { applyBrand, applyProductBrand, brand, isCustomHost } from '@flourishive/ui';
 import { useEffect, useState } from 'react';
 import type { CompanyPublic } from '@flourishive/schemas';
 import { useApi, remember } from './api.tsx';
@@ -22,7 +22,10 @@ export function detectCompany(input: {
   hash: string;
   saved: string;
   domain: string;
+  /** The company that owns this address, when it is a company's own (hr.company.com). */
+  hostSlug?: string;
 }): DetectedCompany {
+  if (input.hostSlug) return { slug: input.hostSlug, source: 'address' };
   const suffix = `.${input.domain}`;
   if (input.hostname.endsWith(suffix)) {
     const label = input.hostname.slice(0, -suffix.length);
@@ -39,8 +42,27 @@ export function detectCompany(input: {
   return { slug: '', source: 'none' };
 }
 
+let hostSlug = '';
+
+/** On a company's own address, asks the API which company that is. Call once before the first render. */
+export async function resolveHostCompany(): Promise<void> {
+  if (!isCustomHost(location.hostname, brand.tenantDomain)) return;
+  try {
+    const res = await fetch(`${brand.apiUrl.replace(/\/$/, '')}/v1/public/host`, {
+      cache: 'no-cache',
+    });
+    if (res.ok) {
+      const body = (await res.json()) as { slug?: string };
+      if (body.slug && SLUG.test(body.slug)) hostSlug = body.slug;
+    }
+  } catch {
+    // The address is not set up (or the API is down): the normal sign-in page and company search show.
+  }
+}
+
 export const detectHere = (): DetectedCompany =>
   detectCompany({
+    hostSlug,
     hostname: location.hostname,
     search: location.search,
     hash: location.hash,

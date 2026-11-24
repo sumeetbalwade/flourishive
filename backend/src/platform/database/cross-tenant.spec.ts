@@ -714,6 +714,17 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { width: 99 },
   },
+  TenantDomain: {
+    delegate: 'tenantDomain',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        hostname: `hr-${crypto.randomUUID()}.example.test`,
+        verificationToken: 'a'.repeat(32),
+      },
+    }),
+    change: { status: 'FAILED' },
+  },
   PasswordHistory: {
     delegate: 'passwordHistory',
     create: async (tenantId) => ({

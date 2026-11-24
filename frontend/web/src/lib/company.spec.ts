@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isCustomHost } from '@flourishive/ui';
 import { detectCompany } from './company.ts';
 
 const base = {
@@ -53,5 +54,20 @@ describe('detectCompany', () => {
       detectCompany({ ...base, hostname: 'acme.flourishive.in', search: '?tenant=other' }).slug,
     ).toBe('acme');
     expect(detectCompany({ ...base, search: '?tenant=%3Cscript%3E' }).source).toBe('none');
+  });
+
+  it('uses the company that owns a custom address', () => {
+    expect(detectCompany({ ...base, hostname: 'hr.acme.com', hostSlug: 'acme' })).toEqual({
+      slug: 'acme',
+      source: 'address',
+    });
+  });
+
+  it('tells a custom address from ours and from a developer machine', () => {
+    expect(isCustomHost('hr.acme.com', 'flourishive.in')).toBe(true);
+    expect(isCustomHost('acme.flourishive.in', 'flourishive.in')).toBe(false);
+    expect(isCustomHost('flourishive.in', 'flourishive.in')).toBe(false);
+    expect(isCustomHost('localhost', 'flourishive.in')).toBe(false);
+    expect(isCustomHost('127.0.0.1', 'flourishive.in')).toBe(false);
   });
 });

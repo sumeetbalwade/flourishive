@@ -44,7 +44,8 @@ import {
 import { CurrentAuth, Public } from './auth.context.js';
 import type { ClientMeta, IssuedTokens } from './session.service.js';
 import { TokenService, type AccessClaims } from './token.service.js';
-import { slugFromOrigin } from '../company/tenant-host.js';
+import { hostOfOrigin, slugFromOrigin } from '../company/tenant-host.js';
+import { DomainsService } from '../domains/domains.service.js';
 import { RequireStepUp, StepUpService } from './step-up.service.js';
 import { relyingPartyFrom, type RelyingParty } from './passkey.service.js';
 import { ZodPipe } from './zod.pipe.js';
@@ -62,6 +63,7 @@ export class AuthController {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly runtime: RuntimeConfigService,
     private readonly stepUps: StepUpService,
+    private readonly domains: DomainsService,
   ) {}
 
   /**
@@ -78,6 +80,15 @@ export class AuthController {
       throw new BadRequestException(
         'This sign-in page belongs to a different company',
       );
+    // A company's own address (hr.company.com) is the same: it may only sign in to that company.
+    const host = hostOfOrigin(req.headers.origin);
+    if (!fromOrigin && host) {
+      const custom = await this.domains.slugForHost(host);
+      if (custom && custom !== tenant.toLowerCase())
+        throw new BadRequestException(
+          'This sign-in page belongs to a different company',
+        );
+    }
   }
 
   /** The site the browser is on. A passkey belongs to that host and works nowhere else. */

@@ -35,3 +35,30 @@ export function originMatcher(
   );
   return (origin) => !!origin && patterns.some((p) => p.test(origin));
 }
+
+/** The bare domain behind a TENANT_URL_TEMPLATE, for example https://{slug}.flourishive.in gives flourishive.in. */
+export function ownDomain(template: string): string {
+  return template
+    .replace(/^https?:\/\//, '')
+    .replace('{slug}.', '')
+    .replace('{slug}', '')
+    .replace(/[/:].*$/, '');
+}
+
+/** True for a host that is our own domain or any address under it (a custom address may not be one). */
+export function isOwnHost(domain: string, host: string): boolean {
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
+/** The hostname of an Origin header, or null when it is not a plain http(s) origin. */
+export function hostOfOrigin(origin: string | undefined): string | null {
+  if (!origin) return null;
+  try {
+    const u = new URL(origin);
+    return u.protocol === 'https:' || u.protocol === 'http:'
+      ? u.hostname
+      : null;
+  } catch {
+    return null;
+  }
+}

@@ -1,0 +1,28 @@
+enum DomainStatus {
+  PENDING_DNS
+  VERIFIED
+  ACTIVE
+  FAILED
+}
+
+/// A company's own web address, such as hr.company.com (D-69). The company points a CNAME at us and adds a TXT
+/// record holding `verificationToken`; once both resolve the domain is VERIFIED and Caddy may get a certificate
+/// for it (ACTIVE after the first HTTPS request). Looked up by hostname before any sign-in, so those reads run
+/// as the system; everything a company does with its domains goes through its own tenant scope.
+model TenantDomain {
+  id                String       @id @default(uuid(7)) @db.Char(36)
+  tenantId          String       @db.Char(36)
+  hostname          String       @unique @db.VarChar(253)
+  status            DomainStatus @default(PENDING_DNS)
+  verificationToken String       @db.VarChar(64)
+  checkedAt         DateTime?    @db.DateTime(3)
+  error             String?      @db.VarChar(255)
+  createdAt         DateTime     @default(now()) @db.DateTime(3)
+  updatedAt         DateTime     @updatedAt @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("tenant_domains")
+}
