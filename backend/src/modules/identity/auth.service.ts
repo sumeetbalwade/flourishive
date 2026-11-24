@@ -27,6 +27,7 @@ import { MailService } from '../../platform/mail/mail.service.js';
 import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { OtpService } from './otp.service.js';
 import { GoogleService } from './google.service.js';
+import { SsoService } from './sso.service.js';
 import { MfaService, hashRecoveryCode } from './mfa.service.js';
 import { PasswordService } from './password.service.js';
 import {
@@ -90,6 +91,7 @@ export class AuthService {
     private readonly sessions: SessionService,
     private readonly throttle: ThrottleService,
     private readonly google: GoogleService,
+    private readonly sso: SsoService,
     private readonly redis: RedisService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
@@ -150,7 +152,7 @@ export class AuthService {
   private async afterFirstFactor(
     user: UserRow,
     meta: ClientMeta,
-    via: 'password' | 'google',
+    via: 'password' | 'google' | 'sso',
     trustedToken?: string,
   ): Promise<LoginResult> {
     // An administrator outside the company's approved networks is stopped before any second step.
@@ -329,7 +331,29 @@ export class AuthService {
           code: 'PASSWORD_EXPIRED',
         });
     }
+    await this.sso.assertPasswordAllowed(user.tenantId, user.id);
     return this.afterFirstFactor(user, meta, 'password', trustedToken);
+  }
+
+  /** Finishes a single sign-on the provider already vouched for. MFA and network rules still apply. */
+  async completeSso(
+    tenantId: string,
+    userId: string,
+    meta: ClientMeta,
+    trustedToken?: string,
+  ): Promise<LoginResult> {
+    const user = await this.findUser(tenantId, { id: userId });
+    if (!user || user.status === 'DISABLED')
+      throw new UnauthorizedException(INVALID);
+    const active = { ...user, status: 'ACTIVE' as const };
+    if (user.status !== 'ACTIVE')
+      await runInTenant(tenantId, async () =>
+        this.prisma.db.user.update({
+          where: { id: userId },
+          data: { status: 'ACTIVE' },
+        }),
+      );
+    return this.afterFirstFactor(active, meta, 'sso', trustedToken);
   }
 
   async loginWithGoogle(

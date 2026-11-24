@@ -147,3 +147,49 @@ export const securityInfo = z.object({
 });
 export type SecurityInfo = z.infer<typeof securityInfo>;
 export type TrustedDeviceView = z.infer<typeof trustedDeviceView>;
+
+/** A company's own single sign-on connection (D-16). The secret is never sent back. */
+export const ssoProvider = z.enum(['GOOGLE', 'MICROSOFT']);
+export type SsoProvider = z.infer<typeof ssoProvider>;
+
+export const ssoConfigBody = z
+  .object({
+    provider: ssoProvider,
+    clientId: z.string().trim().min(5).max(200),
+    /** Leave out to keep the saved secret. */
+    clientSecret: z.string().min(1).max(500).optional(),
+    directoryId: z.string().trim().max(120).nullable().default(null),
+    hostedDomain: z.string().trim().toLowerCase().max(120).nullable().default(null),
+    enabled: z.boolean(),
+    enforce: z.boolean().default(false),
+  })
+  .refine((b) => b.provider !== 'MICROSOFT' || Boolean(b.directoryId), {
+    message: 'Microsoft needs the directory (tenant) ID',
+    path: ['directoryId'],
+  })
+  .refine((b) => !b.enforce || b.enabled, {
+    message: 'Turn single sign-on on before requiring it',
+    path: ['enforce'],
+  });
+export type SsoConfigBody = z.infer<typeof ssoConfigBody>;
+
+export const ssoConfigView = z.object({
+  provider: ssoProvider,
+  clientId: z.string(),
+  hasSecret: z.boolean(),
+  directoryId: z.string().nullable(),
+  hostedDomain: z.string().nullable(),
+  enabled: z.boolean(),
+  enforce: z.boolean(),
+  /** Register this address with the provider as the redirect URI. */
+  redirectUri: z.string(),
+});
+export type SsoConfigView = z.infer<typeof ssoConfigView>;
+
+/** What the sign-in page needs to know before it shows an SSO button. Public. */
+export const ssoOptions = z.object({
+  enabled: z.boolean(),
+  provider: ssoProvider.nullable(),
+  enforce: z.boolean(),
+});
+export type SsoOptions = z.infer<typeof ssoOptions>;

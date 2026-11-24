@@ -1,6 +1,7 @@
 import type { LoginResponse } from '@flourishive/schemas';
 import { Button, Card, Field, Input, brand } from '@flourishive/ui';
-import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
 import { Frame } from '../../components/Frame.tsx';
 import { GoogleButton } from '../../components/GoogleButton.tsx';
 import { MfaEnrol } from '../../components/MfaEnrol.tsx';
@@ -10,7 +11,7 @@ import { useAuth } from '../../lib/auth.tsx';
 import { detectHere, useCompany } from '../../lib/company.ts';
 import { messageOf } from '../../lib/errors.ts';
 import { passkeysSupported, answerPasskey } from '../../lib/passkeys.ts';
-import { go } from '../../router.ts';
+import { go, useRoute } from '../../router.ts';
 
 type Step =
   | { kind: 'credentials' }
@@ -48,6 +49,32 @@ export function Login() {
         : { kind: 'enrol', token: result.mfaToken },
     );
   }
+
+  // Back from the company's single sign-on provider: swap the one-time ticket for a session.
+  const route = useRoute();
+  const ticket = route.path === '/sso' ? route.query.get('ticket') : null;
+  const ssoError = route.query.get('sso_error');
+  useEffect(() => {
+    if (ssoError) setError(ssoError);
+  }, [ssoError]);
+  useEffect(() => {
+    if (!ticket) return;
+    setBusy(true);
+    api.auth
+      .ssoExchange(ticket)
+      .then((r) => handle(r))
+      .catch((e) => {
+        setError(messageOf(e));
+        go('/login');
+      })
+      .finally(() => setBusy(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticket]);
+  const sso = useQuery({
+    queryKey: ['sso-options', tenant.trim().toLowerCase()],
+    queryFn: () => api.auth.ssoOptions(tenant.trim().toLowerCase()),
+    enabled: tenant.trim().length > 1,
+  });
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -193,6 +220,24 @@ export function Login() {
               }}
             >
               Sign in with a passkey
+            </Button>
+          ) : null}
+          {sso.data?.enabled ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  remember.set('fh.tenant', tenant.trim().toLowerCase());
+                  const { url } = await api.auth.ssoStart(tenant.trim().toLowerCase());
+                  window.location.assign(url);
+                })
+              }
+            >
+              Sign in with{' '}
+              {sso.data.provider === 'MICROSOFT' ? 'Microsoft 365' : 'Google Workspace'}
             </Button>
           ) : null}
           <GoogleButton
