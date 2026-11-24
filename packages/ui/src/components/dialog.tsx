@@ -32,20 +32,22 @@ export function DialogContent({ title, description, children, className }: Props
   return (
     <D.Portal>
       <D.Overlay className={overlay} />
-      <D.Content
-        className={cn(
-          'fixed left-1/2 top-1/2 z-50 max-h-[calc(100vh-32px)] w-[calc(100vw-32px)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-card border border-line bg-surface p-7 shadow-pop',
-          // pop-in keeps the centring transform, so animate with a wrapper-safe keyframe
-          'data-[state=open]:animate-[dialog-in_240ms_var(--ease-out)] data-[state=closed]:animate-[dialog-out_150ms_var(--ease-out)_forwards]',
-          className,
-        )}
-      >
-        <Header title={title} description={description} />
-        <div className="mt-5">{children}</div>
-        <D.Close aria-label="Close" className={closeBtn}>
-          <X size={17} />
-        </D.Close>
-      </D.Content>
+      {/* Centred by layout, not by a transform, so the entrance animation can never start off-centre. */}
+      <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center p-4">
+        <D.Content
+          className={cn(
+            'pointer-events-auto relative max-h-[calc(100dvh-32px)] w-full max-w-lg overflow-y-auto rounded-card border border-line bg-surface p-7 shadow-pop will-change-transform',
+            'data-[state=open]:animate-[dialog-in_320ms_cubic-bezier(0.16,1,0.3,1)] data-[state=closed]:animate-[dialog-out_160ms_var(--ease-out)_forwards]',
+            className,
+          )}
+        >
+          <Header title={title} description={description} />
+          <div className="mt-5">{children}</div>
+          <D.Close aria-label="Close" className={closeBtn}>
+            <X size={17} />
+          </D.Close>
+        </D.Content>
+      </div>
     </D.Portal>
   );
 }
@@ -58,7 +60,7 @@ export function SheetContent({ title, description, children, className }: Props)
       <D.Content
         className={cn(
           'fixed inset-y-3 right-3 z-50 w-[calc(100%-24px)] max-w-md overflow-y-auto rounded-card border border-line bg-surface p-7 shadow-pop',
-          'data-[state=open]:animate-sheet-in data-[state=closed]:animate-sheet-out',
+          'data-[state=open]:animate-[sheet-in_340ms_cubic-bezier(0.16,1,0.3,1)] data-[state=closed]:animate-sheet-out',
           className,
         )}
       >

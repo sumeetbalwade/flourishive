@@ -8,6 +8,7 @@ import {
   type SettingItem,
 } from '@flourishive/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRoute } from '../router.ts';
 import { useApi } from '../lib/api.tsx';
 import { messageOf } from '../lib/errors.ts';
 import { Layout } from './Layout.tsx';
@@ -30,6 +31,7 @@ function toItem(s: PlatformSettingItem): SettingItem {
     // Platform-only settings (no company level) have nothing for a company to override.
     lockable: s.levels.length > 0,
     lockedByPlatform: s.locked,
+    source: platformSet ? 'Set by the platform' : 'Built-in default',
   };
 }
 
@@ -38,6 +40,7 @@ export function Defaults() {
   const api = useApi();
   const toast = useToast();
   const qc = useQueryClient();
+  const focus = useRoute().query.get('focus') ?? undefined;
   const list = useQuery({ queryKey: ['platform-settings'], queryFn: () => api.settings.list() });
 
   async function save(changes: SettingChange[]) {
@@ -67,7 +70,12 @@ export function Defaults() {
         <Skeleton className="h-64 w-full" />
       ) : (
         <div className="max-w-4xl">
-          <SettingsEditor mode="platform" items={list.data.map(toItem)} onSave={save} />
+          <SettingsEditor
+            mode="platform"
+            items={list.data.map(toItem)}
+            onSave={save}
+            focusKey={focus}
+          />
         </div>
       )}
     </Layout>

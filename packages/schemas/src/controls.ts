@@ -173,3 +173,19 @@ export const setupImportResult = z.object({
   skipped: z.array(z.string()),
 });
 export type SetupImportResult = z.infer<typeof setupImportResult>;
+
+/** The first admin's "Finish setting up" list, driven by what is still at its default (D-71). */
+export const setupChecklist = z.object({
+  items: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      hint: z.string(),
+      done: z.boolean(),
+      /** Where to go, as a web app path such as /app/brand. */
+      href: z.string(),
+    }),
+  ),
+  allDone: z.boolean(),
+});
+export type SetupChecklist = z.infer<typeof setupChecklist>;

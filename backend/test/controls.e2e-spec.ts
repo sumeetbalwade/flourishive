@@ -312,3 +312,14 @@ describe('setup export and import (D-70)', () => {
     expect(again.body.changes).toEqual([]);
   });
 });
+
+describe('finish setting up (D-71)', () => {
+  it('lists what is still default, and ticks things off as they happen', async () => {
+    const r = await call('get', '/setup/checklist', adminA).expect(200);
+    const done = (k: string) =>
+      r.body.items.find((i: { key: string }) => i.key === k).done;
+    expect(r.body.allDone).toBe(false);
+    expect(done('brand')).toBe(false);
+    expect(done('people')).toBe(false);
+  });
+});

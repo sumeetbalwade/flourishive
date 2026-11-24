@@ -22,7 +22,9 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo, type ReactNode } from 'react';
+import { useApi } from '../lib/api.tsx';
 import { AnnouncementBanners } from '../components/AnnouncementBanners.tsx';
 import { SupportBanner } from '../components/SupportBanner.tsx';
 import { useAuth } from '../lib/auth.tsx';
@@ -176,9 +178,30 @@ export function Layout({
       ),
     [auth],
   );
-  const commands = useMemo<Command[]>(
+  const api = useApi();
+  const settings = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => api.settings.get(),
+    enabled: auth.can('settings.read'),
+    staleTime: 5 * 60_000,
+  });
+  const settingCommands = useMemo<Command[]>(
     () =>
-      auth.can('people.write')
+      Object.entries(settings.data?.definitions ?? {})
+        .filter(([, d]) => d.levels.includes('tenant') && d.kind !== 'json')
+        .map(([key, d]) => ({
+          id: `setting:${key}`,
+          label: d.label,
+          hint: `Setting · ${d.group}`,
+          keywords: `${key} ${d.description}`,
+          icon: Settings,
+          run: () => go(`/app/company?focus=${encodeURIComponent(key)}`),
+        })),
+    [settings.data],
+  );
+  const commands = useMemo<Command[]>(
+    () => [
+      ...(auth.can('people.write')
         ? [
             {
               id: 'act:add-person',
@@ -188,8 +211,10 @@ export function Layout({
               run: () => go('/app/people?new=1'),
             },
           ]
-        : [],
-    [auth],
+        : []),
+      ...settingCommands,
+    ],
+    [auth, settingCommands],
   );
   const group = LABELS[active]?.group;
   const section = group ?? undefined;

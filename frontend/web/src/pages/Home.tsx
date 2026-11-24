@@ -1,6 +1,15 @@
 import { Badge, Button, Card, Skeleton } from '@flourishive/ui';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, Building2, ShieldCheck, ShieldAlert, Upload, Users } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Building2,
+  Check,
+  Circle,
+  ShieldCheck,
+  ShieldAlert,
+  Upload,
+  Users,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import type { ReactNode } from 'react';
 import { useApi } from '../lib/api.tsx';
@@ -69,6 +78,12 @@ export function Home() {
     enabled: canPeople,
   });
 
+  const checklist = useQuery({
+    queryKey: ['setup-checklist'],
+    queryFn: () => api.setupChecklist(),
+    enabled: auth.can('settings.manage'),
+    retry: false,
+  });
   const needsTwoStep = !!me && !me.mfaEnabled && me.mfaLevel !== 'OFF';
   const actions: { label: string; hint: string; icon: ReactNode; to: string; needs?: string }[] = [
     {
@@ -108,6 +123,45 @@ export function Home() {
         <motion.p variants={item} className="-mb-3 text-sm text-muted">
           {greeting()}. Here is where things stand today.
         </motion.p>
+        {checklist.data && !checklist.data.allDone ? (
+          <motion.div variants={item}>
+            <Card>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="font-display text-xl">Finish setting up</h2>
+                <span className="text-sm text-muted">
+                  {checklist.data.items.filter((i) => i.done).length} of{' '}
+                  {checklist.data.items.length} done
+                </span>
+              </div>
+              <ul className="mt-3 grid gap-1">
+                {checklist.data.items.map((i) => (
+                  <li key={i.key}>
+                    <button
+                      type="button"
+                      onClick={() => go(i.href)}
+                      className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-surface-2"
+                    >
+                      {i.done ? (
+                        <Check size={18} className="text-success" aria-label="Done" />
+                      ) : (
+                        <Circle size={18} className="text-muted" aria-label="Not done yet" />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className={i.done ? 'text-muted line-through' : 'font-medium'}>
+                          {i.label}
+                        </span>
+                        <span className="block text-xs text-muted">{i.hint}</span>
+                      </span>
+                      {i.done ? null : (
+                        <ArrowUpRight size={16} className="text-muted" aria-hidden />
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </motion.div>
+        ) : null}
         {needsTwoStep && (
           <motion.div variants={item}>
             <Card className="flex flex-wrap items-center gap-4 border-warning/40 bg-warning-lo">

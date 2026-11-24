@@ -1,6 +1,6 @@
 # Phase 2B — Platform control centre
 
-**Status:** Decisions approved 2026-11-22; build started 2026-11-23 (PR 1, 2 and 3 built, in review) · **Depends on:** Phase 2 · **Unlocks:** Phase 3 (now billing, SSO and the public API only)
+**Status:** Decisions approved 2026-11-22; built 2026-11-23 to 2026-11-24 (PRs 1 to 12 built) · **Depends on:** Phase 2 · **Unlocks:** Phase 3 (now billing, SSO and the public API only)
 
 ## Goal
 
@@ -513,7 +513,7 @@ _Built: region settings with `fmtDate`/`fmtDateTime`/`fmtNumber`/`fmtMoney` in `
 
 ### PR 12 — Setup wizard and settings hub (D-71)
 
-- [ ] Admin: the "New tenant" wizard replaces today's single form. Steps:
+- [x] _(Built: eight steps with Back, Next and Skip. The draft is kept in the browser on that computer until the tenant is created, not as a draft tenant on the server. The Brand, Email and Alerts steps explain and defer to the company's own screens, because the super admin has no way yet to edit a company's brand or sender; Security sets allowed email domains and trusted-device days, Features switches modules off.)_ Admin: the "New tenant" wizard replaces today's single form. Steps:
   1. Company (name, slug, primary entity)
   2. First admin (invite)
   3. Brand (preset, logo, accent; optional, "do later")
@@ -523,8 +523,8 @@ _Built: region settings with `fmtDate`/`fmtDateTime`/`fmtNumber`/`fmtMoney` in `
   7. Alerts for this tenant
   8. Review and create
   - Progress is saved as a draft tenant until the last step. Each step is skippable where the default is safe.
-- [ ] A tenant-side "Finish setting up" checklist on Home for the first admin (brand, email sender, invite people, security), driven by what is still default.
-- [ ] Settings hub in web and admin:
+- [x] A tenant-side "Finish setting up" checklist on Home for the first admin (brand, email sender, invite people, security), driven by what is still default.
+- [x] _(Built on the existing grouped settings screens: each row shows its source (Default, Set by the platform, Set by you), the lock and why it is locked, and Reset; the super admin's lock switch was already there. Ctrl+K lists every setting by label, group, key and description, and jumps to it with a highlight.)_ Settings hub in web and admin:
   - Grouped navigation per D-71.
   - Every setting row shows the control, hint, current source ("default", "set by platform", "set by you"), a lock icon (super admin: click to allow or block tenant admins; tenant admin: shows locked and why) and "Reset to default".
   - Ctrl+K indexes every setting by label, hint and key, and jumps to it with a highlight.

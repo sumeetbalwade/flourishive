@@ -67,6 +67,15 @@ describe('admin sign in', () => {
   });
 });
 
+/** Walks the New tenant wizard from the Company step to the end, skipping the optional steps. */
+async function finishWizard(user: ReturnType<typeof open>['user'], adminEmail: string) {
+  await user.click(screen.getByRole('button', { name: 'Next' }));
+  await user.type(screen.getByLabelText('First admin’s email'), adminEmail);
+  await user.click(screen.getByRole('button', { name: 'Next' }));
+  for (let i = 0; i < 5; i++) await user.click(screen.getByRole('button', { name: 'Skip' }));
+  await user.click(screen.getByRole('button', { name: 'Create tenant' }));
+}
+
 describe('tenants', () => {
   it('lists tenants with counts', async () => {
     open('#/tenants', signedIn());
@@ -87,8 +96,7 @@ describe('tenants', () => {
     await user.click(await screen.findByRole('button', { name: /New tenant/ }));
     await user.type(screen.getByLabelText('Company name'), 'Acme Logistics Pvt Ltd');
     expect(screen.getByLabelText('Company code')).toHaveValue('acme-logistics');
-    await user.type(screen.getByLabelText('First admin’s email'), 'boss@acme.test');
-    await user.click(screen.getByRole('button', { name: 'Create tenant' }));
+    await finishWizard(user, 'boss@acme.test');
     await waitFor(() =>
       expect(client.tenants.create).toHaveBeenCalledWith({
         slug: 'acme-logistics',
@@ -108,8 +116,7 @@ describe('tenants', () => {
     const { user } = open('#/tenants', client);
     await user.click(await screen.findByRole('button', { name: /New tenant/ }));
     await user.type(screen.getByLabelText('Company name'), 'Acme');
-    await user.type(screen.getByLabelText('First admin’s email'), 'boss@acme.test');
-    await user.click(screen.getByRole('button', { name: 'Create tenant' }));
+    await finishWizard(user, 'boss@acme.test');
     expect(await screen.findByRole('alert')).toHaveTextContent('already taken');
   });
 

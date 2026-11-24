@@ -7,6 +7,7 @@ import {
   type SettingItem,
 } from '@flourishive/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRoute } from '../../router.ts';
 import { useApi } from '../../lib/api.tsx';
 import { useAuth } from '../../lib/auth.tsx';
 import { messageOf } from '../../lib/errors.ts';
@@ -19,6 +20,7 @@ export function Company() {
   const toast = useToast();
   const qc = useQueryClient();
   const canEdit = auth.can('settings.manage');
+  const focus = useRoute().query.get('focus') ?? undefined;
   const q = useQuery({ queryKey: ['settings'], queryFn: () => api.settings.get() });
 
   const items: SettingItem[] = q.data
@@ -38,6 +40,11 @@ export function Company() {
           overridden: q.data.overridden.includes(key),
           locked: q.data.locked.includes(key),
           readOnly: !canEdit,
+          source: q.data.locked.includes(key)
+            ? 'Set by the platform'
+            : q.data.overridden.includes(key)
+              ? 'Set by you'
+              : 'Default',
         }))
     : [];
 
@@ -69,7 +76,7 @@ export function Company() {
         <Skeleton className="h-64 w-full" />
       ) : (
         <div className="max-w-4xl">
-          <SettingsEditor mode="tenant" items={items} onSave={save} />
+          <SettingsEditor mode="tenant" items={items} onSave={save} focusKey={focus} />
         </div>
       )}
     </Layout>

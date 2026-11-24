@@ -9,7 +9,11 @@ export { Avatar } from './components/avatar.tsx';
 export { ThemeToggle } from './components/theme.tsx';
 export { SigningAnimation, type SigningState } from './components/signing-animation.tsx';
 export { AppShell, type NavItem } from './components/app-shell.tsx';
-export { CommandPalette, type Command } from './components/command-palette.tsx';
+export {
+  CommandPalette,
+  matches as commandMatches,
+  type Command,
+} from './components/command-palette.tsx';
 export {
   Dialog,
   DialogTrigger,
