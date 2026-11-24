@@ -14,6 +14,7 @@ import {
   MailPlus,
   Palette,
   Settings,
+  Plug,
   LogIn,
   ListPlus,
   CreditCard,
@@ -112,6 +113,13 @@ const NAV: Item[] = [
     icon: ShieldCheck,
     group: 'Access',
     needs: 'roles.read',
+  },
+  {
+    id: 'api-clients',
+    label: 'API access',
+    icon: Plug,
+    group: 'Company',
+    needs: 'settings.read',
   },
   {
     id: 'sso',

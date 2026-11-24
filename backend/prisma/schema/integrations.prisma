@@ -1,0 +1,27 @@
+/// A system outside Flourishive that calls the public API with OAuth client credentials (D-20).
+/// It acts as the person who created it, so it can never do more than that person may.
+model ApiClient {
+  id                 String    @id @default(uuid(7)) @db.Char(36)
+  tenantId           String    @db.Char(36)
+  name               String    @db.VarChar(80)
+  /// The public half, sent as client_id.
+  clientId           String    @unique @db.VarChar(40)
+  /// SHA-256 of the secret. The secret itself is shown once, when made or rotated.
+  secretHash         String    @db.Char(64)
+  secretLast4        String    @db.VarChar(4)
+  /// Allowed scopes, for example employees:read and letters:create.
+  scopes             Json
+  /// Company ids this client may touch. Null means every company in the tenant.
+  entityIds          Json?
+  rateLimitPerMinute Int       @default(60)
+  active             Boolean   @default(true)
+  actingUserId       String    @db.Char(36)
+  lastUsedAt         DateTime? @db.DateTime(3)
+  createdAt          DateTime  @default(now()) @db.DateTime(3)
+  updatedAt          DateTime  @updatedAt @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("api_clients")
+}
