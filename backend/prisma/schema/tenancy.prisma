@@ -61,6 +61,7 @@ model Tenant {
   signatureEvents        SignatureEvent[]
   desktopDevices         DesktopDevice[]
   ssoConnection          SsoConnection?
+  apiClients             ApiClient[]
 
   @@map("tenants")
 }

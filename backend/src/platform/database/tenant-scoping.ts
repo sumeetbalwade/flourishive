@@ -67,6 +67,7 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'CustomFieldDefinition',
   'CustomFieldValue',
   'SsoConnection',
+  'ApiClient',
 ]);
 
 /** The tenants table itself is scoped by its own id. */

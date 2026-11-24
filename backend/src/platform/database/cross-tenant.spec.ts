@@ -783,6 +783,21 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { enabled: true },
   },
+  ApiClient: {
+    delegate: 'apiClient',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        name: 'ERP',
+        clientId: `fhc_${crypto.randomUUID().slice(0, 12)}`,
+        secretHash: 'a'.repeat(64),
+        secretLast4: 'abcd',
+        scopes: ['employees:read'],
+        actingUserId: (await newUser(tenantId)).id,
+      },
+    }),
+    change: { active: false },
+  },
   BillingProfile: {
     delegate: 'billingProfile',
     create: async (tenantId) => ({

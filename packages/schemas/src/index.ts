@@ -18,3 +18,4 @@ export * from './brand.js';
 export * from './logs.js';
 export * from './billing.js';
 export * from './custom-fields.js';
+export * from './integrations.js';

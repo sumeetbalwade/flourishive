@@ -1,4 +1,7 @@
 import {
+  apiClientBody,
+  apiClientCreated,
+  apiClientView,
   ssoConfigBody,
   ssoConfigView,
   ssoOptions,
@@ -662,6 +665,18 @@ export function createApiClient(opts: Opts) {
         } = {},
       ) => http.request('GET', '/audit', { query, schema: auditListResponse }),
       verify: () => http.request('GET', '/audit/verify', { schema: chainCheck }),
+    },
+
+    /** Systems that call the public API (D-20). */
+    apiClients: {
+      list: () => http.request('GET', '/api-clients', { schema: z.array(apiClientView) }),
+      create: (body: z.input<typeof apiClientBody>) =>
+        http.request('POST', '/api-clients', { json: body, schema: apiClientCreated }),
+      update: (id: string, body: z.input<typeof apiClientBody>) =>
+        http.request('PUT', `/api-clients/${id}`, { json: body, schema: apiClientView }),
+      rotate: (id: string) =>
+        http.request('POST', `/api-clients/${id}/rotate`, { schema: apiClientCreated }),
+      remove: (id: string) => http.request('DELETE', `/api-clients/${id}`),
     },
 
     /** The company's own single sign-on connection (D-16). */
