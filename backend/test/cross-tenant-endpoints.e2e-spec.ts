@@ -433,6 +433,15 @@ const NO_TENANT_DATA: Record<string, string> = {
     'device credential; only a job held by this device',
   'GET /public/seal-certificate':
     'public certificate of the organisation seal, no tenant data',
+  'GET /domains': 'the signed-in company only (tenantId from the token)',
+  'POST /domains':
+    'the signed-in company only; an address belongs to one company',
+  'POST /domains/:id/check': 'the signed-in company only',
+  'PUT /domains/primary': 'the signed-in company only',
+  'DELETE /domains/:id': 'the signed-in company only',
+  'GET /public/host': 'public: answers only for a verified address, by Host',
+  'GET /internal/domains/allowed':
+    'machine-local only (Caddy), verified addresses only',
   'GET /public/company/:slug':
     'public: name and colour of a company, by its address',
   'POST /public/find-company':

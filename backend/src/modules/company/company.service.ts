@@ -8,6 +8,7 @@ import { EmailTemplatesService } from '../notifications/email-templates.service.
 import { ThrottleService } from '../identity/throttle.service.js';
 import { BrandService } from '../brand/brand.service.js';
 import { accentOf } from '@flourishive/schemas';
+import { DomainsService } from '../domains/domains.service.js';
 import { tenantUrl } from './tenant-host.js';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class CompanyService {
     private readonly templates: EmailTemplatesService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly runtime: RuntimeConfigService,
+    private readonly domains: DomainsService,
   ) {}
 
   async publicInfo(slug: string) {
@@ -50,13 +52,16 @@ export class CompanyService {
             status: { not: 'DISABLED' },
             tenant: { status: 'ACTIVE' },
           },
-          select: { tenant: { select: { slug: true, name: true } } },
+          select: { tenant: { select: { id: true, slug: true, name: true } } },
         }),
     );
     if (users.length === 0) return;
     const template = await this.runtime.require('TENANT_URL_TEMPLATE');
-    const lines = users.map(
-      (u) => `${u.tenant.name}: ${tenantUrl(template, u.tenant.slug)}`,
+    const lines = await Promise.all(
+      users.map(
+        async (u) =>
+          `${u.tenant.name}: ${await this.domains.baseUrl(u.tenant.id, tenantUrl(template, u.tenant.slug))}`,
+      ),
     );
     await this.mail.send({
       event: 'company.find',

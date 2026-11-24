@@ -1,5 +1,11 @@
 {
 	email admin@flourishive.in
+
+	# Companies' own addresses (hr.company.com) get a certificate on their first visit, but only if the API
+	# says the address is verified. Without this check anyone could make us request certificates for any name.
+	on_demand_tls {
+		ask http://127.0.0.1:3000/v1/internal/domains/allowed
+	}
 }
 
 # One wildcard certificate (Cloudflare DNS challenge) covers every hostname below.
@@ -48,6 +54,38 @@
 	}
 
 	# app.flourishive.in and every <company>.flourishive.in: the staff web app.
+	handle {
+		root * /srv/flourishive/www/company
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# A company's own address (hr.company.com -> CNAME custom.flourishive.in). Names under flourishive.in are matched
+# by the block above; every other name reaches here and gets a certificate only if the API approves it.
+# The browser talks to the API on the same address, so sign-in cookies and passkeys belong to that address.
+https:// {
+	tls {
+		on_demand
+	}
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	}
+
+	encode zstd gzip
+
+	handle /v1/* {
+		reverse_proxy 127.0.0.1:3000 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+
 	handle {
 		root * /srv/flourishive/www/company
 		try_files {path} /index.html

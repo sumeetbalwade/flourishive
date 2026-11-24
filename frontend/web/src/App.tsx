@@ -24,6 +24,7 @@ import { Templates } from './pages/letters/Templates.tsx';
 import { Company } from './pages/admin/Company.tsx';
 import { Policy } from './pages/admin/Policy.tsx';
 import { Roles } from './pages/admin/Roles.tsx';
+import { Domains } from './pages/admin/Domains.tsx';
 import { EmailSender } from './pages/admin/EmailSender.tsx';
 import { Brand } from './pages/admin/Brand.tsx';
 import { EmailLog } from './pages/admin/EmailLog.tsx';
@@ -51,6 +52,7 @@ const NEEDS: Record<string, string | undefined> = {
   '/app/company': 'settings.read',
   '/app/email': 'email.manage',
   '/app/brand': 'brand.manage',
+  '/app/domains': 'domains.manage',
   '/app/email-log': 'email.manage',
   '/app/logs': 'logs.read',
   '/app/notifications': 'settings.read',
@@ -110,6 +112,7 @@ function Routes() {
   else if (path === '/app/company') page = <Company />;
   else if (path === '/app/email') page = <EmailSender />;
   else if (path === '/app/brand') page = <Brand />;
+  else if (path === '/app/domains') page = <Domains />;
   else if (path === '/app/email-log') page = <EmailLog />;
   else if (path === '/app/logs') page = <Logs />;
   else if (path === '/app/notifications') page = <Notifications />;

@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
+import { DomainsService } from '../domains/domains.service.js';
 import { RedisService } from '../../platform/cache/redis.service.js';
 import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
@@ -103,6 +104,7 @@ export class AuthService {
     private readonly passkeys: PasskeyService,
     private readonly signinLog: LogWriterService,
     private readonly policy: PasswordPolicyService,
+    private readonly domains: DomainsService,
   ) {}
 
   private async tenantIdFor(slug: string): Promise<string | null> {
@@ -827,7 +829,11 @@ export class AuthService {
       userId,
       kind === 'invite' ? 7 * 24 * 3600 : 3600,
     );
-    const link = `${await this.runtime.require('WEB_URL')}/#/reset-password?token=${token}`;
+    const base = await this.domains.baseUrl(
+      tenantId,
+      await this.runtime.require('WEB_URL'),
+    );
+    const link = `${base}/#/reset-password?token=${token}`;
     await this.notifications.sendNow(
       tenantId,
       kind === 'invite' ? 'auth.invite' : 'auth.password_reset',

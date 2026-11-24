@@ -8,6 +8,7 @@ import {
   FileText,
   Home,
   KeyRound,
+  Globe,
   Mail,
   MailCheck,
   MailPlus,
@@ -88,6 +89,13 @@ const NAV: Item[] = [
     icon: ShieldCheck,
     group: 'Access',
     needs: 'roles.read',
+  },
+  {
+    id: 'domains',
+    label: 'Web address',
+    icon: Globe,
+    group: 'Company',
+    needs: 'domains.manage',
   },
   {
     id: 'brand',

@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
+import { resolveHostCompany } from './lib/company.ts';
 
 // The name, domain and API address can be changed in brand.json without a rebuild.
 await loadBrand(
@@ -11,8 +12,9 @@ await loadBrand(
     tenantDomain: import.meta.env.VITE_TENANT_DOMAIN,
     apiUrl: import.meta.env.VITE_API_URL,
   },
-  { titleSuffix: undefined },
+  { titleSuffix: undefined, ownOriginForApi: true },
 );
+await resolveHostCompany();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
