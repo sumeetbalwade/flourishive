@@ -68,7 +68,7 @@ const SLOTS: {
     slot: 'logoLight',
     kind: 'LOGO_LIGHT',
     label: 'Logo for light pages',
-    hint: 'PNG, JPEG or WebP, up to 2 MB',
+    hint: 'PNG, JPEG, WebP or SVG, up to 2 MB. Shrunk to fit',
   },
   {
     slot: 'logoDark',
@@ -80,13 +80,13 @@ const SLOTS: {
     slot: 'favicon',
     kind: 'FAVICON',
     label: 'Favicon (browser tab icon)',
-    hint: 'Square PNG or WebP, up to 512 px',
+    hint: 'Any picture; made into a 64 px square (and an .ico)',
   },
   {
     slot: 'panelImage',
     kind: 'PANEL_IMAGE',
     label: 'Sign-in side picture',
-    hint: 'Shown behind the headline',
+    hint: 'Shown behind the headline; resized for the web',
   },
 ];
 
@@ -120,7 +120,7 @@ function ImageSlot({
         <input
           id={inputId}
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
           className="sr-only"
           onChange={async (e) => {
             const f = e.target.files?.[0];

@@ -3,7 +3,6 @@ import {
   Injectable,
   NotFoundException,
   PayloadTooLargeException,
-  UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import {
   SLOT_OF,
@@ -15,17 +14,9 @@ import { Readable } from 'node:stream';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
 import { StorageService } from '../../platform/storage/storage.service.js';
-import { readImageInfo } from './image-info.js';
+import { processImage, toIco } from './image-process.js';
 
 export const MAX_ASSET_BYTES = 2 * 1024 * 1024;
-/** Largest side, per kind. Pictures bigger than this are refused, not shrunk. */
-const MAX_SIDE: Record<BrandAssetKind, number> = {
-  LOGO_LIGHT: 2048,
-  LOGO_DARK: 2048,
-  FAVICON: 512,
-  PANEL_IMAGE: 4096,
-};
-
 /**
  * Logos, the favicon and the sign-in picture (D-61). Files are checked by their bytes (PNG, JPEG or WebP
  * only), capped at 2 MB and a largest side, stored privately and served by id. A level's brand can only point
@@ -52,27 +43,10 @@ export class BrandAssetsService {
       throw new BadRequestException('Send the picture as the request body');
     if (body.length > MAX_ASSET_BYTES)
       throw new PayloadTooLargeException('Pictures can be at most 2 MB');
-    const info = readImageInfo(body);
-    if (!info)
-      throw new UnsupportedMediaTypeException(
-        'Use a PNG, JPEG or WebP picture',
-      );
-    if (!info.width || !info.height)
-      throw new UnsupportedMediaTypeException('That picture looks damaged');
-    const max = MAX_SIDE[kind];
-    if (Math.max(info.width, info.height) > max)
-      throw new BadRequestException(
-        `This picture is ${info.width}×${info.height}. For this use, keep the longest side to ${max} pixels or less.`,
-      );
-    if (kind === 'FAVICON' && info.mime === 'image/jpeg')
-      throw new UnsupportedMediaTypeException(
-        'Use a PNG or WebP for the favicon',
-      );
-    if (kind === 'FAVICON' && Math.abs(info.width - info.height) > 2)
-      throw new BadRequestException('The favicon must be square');
+    const out = await processImage(kind, body);
     const id = randomUUID();
     const storageKey = `brand/${tenantId ?? 'platform'}/${id}`;
-    await this.storage.save(storageKey, Readable.from(body));
+    await this.storage.save(storageKey, Readable.from(out.body));
     try {
       const row = await runAsSystem(
         async () =>
@@ -82,11 +56,11 @@ export class BrandAssetsService {
               scope: tenantId ? 'TENANT' : 'PLATFORM',
               tenantId,
               kind,
-              mimeType: info.mime,
-              sizeBytes: body.length,
-              width: info.width,
-              height: info.height,
-              sha256: createHash('sha256').update(body).digest('hex'),
+              mimeType: out.mime,
+              sizeBytes: out.body.length,
+              width: out.width,
+              height: out.height,
+              sha256: createHash('sha256').update(out.body).digest('hex'),
               storageKey,
               uploadedBy: by,
             },
@@ -124,6 +98,18 @@ export class BrandAssetsService {
           `assets.${slot}: that picture is not available here`,
         );
     }
+  }
+
+  /** The favicon as an .ico, made from the stored picture. */
+  async ico(id: string): Promise<Buffer> {
+    const { row, stream } = await this.open(id);
+    if (row.kind !== 'FAVICON' || row.mimeType === 'image/svg+xml') {
+      stream.destroy();
+      throw new NotFoundException();
+    }
+    const chunks: Buffer[] = [];
+    for await (const c of stream) chunks.push(Buffer.from(c as Buffer));
+    return toIco(Buffer.concat(chunks));
   }
 
   /** For the public image route. Null when it does not exist. */

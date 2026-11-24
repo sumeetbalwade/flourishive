@@ -50,6 +50,7 @@ export function configureApp(app: INestApplication): void {
       'image/png',
       'image/jpeg',
       'image/webp',
+      'image/svg+xml',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     ],
     limit: '20mb',

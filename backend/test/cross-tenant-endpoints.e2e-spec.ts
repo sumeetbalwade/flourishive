@@ -479,6 +479,8 @@ const NO_TENANT_DATA: Record<string, string> = {
     'public: a company’s published brand, by its address',
   'POST /brand/assets':
     'stored against the signed-in company (tenantId from the token)',
+  'GET /public/brand-assets/:id/favicon.ico':
+    'public: made from a public brand picture',
   'GET /public/brand-assets/:id':
     'public: brand pictures are shown before sign-in; ids cannot be guessed',
   'POST /auth/mfa/passkey/options': 'own challenge token',

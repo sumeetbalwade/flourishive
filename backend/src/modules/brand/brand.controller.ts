@@ -44,6 +44,16 @@ export class PublicBrandController {
     private readonly assets: BrandAssetsService,
   ) {}
 
+  /** A favicon as .ico, for browsers that ask for one. */
+  @Get('brand-assets/:id/favicon.ico')
+  async ico(@Param('id') id: string, @Res() res: Response) {
+    const body = await this.assets.ico(id);
+    res.setHeader('Content-Type', 'image/x-icon');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.send(body);
+  }
+
   /** A brand picture. Served inline but sandboxed, so even a hostile file could not run anything. */
   @Get('brand-assets/:id')
   async asset(@Param('id') id: string, @Res() res: Response) {

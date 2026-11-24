@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import sharp from 'sharp';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -211,15 +212,12 @@ describe('branding (D-61, D-62)', () => {
   });
 
   describe('pictures', () => {
-    const png = (w = 64, h = 64) => {
-      const b = Buffer.alloc(33);
-      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(b);
-      b.writeUInt32BE(13, 8);
-      b.write('IHDR', 12, 'ascii');
-      b.writeUInt32BE(w, 16);
-      b.writeUInt32BE(h, 20);
-      return b;
-    };
+    const png = (w = 64, h = 64) =>
+      sharp({
+        create: { width: w, height: h, channels: 4, background: '#1f6fb2' },
+      })
+        .png()
+        .toBuffer();
     const up = (
       kind: string,
       body: Buffer,
@@ -233,26 +231,53 @@ describe('branding (D-61, D-62)', () => {
         .send(body);
 
     it('is for people with brand.manage only', async () => {
-      await up('LOGO_LIGHT', png(), 'image/png', empA).expect(403);
+      await up('LOGO_LIGHT', await png(), 'image/png', empA).expect(403);
     });
 
-    it('refuses SVG, a renamed file and an oversized picture', async () => {
-      await up(
-        'LOGO_LIGHT',
-        Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'),
-        'image/png',
-      ).expect(415);
+    it('refuses HTML and a renamed program', async () => {
+      await up('LOGO_LIGHT', Buffer.from('<html></html>'), 'image/png').expect(
+        415,
+      );
       await up(
         'LOGO_LIGHT',
         Buffer.from('MZ'.padEnd(64, '\0')),
         'image/png',
       ).expect(415);
-      await up('LOGO_LIGHT', png(5000, 100)).expect(400);
-      await up('FAVICON', png(64, 32)).expect(400);
+    });
+
+    it('cleans an SVG of script and shrinks a big picture', async () => {
+      const svg = Buffer.from(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" onload="x()"><script>alert(1)</script><circle r="4"/></svg>',
+      );
+      const r = await up('LOGO_LIGHT', svg, 'image/svg+xml').expect(201);
+      const served = await request(app.getHttpServer())
+        .get(`/v1/public/brand-assets/${r.body.id}`)
+        .buffer(true)
+        .expect(200);
+      expect(served.headers['content-type']).toContain('image/svg+xml');
+      expect(served.headers['content-security-policy']).toBe('sandbox');
+      const text = Buffer.from(served.body).toString();
+      expect(text).not.toMatch(/script|onload/i);
+      expect(text).toContain('<circle');
+
+      const big = await up('LOGO_LIGHT', await png(3000, 1000)).expect(201);
+      expect(big.body.width).toBe(512);
+    });
+
+    it('turns a favicon into a square PNG and offers an .ico', async () => {
+      const r = await up('FAVICON', await png(300, 100)).expect(201);
+      expect([r.body.width, r.body.height]).toEqual([64, 64]);
+      const ico = await request(app.getHttpServer())
+        .get(`/v1/public/brand-assets/${r.body.id}/favicon.ico`)
+        .expect(200);
+      expect(ico.headers['content-type']).toContain('image/x-icon');
+      await request(app.getHttpServer())
+        .get(`/v1/public/brand-assets/${r.body.id}/favicon.ico`)
+        .expect(200);
     });
 
     it('stores a logo, serves it safely, and a brand can use only its own pictures', async () => {
-      const r = await up('LOGO_LIGHT', png()).expect(201);
+      const r = await up('LOGO_LIGHT', await png()).expect(201);
       const served = await request(app.getHttpServer())
         .get(`/v1/public/brand-assets/${r.body.id}`)
         .expect(200);
@@ -269,7 +294,6 @@ describe('branding (D-61, D-62)', () => {
       await call('put', '/brand/draft', adminA)
         .send({ draft: { assets } })
         .expect(200);
-      // Wrong slot, and another company's picture, are refused.
       await call('put', '/brand/draft', adminA)
         .send({
           draft: { assets: { ...assets, logoLight: '', favicon: r.body.id } },
