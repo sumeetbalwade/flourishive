@@ -199,6 +199,16 @@ export const billingOverview = z.object({
       percent: z.number(),
     }),
   ),
+  /** Companies whose own webhook endpoints are failing, worst first. */
+  deliveryFailures: z.array(
+    z.object({
+      tenantId: z.string(),
+      name: z.string(),
+      host: z.string(),
+      failed: z.number().int(),
+      lastError: z.string(),
+    }),
+  ),
   /** Payment-provider webhooks that failed to process. */
   failures: z.array(
     z.object({

@@ -62,6 +62,8 @@ model Tenant {
   desktopDevices         DesktopDevice[]
   ssoConnection          SsoConnection?
   apiClients             ApiClient[]
+  webhookSubscriptions   WebhookSubscription[]
+  webhookDeliveries      WebhookDelivery[]
 
   @@map("tenants")
 }

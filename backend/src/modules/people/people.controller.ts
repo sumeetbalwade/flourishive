@@ -21,15 +21,38 @@ import {
   listQuery,
   updatePersonBody,
 } from './people.schemas.js';
+import { WebhooksService } from '../integrations/webhooks.service.js';
 import { PeopleImportService } from './people-import.service.js';
 import { PeopleService } from './people.service.js';
 import type { z } from 'zod';
+
+/** What a webhook says about a person: enough to find them, never more than the public API shows. */
+const announce = (e: {
+  id: string;
+  personId: string;
+  employeeCode: string;
+  type: string;
+  status: string;
+  entityId: string;
+  person: { firstName: string; lastName: string; workEmail: string | null };
+}) => ({
+  id: e.id,
+  personId: e.personId,
+  employeeCode: e.employeeCode,
+  type: e.type,
+  status: e.status,
+  companyId: e.entityId,
+  firstName: e.person.firstName,
+  lastName: e.person.lastName,
+  workEmail: e.person.workEmail,
+});
 
 @Controller('people')
 export class PeopleController {
   constructor(
     private readonly people: PeopleService,
     private readonly importer: PeopleImportService,
+    private readonly hooks: WebhooksService,
   ) {}
 
   @Get()
@@ -73,11 +96,13 @@ export class PeopleController {
 
   @Post()
   @RequirePermission('people.write')
-  create(
+  async create(
     @CurrentAuth() a: AccessClaims,
     @Body(new ZodPipe(createPersonBody)) b: z.infer<typeof createPersonBody>,
   ) {
-    return this.people.create(a, b);
+    const row = await this.people.create(a, b);
+    void this.hooks.emit(a.tenantId, 'employee.created', announce(row));
+    return row;
   }
 
   @Post(':id/invite')
@@ -90,11 +115,13 @@ export class PeopleController {
   @Patch(':id')
   @HttpCode(200)
   @RequirePermission('people.write')
-  update(
+  async update(
     @CurrentAuth() a: AccessClaims,
     @Param('id') id: string,
     @Body(new ZodPipe(updatePersonBody)) b: z.infer<typeof updatePersonBody>,
   ) {
-    return this.people.update(a, id, b);
+    const row = await this.people.update(a, id, b);
+    void this.hooks.emit(a.tenantId, 'employee.updated', announce(row));
+    return row;
   }
 }

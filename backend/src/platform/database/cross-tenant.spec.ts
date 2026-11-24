@@ -798,6 +798,44 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { active: false },
   },
+  WebhookSubscription: {
+    delegate: 'webhookSubscription',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        url: 'https://example.com/hook',
+        secretEnc: 'enc',
+        events: ['employee.created'],
+      },
+    }),
+    change: { active: false },
+  },
+  WebhookDelivery: {
+    delegate: 'webhookDelivery',
+    create: async (tenantId) => {
+      const sub = await runAsSystem(
+        async () =>
+          await db.webhookSubscription.create({
+            data: {
+              tenantId,
+              url: 'https://example.com/hook',
+              secretEnc: 'enc',
+              events: [],
+            },
+          }),
+      );
+      return {
+        data: {
+          tenantId,
+          subscriptionId: sub.id,
+          eventId: crypto.randomUUID(),
+          eventType: 'ping',
+          payload: {},
+        },
+      };
+    },
+    change: { attempts: 3 },
+  },
   BillingProfile: {
     delegate: 'billingProfile',
     create: async (tenantId) => ({

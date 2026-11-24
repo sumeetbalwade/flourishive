@@ -15,6 +15,7 @@ import {
   Palette,
   Settings,
   Plug,
+  Webhook,
   LogIn,
   ListPlus,
   CreditCard,
@@ -113,6 +114,13 @@ const NAV: Item[] = [
     icon: ShieldCheck,
     group: 'Access',
     needs: 'roles.read',
+  },
+  {
+    id: 'webhooks',
+    label: 'Webhooks',
+    icon: Webhook,
+    group: 'Company',
+    needs: 'settings.read',
   },
   {
     id: 'api-clients',

@@ -109,6 +109,41 @@ export function BillingOverview() {
           </Card>
 
           <Card>
+            <CardTitle>Company webhook endpoints that are failing</CardTitle>
+            {q.data.deliveryFailures.length === 0 ? (
+              <EmptyState
+                title="No failing endpoints"
+                description="Events companies subscribed to are reaching them."
+              />
+            ) : (
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>Company</TH>
+                    <TH>Endpoint</TH>
+                    <TH>Gave up (7 days)</TH>
+                    <TH>Last error</TH>
+                  </TR>
+                </THead>
+                <TBody>
+                  {q.data.deliveryFailures.map((f) => (
+                    <TR
+                      key={`${f.tenantId}-${f.host}`}
+                      className="cursor-pointer"
+                      onClick={() => go(`/tenants/${f.tenantId}`)}
+                    >
+                      <TD>{f.name}</TD>
+                      <TD className="font-mono text-xs">{f.host}</TD>
+                      <TD>{f.failed}</TD>
+                      <TD className="max-w-xs truncate text-xs text-muted">{f.lastError}</TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+            )}
+          </Card>
+
+          <Card>
             <CardTitle>Payment webhooks that failed</CardTitle>
             {q.data.failures.length === 0 ? (
               <EmptyState
