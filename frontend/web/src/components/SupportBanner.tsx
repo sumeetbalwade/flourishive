@@ -3,9 +3,9 @@ import { Button } from '@flourishive/ui';
 import { LifeBuoy } from 'lucide-react';
 import { useApi } from '../lib/api.tsx';
 import { useAuth } from '../lib/auth.tsx';
+import { fmtTime } from '@flourishive/ui';
 
-const time = (iso: string) =>
-  new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+const time = (iso: string) => fmtTime(iso);
 
 /** Shown on every screen while platform staff are in this company in a support session (D-56). */
 export function SupportBanner({

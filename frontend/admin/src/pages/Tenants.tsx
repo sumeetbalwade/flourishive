@@ -25,9 +25,9 @@ import { useApi } from '../lib/api.tsx';
 import { messageOf } from '../lib/errors.ts';
 import { go } from '../router.ts';
 import { Layout } from './Layout.tsx';
+import { fmtDate } from '@flourishive/ui';
 
-export const fmt = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+export const fmt = (iso: string) => fmtDate(iso);
 
 /** Suggests a company code from a name: "Acme Logistics Pvt Ltd" -> "acme-logistics". */
 export function slugify(name: string): string {

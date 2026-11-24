@@ -1,5 +1,5 @@
 import { RESERVED_SLUGS } from '@flourishive/schemas';
-import { brand } from '@flourishive/ui';
+import { applyBrand, applyProductBrand, brand } from '@flourishive/ui';
 import { useEffect, useState } from 'react';
 import type { CompanyPublic } from '@flourishive/schemas';
 import { useApi, remember } from './api.tsx';
@@ -66,16 +66,16 @@ export function useCompany(slug: string): CompanyState {
       .get(slug)
       .then((company) => {
         if (!live) return;
-        setState({ status: 'found', company });
-        const root = document.documentElement.style;
-        root.setProperty('--accent', company.accentColor);
-        root.setProperty('--accent-hi', company.accentColor);
+        // The company's published brand (colours, fonts, sign-in words) on top of the product's.
+        api.brand
+          .company(slug)
+          .then((b) => live && (applyBrand(b), setState({ status: 'found', company })))
+          .catch(() => live && setState({ status: 'found', company }));
       })
       .catch(() => live && setState({ status: 'missing' }));
     return () => {
       live = false;
-      document.documentElement.style.removeProperty('--accent');
-      document.documentElement.style.removeProperty('--accent-hi');
+      applyProductBrand();
     };
   }, [api, slug]);
   return state;

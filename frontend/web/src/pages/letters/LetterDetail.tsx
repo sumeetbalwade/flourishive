@@ -23,9 +23,9 @@ import { EndLifePanel } from './EndLifePanel.tsx';
 import { DeliveryPanel } from './DeliveryPanel.tsx';
 import { PdfPreview } from './PdfPreview.tsx';
 import { REQUEST_STATUS, eventLabel, stateOf, typeLabel } from './labels.ts';
+import { fmtDateTime } from '@flourishive/ui';
 
-const when = (iso: string) =>
-  new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+const when = (iso: string) => fmtDateTime(iso);
 
 export function LetterDetail({ id }: { id: string }) {
   const api = useApi();

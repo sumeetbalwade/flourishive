@@ -113,6 +113,12 @@
   --dur-slow: 480ms;
 }
 
+/* A brand shows its light logo on light pages and its dark one on dark pages. */
+:root[data-theme='dark'] .fh-logo-light,
+:root:not([data-theme='dark']) .fh-logo-dark {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-fast: 0ms;

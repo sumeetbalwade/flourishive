@@ -443,7 +443,6 @@ describe('technical settings', () => {
       group: 'Platform',
     });
     expect(by['platform.superAdminRecoveryEmail'].kind).toBe('boolean');
-    expect(by['branding.accentColor'].kind).toBe('color');
     expect(by['branding.emailSenderName'].kind).toBe('text');
   });
 

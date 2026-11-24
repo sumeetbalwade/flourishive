@@ -8,6 +8,8 @@ export class ApiError extends Error {
     readonly details: string[] = [],
     /** A machine-readable reason some endpoints add, such as STEP_UP_REQUIRED. */
     readonly code?: string,
+    /** The server's reference for this request; quote it to support (D-67). */
+    readonly requestId?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -160,9 +162,15 @@ export class Http {
       let message = res.statusText || `Request failed (${res.status})`;
       let details: string[] = [];
       let code: string | undefined;
+      let requestId = res.headers.get('x-request-id') ?? undefined;
       try {
-        const body = (await res.json()) as { message?: string | string[]; code?: string };
+        const body = (await res.json()) as {
+          message?: string | string[];
+          code?: string;
+          requestId?: string;
+        };
         code = body.code;
+        requestId = body.requestId ?? requestId;
         if (Array.isArray(body.message)) {
           details = body.message;
           message = body.message[0] ?? message;
@@ -170,7 +178,7 @@ export class Http {
       } catch {
         // not JSON; keep the status text
       }
-      throw new ApiError(res.status, message, details, code);
+      throw new ApiError(res.status, message, details, code, requestId);
     }
     if (res.status === 204) return undefined as T;
     const json: unknown = await res.json();

@@ -4,6 +4,7 @@ import { ApiError } from '@flourishive/api-client';
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import { ApiProvider, makeClient } from './lib/api.tsx';
 import { AuthProvider, useAuth } from './lib/auth.tsx';
+import { requestStepUp, StepUpHost } from './lib/step-up.tsx';
 import type { ApiClient } from '@flourishive/api-client';
 const Desktop = lazy(() => import('./pages/Desktop.tsx'));
 const Gallery = lazy(() => import('./pages/Gallery.tsx'));
@@ -24,13 +25,19 @@ import { Company } from './pages/admin/Company.tsx';
 import { Policy } from './pages/admin/Policy.tsx';
 import { Roles } from './pages/admin/Roles.tsx';
 import { EmailSender } from './pages/admin/EmailSender.tsx';
+import { Brand } from './pages/admin/Brand.tsx';
 import { EmailLog } from './pages/admin/EmailLog.tsx';
+import { Alerts } from './pages/admin/Alerts.tsx';
+import { Notifications } from './pages/admin/Notifications.tsx';
+import { Logs } from './pages/admin/Logs.tsx';
+import { EmailTemplates } from './pages/admin/EmailTemplates.tsx';
 import { Org } from './pages/org/Org.tsx';
 import { ImportPeople } from './pages/people/Import.tsx';
 import { PersonDetail } from './pages/people/PersonDetail.tsx';
 import { People } from './pages/people/People.tsx';
 import { Security } from './pages/Security.tsx';
 const Signing = lazy(() => import('./pages/Signing.tsx').then((m) => ({ default: m.Signing })));
+import { SessionWatch } from './components/SessionWatch.tsx';
 import { go, useRoute } from './router.ts';
 
 /** Permission each real screen needs; the API enforces the same, this only avoids dead ends. */
@@ -43,7 +50,12 @@ const NEEDS: Record<string, string | undefined> = {
   '/app/policy': 'roles.read',
   '/app/company': 'settings.read',
   '/app/email': 'email.manage',
+  '/app/brand': 'brand.manage',
   '/app/email-log': 'email.manage',
+  '/app/logs': 'logs.read',
+  '/app/notifications': 'settings.read',
+  '/app/alerts': 'logs.read',
+  '/app/email-templates': 'email.manage',
   '/app/letters': 'documents.read',
   '/app/templates': 'documents.read',
   '/app/letter-setup': 'documents.read',
@@ -97,7 +109,12 @@ function Routes() {
   else if (path === '/app/policy') page = <Policy />;
   else if (path === '/app/company') page = <Company />;
   else if (path === '/app/email') page = <EmailSender />;
+  else if (path === '/app/brand') page = <Brand />;
   else if (path === '/app/email-log') page = <EmailLog />;
+  else if (path === '/app/logs') page = <Logs />;
+  else if (path === '/app/notifications') page = <Notifications />;
+  else if (path === '/app/alerts') page = <Alerts />;
+  else if (path === '/app/email-templates') page = <EmailTemplates />;
   else if (path === '/app/security') page = <Security />;
   else if (path === '/app/signing') page = <Signing />;
   else if (path === '/app/templates') page = <Templates />;
@@ -118,7 +135,10 @@ export default function App({
   client: injected,
   retryDelay,
 }: { client?: ApiClient; retryDelay?: number } = {}) {
-  const client = useMemo(() => injected ?? makeClient(() => go('/login')), [injected]);
+  const client = useMemo(
+    () => injected ?? makeClient(() => go('/login'), requestStepUp),
+    [injected],
+  );
   const queryClient = useMemo(
     () =>
       new QueryClient({
@@ -137,11 +157,15 @@ export default function App({
     <ApiProvider client={client}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <AuthProvider>
-            <Suspense fallback={<PageLoader fullscreen />}>
-              <Routes />
-            </Suspense>
-          </AuthProvider>
+          <StepUpHost>
+            <AuthProvider>
+              <SessionWatch>
+                <Suspense fallback={<PageLoader fullscreen />}>
+                  <Routes />
+                </Suspense>
+              </SessionWatch>
+            </AuthProvider>
+          </StepUpHost>
         </ToastProvider>
       </QueryClientProvider>
     </ApiProvider>

@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { ErrorLogService } from '../logs/error-log.service.js';
 import { MailService } from '../../platform/mail/mail.service.js';
 import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import {
@@ -24,6 +26,7 @@ export class ConfigTestService {
     private readonly runtime: RuntimeConfigService,
     private readonly mail: MailService,
     private readonly storage: StorageService,
+    private readonly errorLog: ErrorLogService,
   ) {}
 
   groups(): RuntimeGroup[] {
@@ -144,9 +147,8 @@ export class ConfigTestService {
         'That is not a valid DSN. It looks like https://<key>@host/<project>.',
       );
     }
-    return ok(
-      'The address is valid. Sending a real test event arrives with error forwarding (PR 8).',
-    );
+    const sent = await this.errorLog.sendTestEvent(randomUUID());
+    return sent.ok ? ok(sent.message) : fail(sent.message);
   }
 
   private async fileStorage(): Promise<TestResult> {

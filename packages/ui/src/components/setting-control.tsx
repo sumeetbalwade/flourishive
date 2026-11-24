@@ -4,6 +4,7 @@ import { cn } from '../cn.ts';
 import { Button } from './button.tsx';
 import { Input } from './input.tsx';
 import { Select } from './select.tsx';
+import { fmtDateTime } from '../format.ts';
 import { Switch } from './switch.tsx';
 
 export type SettingKind =
@@ -22,7 +23,11 @@ export type SettingKind =
   | 'timezone'
   | 'json';
 
-const nice = (v: string) => v.charAt(0) + v.slice(1).toLowerCase();
+/** OFF and REQUIRED read as Off and Required; codes and formats (INR, DD MMM YYYY) stay as written. */
+const nice = (v: string) =>
+  v === 'OFF' || /^[A-Z_]{4,}$/.test(v) || /^[a-z]+$/.test(v)
+    ? (v.charAt(0).toUpperCase() + v.slice(1).toLowerCase()).replace(/_/g, ' ')
+    : v;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 export interface SecretInfo {
@@ -187,9 +192,7 @@ function SecretControl({
           ••••••••••
         </span>
         <span className="text-xs text-faint">
-          {secret?.updatedAt
-            ? `set ${new Date(secret.updatedAt).toLocaleDateString()}`
-            : 'set in the server file'}
+          {secret?.updatedAt ? `set ${fmtDateTime(secret.updatedAt)}` : 'set in the server file'}
         </span>
         <Button
           size="sm"

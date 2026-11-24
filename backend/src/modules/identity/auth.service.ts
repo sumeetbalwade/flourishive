@@ -22,6 +22,7 @@ import { supportSessionKey, type OpenSupportSession } from './support-keys.js';
 import { RolePolicyService } from '../access/role-policy.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { MailService } from '../../platform/mail/mail.service.js';
+import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { OtpService } from './otp.service.js';
 import { GoogleService } from './google.service.js';
 import { MfaService, hashRecoveryCode } from './mfa.service.js';
@@ -37,6 +38,8 @@ import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
 } from '@simplewebauthn/server';
+import { PasswordPolicyService } from './password-policy.service.js';
+import { LogWriterService } from '../logs/log-writer.service.js';
 import { ThrottleService } from './throttle.service.js';
 import {
   TokenService,
@@ -94,9 +97,12 @@ export class AuthService {
     private readonly otp: OtpService,
     private readonly devices: TrustedDeviceService,
     private readonly mail: MailService,
+    private readonly templates: EmailTemplatesService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly runtime: RuntimeConfigService,
     private readonly passkeys: PasskeyService,
+    private readonly signinLog: LogWriterService,
+    private readonly policy: PasswordPolicyService,
   ) {}
 
   private async tenantIdFor(slug: string): Promise<string | null> {
@@ -143,6 +149,8 @@ export class AuthService {
     via: 'password' | 'google',
     trustedToken?: string,
   ): Promise<LoginResult> {
+    // An administrator outside the company's approved networks is stopped before any second step.
+    await this.sessions.assertAdminNetwork(user.tenantId, user.id, meta.ip);
     const scope = { kind: 'tenant' as const, tenantId: user.tenantId };
     // A passkey is a second factor too, and it satisfies a REQUIRED two-step policy.
     const hasPasskey = (await this.passkeys.count(scope, user.id)) > 0;
@@ -194,6 +202,19 @@ export class AuthService {
     via: string,
   ): Promise<IssuedTokens> {
     const tokens = await this.sessions.start(tenantId, userId, meta);
+    this.signinLog.signin({
+      tenantId,
+      userId,
+      outcome: via.includes('trusted-device')
+        ? 'TRUSTED_DEVICE'
+        : via === 'passkey'
+          ? 'PASSKEY'
+          : via.startsWith('mfa') || via.endsWith('+passkey')
+            ? 'MFA_OK'
+            : 'SUCCESS',
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
     await this.audit.recordSafely({
       tenantId,
       actorType: 'USER',
@@ -214,6 +235,14 @@ export class AuthService {
     meta: ClientMeta,
     extra?: Record<string, unknown>,
   ) {
+    if (action === 'auth.mfa_failed')
+      this.signinLog.signin({
+        tenantId,
+        userId,
+        outcome: 'MFA_FAILED',
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
     return this.audit.recordSafely({
       tenantId,
       actorType: userId ? 'USER' : 'SYSTEM',
@@ -234,14 +263,31 @@ export class AuthService {
     const acct = `${input.tenant.toLowerCase()}:${input.email.toLowerCase()}`;
     const ip = meta.ip ?? 'unknown';
     const tenantId = await this.tenantIdFor(input.tenant);
-    await this.throttle.assertBelow(
-      'login',
-      tenantId
-        ? await this.settings.get('security.loginAttempts', { tenantId })
-        : 5,
-      `acct:${acct}`,
-      `ip:${ip}`,
-    );
+    const attempt = (
+      outcome: 'BAD_PASSWORD' | 'LOCKED' | 'SUSPENDED',
+      userId: string | null = null,
+    ) =>
+      this.signinLog.signin({
+        tenantId,
+        userId,
+        email: input.email,
+        outcome,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    try {
+      await this.throttle.assertBelow(
+        'login',
+        tenantId
+          ? await this.settings.get('security.loginAttempts', { tenantId })
+          : 5,
+        `acct:${acct}`,
+        `ip:${ip}`,
+      );
+    } catch (e) {
+      attempt('LOCKED');
+      throw e;
+    }
     const user = tenantId
       ? await this.findUser(tenantId, { email: input.email })
       : null;
@@ -251,12 +297,34 @@ export class AuthService {
         : false;
     if (!user?.passwordHash) await this.passwords.verifyDummy(input.password);
     if (!ok || !user) {
+      attempt(
+        user && user.status !== 'ACTIVE' ? 'SUSPENDED' : 'BAD_PASSWORD',
+        user?.id ?? null,
+      );
       await this.throttle.recordFailure('login', `acct:${acct}`, `ip:${ip}`);
       if (user)
         await this.auditUser(user.tenantId, user.id, 'auth.login_failed', meta);
       throw new UnauthorizedException(INVALID);
     }
     await this.throttle.clear('login', `acct:${acct}`);
+    const days = await this.settings.get('security.passwordExpiryDays', {
+      tenantId: user.tenantId,
+    });
+    if (days > 0) {
+      const set =
+        (
+          user as UserRow & {
+            passwordChangedAt?: Date | null;
+            createdAt?: Date;
+          }
+        ).passwordChangedAt ?? (user as { createdAt?: Date }).createdAt;
+      if (set && Date.now() - set.getTime() > days * 86_400_000)
+        throw new ForbiddenException({
+          message:
+            'Your password has expired. Choose “Forgot password” to set a new one.',
+          code: 'PASSWORD_EXPIRED',
+        });
+    }
     return this.afterFirstFactor(user, meta, 'password', trustedToken);
   }
 
@@ -676,8 +744,8 @@ export class AuthService {
     return { tenantId: c.tenantId, userId: c.userId };
   }
 
-  refresh(token: string) {
-    return this.sessions.rotate(token);
+  refresh(token: string, meta: ClientMeta = {}) {
+    return this.sessions.rotate(token, meta);
   }
 
   logout(who: Principal, sessionId: string) {
@@ -795,8 +863,10 @@ export class AuthService {
       event: `auth.otp.${purpose}`,
       tenantId: user.tenantId,
       to: user.email,
-      subject: `Your ${this.config.APP_NAME} code: ${code}`,
-      text: `Your one-time code is ${code}. It works once and expires in ${minutes} minutes.\n\nIf you did not ask for it, ignore this email and consider changing your password.`,
+      ...(await this.templates.render('auth.otp', user.tenantId, {
+        code,
+        minutes: String(minutes),
+      })),
       fromName: await this.settings.get('branding.emailSenderName', {
         tenantId: user.tenantId,
       }),
@@ -965,17 +1035,24 @@ export class AuthService {
         tenantId: claim.tenantId,
       }),
     );
+    await this.policy.check(claim.tenantId, claim.userId, input.password);
     if ((await this.redis.del(key)) !== 1)
       throw new BadRequestException(
         'This reset link is invalid or has expired',
       );
     const passwordHash = await this.passwords.hash(input.password);
+    const before = await this.findUser(claim.tenantId, { id: claim.userId });
     await runInTenant(claim.tenantId, async () => {
       await this.prisma.db.user.update({
         where: { id: claim.userId },
-        data: { passwordHash, status: 'ACTIVE' },
+        data: { passwordHash, status: 'ACTIVE', passwordChangedAt: new Date() },
       });
     });
+    await this.policy.remember(
+      claim.tenantId,
+      claim.userId,
+      before?.passwordHash ?? null,
+    );
     await this.sessions.revokeAll(claim.tenantId, claim.userId);
     await this.auditUser(
       claim.tenantId,

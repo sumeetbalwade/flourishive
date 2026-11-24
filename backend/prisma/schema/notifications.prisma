@@ -22,3 +22,26 @@ model Notification {
   @@index([tenantId, createdAt])
   @@map("notifications")
 }
+
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+}
+
+/// Who is told about which event, and how (D-69). `roleKey` is a role's key, or SUBJECT for the person
+/// the event is about. A missing row means "use the built-in default" (see notification-rules.ts).
+model NotificationRule {
+  id        String              @id @default(uuid(7)) @db.Char(36)
+  tenantId  String              @db.Char(36)
+  event     String              @db.VarChar(60)
+  roleKey   String              @db.VarChar(60)
+  channel   NotificationChannel
+  enabled   Boolean
+  updatedBy String?             @db.Char(36)
+  updatedAt DateTime            @updatedAt @db.DateTime(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, event, roleKey, channel])
+  @@map("notification_rules")
+}

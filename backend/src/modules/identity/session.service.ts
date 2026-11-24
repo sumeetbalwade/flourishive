@@ -9,6 +9,8 @@ import {
 import { AuditService } from '../audit/audit.service.js';
 import { AccessService } from '../access/access.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { ForbiddenException } from '@nestjs/common';
+import { ipAllowed } from './ip-allowlist.js';
 import { TokenService, sha256 } from './token.service.js';
 
 export interface ClientMeta {
@@ -53,11 +55,36 @@ export class SessionService {
     return days * 24 * 3600 * 1000;
   }
 
+  /**
+   * People whose role can change settings may only sign in from the company's allowed address ranges
+   * (D-69). Checked at sign-in and on every refresh. Platform support uses a support session instead.
+   */
+  async assertAdminNetwork(
+    tenantId: string,
+    userId: string,
+    ip: string | undefined,
+  ): Promise<void> {
+    const ranges = await this.settings.get('signin.adminIpAllowlist', {
+      tenantId,
+    });
+    if (ranges.length === 0) return;
+    const admin = Object.keys(
+      await this.access.permissionsFor(tenantId, userId),
+    ).some((code) => code.endsWith('.manage'));
+    if (admin && !ipAllowed(ip, ranges))
+      throw new ForbiddenException({
+        message:
+          'Your company only lets administrators sign in from approved networks, and this is not one of them. Ask a colleague to add this network, or contact support.',
+        code: 'NETWORK_NOT_ALLOWED',
+      });
+  }
+
   async start(
     tenantId: string,
     userId: string,
     meta: ClientMeta,
   ): Promise<IssuedTokens> {
+    await this.assertAdminNetwork(tenantId, userId, meta.ip);
     const refresh = this.tokens.newRefreshToken();
     const refreshMs = await this.refreshMs(tenantId, userId);
     const expiresAt = new Date(Date.now() + refreshMs);
@@ -111,6 +138,7 @@ export class SessionService {
   /** Rotates a refresh token. Presenting an already-used token revokes the whole session. */
   async rotate(
     presented: string,
+    meta: ClientMeta = {},
   ): Promise<IssuedTokens & { tenantId: string; userId: string }> {
     const hash = sha256(presented);
     const found = await runAsSystem(
@@ -161,6 +189,7 @@ export class SessionService {
       throw new UnauthorizedException('Session expired');
     }
 
+    await this.assertAdminNetwork(tenantId, session.userId, meta.ip);
     const next = this.tokens.newRefreshToken();
     const refreshMs = await this.refreshMs(tenantId, session.userId);
     const claimed = await runInTenant(tenantId, async () => {

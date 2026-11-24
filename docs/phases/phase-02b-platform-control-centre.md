@@ -338,7 +338,7 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
 
 ### PR 6 — Email templates (D-59)
 
-- [ ] Event catalogue in code (`modules/notifications/events.ts`): key, description, allowed variables with sample values, and a default subject and body. Events:
+- [x] _(Built: the events that exist today. Sign-in from a new device, email-change notices, "letter signed", account-action notices to company users and the alert/digest mails do not exist yet or are written by the caller; add them to `events.ts` when they land. The email layout uses the product name and a default accent until PR 7 supplies the published brand.)_ Event catalogue in code (`modules/notifications/events.ts`): key, description, allowed variables with sample values, and a default subject and body. Events:
   - invite, password reset
   - two-step code, two-step reset notice
   - sign-in from a new device
@@ -347,17 +347,17 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - acceptance OTP
   - account action notices (PR 3)
   - alert and digest emails (PR 8)
-- [ ] Renderer: minimal `{{path}}` substitution, always HTML-escaped. Unknown variables fail validation at save time. No helpers or logic. Markdown-lite body (paragraphs, bold, links, buttons as `[[Button text|{{link}}]]`) rendered into the branded email layout. Plain-text part generated.
-- [ ] Data: `email_templates` (`tenantId` nullable = platform override, `event`, `subject`, `body`, `updatedBy`, `updatedAt`). Resolution order: tenant, then platform override, then code default. Lock per event (`tenantEditable`) as for settings.
-- [ ] API: list events, get the effective template, save, reset, preview (render with sample values), send a test to yourself.
-- [ ] UI: Settings, then Email, then Templates. Event list on the left; editor with a variable picker (click to insert); live preview in light and dark; "Send me a test"; "Reset to default".
+- [x] Renderer: minimal `{{path}}` substitution, always HTML-escaped. Unknown variables fail validation at save time. No helpers or logic. Markdown-lite body (paragraphs, bold, links, buttons as `[[Button text|{{link}}]]`) rendered into the branded email layout. Plain-text part generated.
+- [x] Data: `email_templates` (`tenantId` nullable = platform override, `event`, `subject`, `body`, `updatedBy`, `updatedAt`). Resolution order: tenant, then platform override, then code default. Lock per event (`tenantEditable`) as for settings.
+- [x] API: list events, get the effective template, save, reset, preview (render with sample values), send a test to yourself.
+- [x] UI: Settings, then Email, then Templates. Event list on the left; editor with a variable picker (click to insert); live preview in light and dark; "Send me a test"; "Reset to default".
 
 **Done when:** a tenant changes the invite wording and sees it in the preview. The test mail matches the preview. A placeholder that doesn't exist is rejected with a clear message.
 
 ### PR 7 — Branding: product and tenant, draft and publish (D-61, D-62)
 
-**Backend**
-- [ ] Data:
+**Backend** _(PR 7 is built in two stacked PRs. 7a, done here: everything below except logo/favicon/panel-image uploads. 7b: uploads, the sign-in panel image, and the logo in the email header and app.)_
+- [x] Data:
   - `brand_profiles`: `scope` `PLATFORM | TENANT`, `tenantId`, `status` `DRAFT | PUBLISHED | ARCHIVED`, `version`, `data` JSON, `publishedBy`, `publishedAt`. Publishing archives the previous version; revert republishes the previous version as a new version.
   - The JSON shape lives in `packages/schemas/src/brand.ts`:
     - `displayName`
@@ -368,16 +368,16 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
     - `email`: `{ headerLogo: 'light'|'dark', bandColor, footerText, address }`
     - `support`: `{ email, phone, url }`
     - `legal`: `{ termsUrl, privacyUrl }` (platform only)
-- [ ] Assets through the files module:
+- [x] _(7b. Built as its own table, `brand_assets`, and a public route, because brand pictures must show before sign-in and the files module is private and per company. PNG, JPEG, WebP and SVG are accepted, checked by their bytes, up to 2 MB. SVG is rebuilt through DOMPurify (script, handlers, links, embedded pages removed). Rasters are re-encoded with sharp: logos to at most 512 px PNG, the sign-in picture to at most 2000 px WebP, the favicon to a 64 px square PNG, with an `.ico` made on request at `/v1/public/brand-assets/:id/favicon.ico`. The favicon file itself is the PNG; the 32 px PNG-in-ICO is generated when asked for.)_ Assets through the files module:
   - PNG, JPEG and WebP, plus SVG sanitised with DOMPurify server-side. Files are served with `Content-Security-Policy: sandbox` and `nosniff`.
   - Maximum 2 MB. Raster images are resized to 512 px for logos and 64/32 px PNG plus ICO for favicons.
   - Content type is checked by magic bytes.
-- [ ] Theme engine (`packages/design-tokens/src/theme.ts`, shared by backend validation and frontend):
+- [x] _(Built in `packages/schemas/src/theme.ts`, because the API imports it and that package is built. Presets skip the contrast rule: Mint, the existing look, reaches 4.3:1 against the 4.5 AA mark. Custom colours are held to it.)_ Theme engine (`packages/design-tokens/src/theme.ts`, shared by backend validation and frontend):
   - From one accent, generate `--accent-hi` and `--accent-lo` for light and dark (OKLCH lightness steps).
   - Choose `--on-accent` (white or near-black) by contrast.
   - Reject the accent if neither text colour reaches 4.5:1 on the accent, or the accent reaches less than 3:1 on the surface (WCAG AA).
   - Presets: Mint (current), Bronze (the old D-08 palette), Ocean, Plum, Slate. Each is a full light and dark set.
-- [ ] Font pairs (curated, checked with Indian names and ₹ amounts):
+- [x] Font pairs (curated, checked with Indian names and ₹ amounts):
   - Outfit / Hanken Grotesk
   - Inter / Inter
   - Manrope / Manrope
@@ -387,41 +387,43 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - Source Serif 4 / Source Sans 3
   - Noto Sans / Noto Sans (Devanagari-safe)
   - Loaded from Google Fonts, falling back to system fonts.
-- [ ] Public endpoints, cacheable for 5 minutes with an ETag:
+- [x] _(Served at `/v1/public/brand` and `/v1/public/company/:slug/brand`, matching the existing public routes. Tenant-detail brand editing by the super admin is not built.)_ Public endpoints, cacheable for 5 minutes with an ETag:
   - `GET /v1/brand` (platform brand)
   - `GET /v1/company/:slug/brand` (published tenant brand, merged over the platform brand)
   - Draft and preview endpoints need `brand.manage` (tenant: new permission `brand.manage`; platform: `brand.manage`).
-- [ ] Remove `branding.accentColor` and `branding.defaultTheme` from the registry after migrating their values into each tenant's first published brand profile. Keep `branding.emailSenderName` (it moves into the sender settings in PR 5).
+- [x] _(`branding.defaultTheme` stays as a personal, per-user choice; the company default is the brand's `defaultMode`. Values were migrated in SQL.)_ Remove `branding.accentColor` and `branding.defaultTheme` from the registry after migrating their values into each tenant's first published brand profile. Keep `branding.emailSenderName` (it moves into the sender settings in PR 5).
 
 **Frontend**
-- [ ] `packages/ui/src/brand.ts` loads `/v1/brand` first, with `brand.json` as the fallback. Add `applyBrand(profile)`, which sets CSS variables, injects the font link, swaps the favicon, sets the title and exposes logo URLs.
-- [ ] `AuthFrame` and `BrandMark` show the logo when one is set (else the initial) and use the sign-in panel content and colour.
-- [ ] Web `lib/company.ts` replaces today's accent-only override with `applyBrand`. Tenant brand wins over platform brand.
-- [ ] Brand editor (web Settings, then Brand, for tenants; admin, then Product brand, and Tenant detail, then Brand, for the super admin):
+- [x] `packages/ui/src/brand.ts` loads `/v1/brand` first, with `brand.json` as the fallback. Add `applyBrand(profile)`, which sets CSS variables, injects the font link, swaps the favicon, sets the title and exposes logo URLs.
+- [x] `AuthFrame` and `BrandMark` show the logo when one is set (else the initial) and use the sign-in panel content and colour.
+- [x] Web `lib/company.ts` replaces today's accent-only override with `applyBrand`. Tenant brand wins over platform brand.
+- [x] Brand editor (web Settings, then Brand, for tenants; admin, then Product brand, and Tenant detail, then Brand, for the super admin):
   - Form on the left: uploads, preset cards, accent picker with live contrast badge, font pair cards with sample text.
   - Preview on the right, with tabs for App, Sign-in and Email, and a light/dark switch. It renders the real components in an isolated container with the draft variables.
   - Buttons: Save draft, Publish, Revert to previous; "Unpublished changes" badge.
-- [ ] Email layout uses the published brand (PR 6 renderer).
+- [x] Email layout uses the published brand (PR 6 renderer).
 
 **Done when:** a tenant uploads a logo, picks Ocean, then a custom accent (an unreadable yellow is blocked with an explanation), picks Manrope, previews sign-in and an email in dark mode, publishes, then reverts. The super admin changes the product tagline in the console and every app shows it without a deploy.
 
 ### PR 8 — Logs, error tracking and alerts (D-67, D-68)
 
+_Built: `nestjs-pino` stdout lines, `log_requests`/`log_errors`/`log_signins`/`alert_subscriptions`, stories, Sentry forwarding (also used by the Integrations test), nightly purge and the per-minute alert tick both run from the cron worker (`cli.js worker`). Error toasts show the reference for 5xx. The audit trail now stores the request id in `meta` and queued jobs keep it in their payload so a trace can find them. Digest uses Asia/Kolkata until PR 9 adds `region.timeZone`. The “Email” tab in the admin Logs reuses the email log; the company app keeps its separate Email log page._
+
 **Backend**
-- [ ] Structured logger: `nestjs-pino` with request ID, tenant, actor and route on every line. Redact `authorization`, cookies, `password`, `code`, `token`, `secret` and email bodies. JSON goes to stdout (journald).
-- [ ] Data, all MySQL, each with a `createdAt` index and a `tenantId` index where relevant:
+- [x] Structured logger: `nestjs-pino` with request ID, tenant, actor and route on every line. Redact `authorization`, cookies, `password`, `code`, `token`, `secret` and email bodies. JSON goes to stdout (journald).
+- [x] Data, all MySQL, each with a `createdAt` index and a `tenantId` index where relevant:
   - `log_requests`: `requestId`, `tenantId`, `actorType`, `actorId`, `method`, `routePattern` (e.g. `/v1/people/:id`, never raw IDs or query values), `status`, `durationMs`, `ip`, `userAgentShort`, `createdAt`
     - Writes go through a buffered batch insert every 2 seconds.
     - All non-GET requests, all 4xx/5xx and requests slower than 1 second are recorded. Successful GETs are sampled (setting `logs.sampleGetsPercent`, default 10).
   - `log_errors`: `requestId`, `tenantId`, `actorId`, `routePattern`, `errorCode`, `message`, `story` (plain-English, below), `stack` (only shown with `logs.errors.detail`), `fingerprint` (hash of the error type and top frame, used for grouping), `count`, `firstSeen`, `lastSeen`
   - `log_signins`: `tenantId` nullable for platform, `userId` nullable, `emailHash`, `outcome` (`SUCCESS | BAD_PASSWORD | LOCKED | MFA_OK | MFA_FAILED | PASSKEY | TRUSTED_DEVICE | SUSPENDED`), `ip`, `userAgentShort`, `createdAt`
   - Jobs already have `job_records`; email has `mail_deliveries` (PR 5).
-- [ ] The "story" builder turns each error into readable text from the request context, for example: *"Asha (HR admin, Flourisense) clicked Send for signature on letter FS/INT/2026/0012. The server could not reach the timestamp service (timestamp.digicert.com) and stopped. Nothing was sent. Try again in a few minutes; if it keeps failing, check Integrations, then Timestamp URL."*
+- [x] The "story" builder turns each error into readable text from the request context, for example: *"Asha (HR admin, Flourisense) clicked Send for signature on letter FS/INT/2026/0012. The server could not reach the timestamp service (timestamp.digicert.com) and stopped. Nothing was sent. Try again in a few minutes; if it keeps failing, check Integrations, then Timestamp URL."*
   - Built from a map of known error codes to templates (`modules/logs/stories.ts`), plus a generic fallback.
   - Every `AppError` subclass gets a code.
-- [ ] Error forwarding: when `ERROR_TRACKING_DSN` is set, send to Sentry (`@sentry/node`) with the request ID as a tag and personal data stripped.
-- [ ] Retention job (nightly, queue): delete rows older than `logs.retentionDays` (7 to 180, default 30; platform-only setting).
-- [ ] Alerts:
+- [x] Error forwarding: when `ERROR_TRACKING_DSN` is set, send to Sentry (`@sentry/node`) with the request ID as a tag and personal data stripped.
+- [x] Retention job (nightly, queue): delete rows older than `logs.retentionDays` (7 to 180, default 30; platform-only setting).
+- [x] Alerts:
   - Data: `alert_subscriptions`:
     - `subscriberType` (`PLATFORM_USER | USER`) and `subscriberId`
     - `tenantId` (forced to their own tenant for tenant users)
@@ -430,26 +432,28 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - Thresholds are settings. Defaults: 20 errors in 10 minutes, 3 job failures in a row, 5 mail failures in 10 minutes, 50 failed sign-ins in 10 minutes for a tenant, disk free below 15%.
   - The alert evaluator runs every minute in the worker. It sends instant alerts at most once per event per hour (deduplicated in Redis).
   - The digest runs daily at 08:00 in the subscriber's time zone.
-- [ ] APIs:
+- [x] APIs:
   - platform `GET /v1/platform/logs/{requests|errors|signins|jobs|mail}` with filters (tenant, user, status, route, time range, request ID, text search on message)
   - `GET /v1/platform/logs/trace/:requestId`: everything sharing that ID, in time order
   - tenant equivalents restricted to their tenant (`audit.read` plus new `logs.read`)
 
 **Frontend**
-- [ ] Admin Logs area (Errors, Activity, Sign-ins, Jobs, Email):
+- [x] Admin Logs area (Errors, Activity, Sign-ins, Jobs, Email):
   - Errors are grouped by fingerprint, showing count, first and last seen, and the story in large type. "Technical detail" folds out to the stack, route and request ID.
   - "Trace this request" opens the timeline (request, job, mail, audit entries with the same request ID).
   - "Copy for support" copies a sanitised summary.
   - Filters are in the URL, so they can be shared.
-- [ ] Web, Settings, then Logs (tenant admin): Activity, Sign-ins, Email, and a simplified Errors view (story only, no stack).
-- [ ] Error toasts and error states in the web and admin apps show "Reference: <request ID>" so users can quote it.
-- [ ] Alerts page (My account, then Alerts) in web and admin: each event as a row with an Instant / Digest / Off control.
+- [x] Web, Settings, then Logs (tenant admin): Activity, Sign-ins, Email, and a simplified Errors view (story only, no stack).
+- [x] Error toasts and error states in the web and admin apps show "Reference: <request ID>" so users can quote it.
+- [x] Alerts page (My account, then Alerts) in web and admin: each event as a row with an Instant / Digest / Off control.
 
 **Done when:** a forced error in staging appears in the console within 5 seconds with a readable story. The request ID from the user's error toast finds it. The trace shows the related job and email. An Owner who subscribed to MAIL_FAILING gets one email when SMTP is broken, not fifty. Rows older than the retention are gone the next morning.
 
 ### PR 9 — Company configuration: region, sign-in rules, notification rules (D-69)
 
-- [ ] Region and formats (settings, tenant level, entity override where noted):
+_Built: region settings with `fmtDate`/`fmtDateTime`/`fmtNumber`/`fmtMoney` in `packages/ui/src/format.ts` (web and admin call them; direct `toLocale*` calls removed); password mix, expiry (blocks sign-in with “Forgot password”) and history (`password_history`); idle sign-out with a one-minute warning; allowed email domains (people create/update/invite); admin network allowlist (checked at sign-in before any second step, and on refresh); `notification_rules` with three events (letter issued, signer declined, approval reminder), reminders from `notifications.reminderHours`, and quiet hours that delay the queued job. In-app channel is stored but there is no in-app inbox yet, so the matrix is email only. Entity-level overrides exist in the registry but have no screen yet._
+
+- [x] Region and formats (settings, tenant level, entity override where noted):
   - `region.timeZone` (default Asia/Kolkata; entity)
   - `region.dateFormat` (`DD MMM YYYY`, `DD/MM/YYYY`, `YYYY-MM-DD`)
   - `region.numberGrouping` (Indian / international)
@@ -457,14 +461,14 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - `region.fyStartMonth` (April default; entity)
   - `region.weekStart`
   - Web and admin `lib/format.ts` read them: dates, numbers and money everywhere use the helpers. Find and replace direct `toLocaleString` and `Intl` calls.
-- [ ] Sign-in rules:
+- [x] Sign-in rules:
   - `security.passwordRequireMix` (letters + digits + symbol)
   - `security.passwordExpiryDays` (0 = never)
   - `security.passwordHistory` (0 to 10, using new table `password_history` of hashes)
   - `security.idleTimeoutMinutes` (web signs out after inactivity, with a 1-minute warning dialog)
   - `signin.allowedEmailDomains` (list; invites and email changes outside it are refused)
   - `signin.adminIpAllowlist` (list of CIDRs, applied to roles with any `*.manage` permission; checked at sign-in and on refresh; the super admin can always bypass through a support session)
-- [ ] Notification rules:
+- [x] Notification rules:
   - Data: `notification_rules` (`tenantId`, `event`, `roleKey` or `SUBJECT` meaning the person concerned, `channel` `EMAIL|IN_APP`, `enabled`)
   - `notifications.reminderHours` (list, e.g. 24 and 72)
   - `notifications.quietHours` (`{ start, end }` in the tenant time zone; non-urgent mail is held until the end; OTP, reset and security mail are never held)

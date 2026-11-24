@@ -24,9 +24,10 @@ import { useApi } from '../lib/api.tsx';
 import { useAuth } from '../lib/auth.tsx';
 import { messageOf } from '../lib/errors.ts';
 import { Layout } from './Layout.tsx';
+import { fmtDateTime } from '@flourishive/ui';
 
 const tone = { ACTIVE: 'success', INVITED: 'warning', DISABLED: 'danger' } as const;
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('en-IN') : 'Never');
+const when = (iso: string | null) => (iso ? fmtDateTime(iso) : 'Never');
 
 export function Staff() {
   const api = useApi();

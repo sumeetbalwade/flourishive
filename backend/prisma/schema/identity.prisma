@@ -1,24 +1,27 @@
 model User {
-  id           String     @id @default(uuid(7)) @db.Char(36)
-  tenantId     String     @db.Char(36)
-  email        String     @db.VarChar(191) // stored lower-case
-  passwordHash String?    @db.VarChar(255)
-  status       UserStatus @default(ACTIVE)
-  googleSub    String?    @db.VarChar(64)
+  id                String     @id @default(uuid(7)) @db.Char(36)
+  tenantId          String     @db.Char(36)
+  email             String     @db.VarChar(191) // stored lower-case
+  passwordHash      String?    @db.VarChar(255)
+  status            UserStatus @default(ACTIVE)
+  googleSub         String?    @db.VarChar(64)
   /// AES-256-GCM encrypted TOTP secret (set at enrolment, active once mfaEnabledAt is set)
-  mfaSecretEnc String?    @db.VarChar(255)
-  mfaEnabledAt DateTime?  @db.DateTime(3)
+  mfaSecretEnc      String?    @db.VarChar(255)
+  mfaEnabledAt      DateTime?  @db.DateTime(3)
   /// Set by the access module for HR, admin and super-admin roles (D-16)
-  mfaRequired  Boolean    @default(false)
-  lastLoginAt  DateTime?  @db.DateTime(3)
-  createdAt    DateTime   @default(now()) @db.DateTime(3)
-  updatedAt    DateTime   @updatedAt @db.DateTime(3)
+  mfaRequired       Boolean    @default(false)
+  lastLoginAt       DateTime?  @db.DateTime(3)
+  /// When the password was last set (for password expiry). Null means before expiry was tracked.
+  passwordChangedAt DateTime?  @db.DateTime(3)
+  createdAt         DateTime   @default(now()) @db.DateTime(3)
+  updatedAt         DateTime   @updatedAt @db.DateTime(3)
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id])
-  recoveryCodes RecoveryCode[]
-  sessions      Session[]
-  userRoles     UserRole[]
-  person        Person?
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  passwordHistory PasswordHistory[]
+  recoveryCodes   RecoveryCode[]
+  sessions        Session[]
+  userRoles       UserRole[]
+  person          Person?
 
   @@unique([tenantId, email])
   @@unique([tenantId, googleSub])
@@ -123,4 +126,20 @@ model Passkey {
 
   @@index([tenantId, userId])
   @@map("passkeys")
+}
+
+/// Hashes of a person's earlier passwords, so a new one cannot repeat the last few (D-69).
+/// Only the newest `security.passwordHistory` rows matter; older ones are pruned when a password is set.
+model PasswordHistory {
+  id        String   @id @default(uuid(7)) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  userId    String   @db.Char(36)
+  hash      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([tenantId])
+  @@map("password_history")
 }

@@ -23,7 +23,7 @@ export function Company() {
 
   const items: SettingItem[] = q.data
     ? Object.entries(q.data.definitions)
-        .filter(([, d]) => d.levels.includes('tenant'))
+        .filter(([, d]) => d.levels.includes('tenant') && d.kind !== 'json')
         .map(([key, d]) => ({
           key,
           label: d.label,

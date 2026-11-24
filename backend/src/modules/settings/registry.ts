@@ -39,27 +39,48 @@ export interface SettingDefinition<T = unknown> {
   scope?: 'layered' | 'platform';
 }
 
+const DOMAIN =
+  /^(?=.{3,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
+
+function isTimeZone(v: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: v });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** `203.0.113.0/24`, `203.0.113.7` or an IPv6 address with an optional /bits. */
+export function isCidr(v: string): boolean {
+  const [addr, bits, extra] = v.split('/');
+  if (extra !== undefined || !addr) return false;
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(addr);
+  if (v4) {
+    if (v4.slice(1).some((o) => Number(o) > 255)) return false;
+    return bits === undefined || (/^\d{1,2}$/.test(bits) && Number(bits) <= 32);
+  }
+  if (/^[0-9a-f:]+$/i.test(addr) && addr.includes(':'))
+    return (
+      bits === undefined || (/^\d{1,3}$/.test(bits) && Number(bits) <= 128)
+    );
+  return false;
+}
+
 function def<T>(d: SettingDefinition<T>): SettingDefinition<T> {
   return d;
 }
 
 /** Every setting is declared once here. Add new ones as modules need them. */
 export const SETTINGS = {
-  'branding.accentColor': def({
-    schema: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-    default: '#2a9158',
-    levels: ['tenant', 'entity'],
-    label: 'Accent colour',
-    group: 'Branding',
-    description: 'Accent colour used across the tenant’s screens',
-  }),
+  /** A person's own light/dark choice. The company's default comes from its published brand. */
   'branding.defaultTheme': def({
     schema: z.enum(['dark', 'light', 'system']),
     default: 'dark',
-    levels: ['tenant', 'user'],
-    label: 'Default theme',
+    levels: ['user'],
+    label: 'My colour theme',
     group: 'Branding',
-    description: 'Default colour theme',
+    description: 'Your own choice of light or dark',
   }),
   'branding.emailSenderName': def({
     schema: z.string().min(1).max(80),
@@ -119,6 +140,208 @@ export const SETTINGS = {
     label: 'Email recovery for platform staff',
     group: 'Platform',
     description: 'Let platform staff recover access with an emailed code',
+  }),
+  'region.timeZone': def({
+    schema: z.string().refine(isTimeZone, 'Not a known time zone'),
+    default: 'Asia/Kolkata',
+    levels: ['tenant', 'entity'],
+    label: 'Time zone',
+    group: 'Region',
+    kind: 'timezone',
+    description:
+      'Dates and times are shown in this zone, and daily emails go out at 08:00 in it',
+  }),
+  'region.dateFormat': def({
+    schema: z.enum(['DD MMM YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD']),
+    default: 'DD MMM YYYY',
+    levels: ['tenant'],
+    label: 'Date format',
+    group: 'Region',
+    description: 'For example 24 Nov 2026, 24/11/2026 or 2026-11-24',
+  }),
+  'region.numberGrouping': def({
+    schema: z.enum(['indian', 'international']),
+    default: 'indian',
+    levels: ['tenant'],
+    label: 'Number grouping',
+    group: 'Region',
+    description:
+      'Indian grouping reads 12,34,567; international reads 1,234,567',
+  }),
+  'region.currency': def({
+    schema: z.enum(['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD']),
+    default: 'INR',
+    levels: ['tenant'],
+    label: 'Currency',
+    group: 'Region',
+    description: 'The currency amounts are shown in',
+  }),
+  'region.fyStartMonth': def({
+    schema: z.number().int().min(1).max(12),
+    default: 4,
+    levels: ['tenant', 'entity'],
+    label: 'Financial year starts in month',
+    group: 'Region',
+    kind: 'number',
+    description: '4 means April, the Indian financial year',
+  }),
+  'region.weekStart': def({
+    schema: z.enum(['monday', 'sunday', 'saturday']),
+    default: 'monday',
+    levels: ['tenant'],
+    label: 'Week starts on',
+    group: 'Region',
+    description: 'The first day of the week in calendars',
+  }),
+  'security.passwordRequireMix': def({
+    schema: z.boolean(),
+    default: false,
+    levels: ['tenant'],
+    label: 'Passwords need letters, digits and a symbol',
+    group: 'Sign-in',
+    description:
+      'New passwords must mix letters, numbers and at least one symbol',
+  }),
+  'security.passwordExpiryDays': def({
+    schema: z.number().int().min(0).max(730),
+    default: 0,
+    levels: ['tenant'],
+    label: 'Passwords expire after (days)',
+    group: 'Sign-in',
+    kind: 'number',
+    description:
+      '0 means never. After this many days people must choose a new password with Forgot password',
+  }),
+  'security.passwordHistory': def({
+    schema: z.number().int().min(0).max(10),
+    default: 0,
+    levels: ['tenant'],
+    label: 'Remember this many old passwords',
+    group: 'Sign-in',
+    kind: 'number',
+    description:
+      'A new password cannot repeat one of the last few. 0 turns it off',
+  }),
+  'security.idleTimeoutMinutes': def({
+    schema: z.number().int().min(0).max(480),
+    default: 0,
+    levels: ['tenant'],
+    label: 'Sign out after inactivity (minutes)',
+    group: 'Sign-in',
+    kind: 'number',
+    description:
+      '0 means never. The web app warns one minute before signing the person out',
+  }),
+  'signin.allowedEmailDomains': def({
+    schema: z.array(z.string().trim().toLowerCase().regex(DOMAIN)).max(50),
+    default: [],
+    levels: ['tenant'],
+    label: 'Allowed email domains',
+    group: 'Sign-in',
+    kind: 'list',
+    description:
+      'When set, invites and email changes to any other domain are refused. For example company.com',
+  }),
+  'signin.adminIpAllowlist': def({
+    schema: z
+      .array(z.string().trim().refine(isCidr, 'Not an address range'))
+      .max(50),
+    default: [],
+    levels: ['tenant'],
+    label: 'Admin sign-in address ranges',
+    group: 'Sign-in',
+    kind: 'list',
+    description:
+      'When set, people whose role can change settings may only sign in from these addresses, for example 203.0.113.0/24. Platform support can still help through a support session',
+  }),
+  'notifications.reminderHours': def({
+    schema: z.array(z.coerce.number().int().min(1).max(720)).max(5),
+    default: [24, 72],
+    levels: ['tenant'],
+    label: 'Remind after (hours)',
+    group: 'Notifications',
+    kind: 'list',
+    description:
+      'Someone who has not acted on a waiting approval is reminded this many hours after it started waiting',
+  }),
+  'notifications.quietHours': def({
+    schema: z.object({
+      enabled: z.boolean(),
+      start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+      end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+    }),
+    default: { enabled: false, start: '22:00', end: '07:00' },
+    levels: ['tenant'],
+    label: 'Quiet hours',
+    group: 'Notifications',
+    kind: 'json',
+    description:
+      'Emails that can wait are held until quiet hours end. Codes, password links and security emails are never held',
+  }),
+  'logs.sampleGetsPercent': def({
+    schema: z.number().int().min(0).max(100),
+    default: 10,
+    levels: [],
+    label: 'Share of successful reads to keep',
+    group: 'Logs',
+    kind: 'number',
+    description:
+      'Every change, every failure and every slow request is kept. Of the quick successful page loads, this percentage is kept too',
+  }),
+  'logs.retentionDays': def({
+    schema: z.number().int().min(7).max(180),
+    default: 30,
+    levels: [],
+    label: 'Keep logs for (days)',
+    group: 'Logs',
+    kind: 'number',
+    description:
+      'Request, error and sign-in logs older than this are deleted every night',
+  }),
+  'alerts.errorSpikeCount': def({
+    schema: z.number().int().min(1).max(10000),
+    default: 20,
+    levels: [],
+    label: 'Errors in 10 minutes that count as a spike',
+    group: 'Logs',
+    kind: 'number',
+    description: 'Per company, and for the whole server',
+  }),
+  'alerts.jobFailureCount': def({
+    schema: z.number().int().min(1).max(1000),
+    default: 3,
+    levels: [],
+    label: 'Failed background jobs that raise an alert',
+    group: 'Logs',
+    kind: 'number',
+    description: 'Failures within the last 30 minutes',
+  }),
+  'alerts.mailFailureCount': def({
+    schema: z.number().int().min(1).max(1000),
+    default: 5,
+    levels: [],
+    label: 'Failed emails in 10 minutes that raise an alert',
+    group: 'Logs',
+    kind: 'number',
+    description: 'Per company, and for the whole server',
+  }),
+  'alerts.signinFailureCount': def({
+    schema: z.number().int().min(5).max(10000),
+    default: 50,
+    levels: [],
+    label: 'Failed sign-ins in 10 minutes that raise an alert',
+    group: 'Logs',
+    kind: 'number',
+    description: 'Per company',
+  }),
+  'alerts.diskFreePercent': def({
+    schema: z.number().int().min(1).max(90),
+    default: 15,
+    levels: [],
+    label: 'Disk space left that raises an alert (%)',
+    group: 'Logs',
+    kind: 'number',
+    description: 'Free space on the server disk',
   }),
   'security.sessionDays': def({
     schema: z.number().int().min(1).max(30),

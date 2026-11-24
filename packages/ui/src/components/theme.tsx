@@ -11,7 +11,10 @@ function readTheme(): Theme {
   } catch {
     /* storage unavailable */
   }
-  return 'light';
+  // No saved choice: the brand's default mode, which applyBrand has already put on the page.
+  return typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark'
+    ? 'dark'
+    : 'light';
 }
 
 export function ThemeToggle() {

@@ -30,6 +30,23 @@ export {
   type DeliveryItem,
   type DeliveriesResponse,
 } from './components/email-log.tsx';
+export {
+  LogsView,
+  TraceDialog,
+  AlertsCard,
+  type LogsApi,
+  type LogParams,
+  type LogsViewProps,
+  type AlertRow,
+} from './components/logs-view.tsx';
+export {
+  EmailTemplates,
+  type EmailTemplatesApi,
+  type TemplateDetail,
+  type TemplateListEntry,
+  type TemplatePreview,
+} from './components/email-templates.tsx';
+export { BrandEditor, type BrandEditorProps } from './components/brand-editor.tsx';
 export { PasskeysCard, type PasskeyItem } from './components/passkeys-card.tsx';
 export { CollapsibleSection } from './components/collapsible-section.tsx';
 export { SearchBox } from './components/search-box.tsx';
@@ -52,6 +69,27 @@ export {
   type SettingItem,
   type SettingChange,
 } from './components/settings-editor.tsx';
-export { brand, brandSlug, loadBrand, type Brand } from './brand.ts';
+export {
+  brand,
+  brandExtras,
+  assetUrl,
+  brandSlug,
+  loadBrand,
+  applyBrand,
+  applyProductBrand,
+  type Brand,
+} from './brand.ts';
 export { AuthFrame, BrandMark } from './components/auth-frame.tsx';
 export { PageLoader } from './components/page-loader.tsx';
+export {
+  setRegion,
+  getRegion,
+  fmtDate,
+  fmtDateTime,
+  fmtTime,
+  fmtNumber,
+  fmtMoney,
+  fiscalYear,
+  DEFAULT_REGION,
+  type Region,
+} from './format.ts';

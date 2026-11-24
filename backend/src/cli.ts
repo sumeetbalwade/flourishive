@@ -6,8 +6,12 @@ import { AccessService } from './modules/access/access.service.js';
 import { AuditWatchService } from './modules/platform-admin/audit-watch.service.js';
 import { StaffActionsService } from './modules/platform-admin/staff-actions.service.js';
 import { PlatformAuthService } from './modules/platform-admin/platform-auth.service.js';
+import { AlertsService } from './modules/logs/alerts.service.js';
+import { RemindersService } from './modules/notifications/reminders.service.js';
+import { LogsService } from './modules/logs/logs.service.js';
 import { JobHandlerRegistry } from './platform/queue/job-handlers.js';
 import { JobRecordsService } from './platform/queue/job-records.service.js';
+import { RedisService } from './platform/cache/redis.service.js';
 import { QueueService } from './platform/queue/queue.service.js';
 
 /**
@@ -20,6 +24,16 @@ import { QueueService } from './platform/queue/queue.service.js';
  *   node dist/cli.js storage-migrate-r2 [--dry-run] [--delete-local]
  *   node dist/cli.js verify-audit            (nightly cron: re-checks every audit hash chain)
  */
+/** Deletes logs past their retention, once a day at around 03:00 server time (a Redis key stops repeats). */
+async function purgeLogsOncePerNight(logs: LogsService, redis: RedisService) {
+  const now = new Date();
+  if (now.getHours() !== 3) return;
+  const key = `logs:purged:${now.toISOString().slice(0, 10)}`;
+  if ((await redis.client.set(key, '1', 'EX', 86_400, 'NX')) !== 'OK') return;
+  const n = await logs.purge(now);
+  console.log(`Log retention: deleted ${n} old log rows`);
+}
+
 const arg = (args: string[], name: string) =>
   args
     .find((a) => a.startsWith(`--${name}=`))
@@ -129,6 +143,15 @@ async function main() {
   const requeued = await app.get(JobRecordsService).reconcile();
   if (requeued > 0)
     console.warn(`Re-queued ${requeued} stale job(s) from job_records`);
+  // Every worker run (cron, each minute): look for problems to alert on, and clear old logs once a night.
+  const alerts = await app.get(AlertsService).tick();
+  if (alerts.raised || alerts.digests)
+    console.log(
+      `Alerts sent: ${alerts.raised}; daily summaries sent: ${alerts.digests}`,
+    );
+  const reminders = await app.get(RemindersService).tick();
+  if (reminders) console.log(`Reminders sent: ${reminders}`);
+  await purgeLogsOncePerNight(app.get(LogsService), app.get(RedisService));
   const handlers = app.get(JobHandlerRegistry);
   const jobRecords = app.get(JobRecordsService);
   await app.get(QueueService).runWorker(async (job) => {

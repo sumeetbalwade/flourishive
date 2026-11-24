@@ -5,7 +5,30 @@ import {
   securityInfo,
   passkeyView,
   senderState,
+  alertSubscriptionsResponse,
+  errorLogResponse,
+  jobLogResponse,
+  requestLogResponse,
+  signinLogResponse,
+  supportCopy,
+  traceResponse,
+  type ErrorLogQuery,
+  type JobLogQuery,
+  type RequestLogQuery,
+  type SaveAlertsBody,
+  type SigninLogQuery,
   deliveriesResponse,
+  templateList,
+  brandData,
+  brandEditorState,
+  brandAssetView,
+  type BrandAssetKind,
+  type BrandPatch,
+  templateView,
+  previewResponse,
+  type SaveTemplateBody,
+  type PreviewTemplateBody,
+  type TestTemplateBody,
   type DeliveryQuery,
   type AccountAction,
   platformRolesResponse,
@@ -167,11 +190,78 @@ export function createPlatformClient(opts: Opts) {
       },
     },
 
+    /** The product's own brand (D-62). */
+    brand: {
+      state: () => http.request('GET', '/platform/brand', { schema: brandEditorState }),
+      /** Uploads a PNG, JPEG or WebP; returns the picture's id to put in the draft. */
+      uploadImage: (kind: BrandAssetKind, file: Blob) =>
+        http.request('POST', '/platform/brand/assets', {
+          body: file,
+          contentType: file.type,
+          query: { kind },
+          schema: brandAssetView,
+        }),
+      saveDraft: (draft: BrandPatch) =>
+        http.request('PUT', '/platform/brand/draft', { json: { draft }, schema: brandEditorState }),
+      discardDraft: () =>
+        http.request('DELETE', '/platform/brand/draft', { schema: brandEditorState }),
+      previewEmail: (draft: BrandPatch, scheme: 'light' | 'dark') =>
+        http.request('POST', '/platform/brand/preview/email', {
+          json: { draft, scheme },
+          schema: previewResponse,
+        }),
+      publish: () => http.request('POST', '/platform/brand/publish', { schema: brandEditorState }),
+      revert: () => http.request('POST', '/platform/brand/revert', { schema: brandEditorState }),
+    },
+    /** Logs across every company, and the staff member's own alerts (D-67, D-68). */
+    logs: {
+      requests: (query: Partial<RequestLogQuery> = {}) =>
+        http.request('GET', '/platform/logs/requests', { query, schema: requestLogResponse }),
+      errors: (query: Partial<ErrorLogQuery> = {}) =>
+        http.request('GET', '/platform/logs/errors', { query, schema: errorLogResponse }),
+      signins: (query: Partial<SigninLogQuery> = {}) =>
+        http.request('GET', '/platform/logs/signins', { query, schema: signinLogResponse }),
+      jobs: (query: Partial<JobLogQuery> = {}) =>
+        http.request('GET', '/platform/logs/jobs', { query, schema: jobLogResponse }),
+      trace: (requestId: string) =>
+        http.request('GET', `/platform/logs/trace/${encodeURIComponent(requestId)}`, {
+          schema: traceResponse,
+        }),
+      copy: (requestId: string) =>
+        http.request('GET', `/platform/logs/trace/${encodeURIComponent(requestId)}/copy`, {
+          schema: supportCopy,
+        }),
+    },
+    alerts: {
+      list: () => http.request('GET', '/platform/alerts', { schema: alertSubscriptionsResponse }),
+      save: (body: SaveAlertsBody) =>
+        http.request('PUT', '/platform/alerts', { json: body, schema: alertSubscriptionsResponse }),
+    },
     /** The email log across companies, and a company's sender (D-58, D-60). */
     mail: {
       deliveries: (query: Partial<DeliveryQuery> = {}) =>
         http.request('GET', '/platform/mail/deliveries', { query, schema: deliveriesResponse }),
       resend: (id: string) => http.request('POST', `/platform/mail/deliveries/${id}/resend`),
+      /** Reword the emails (D-59). */
+      templates: {
+        list: () => http.request('GET', '/platform/mail/templates', { schema: templateList }),
+        get: (event: string) =>
+          http.request('GET', `/platform/mail/templates/${event}`, { schema: templateView }),
+        save: (event: string, body: SaveTemplateBody) =>
+          http.request('PUT', `/platform/mail/templates/${event}`, {
+            json: body,
+            schema: templateView,
+          }),
+        reset: (event: string) =>
+          http.request('DELETE', `/platform/mail/templates/${event}`, { schema: templateView }),
+        preview: (event: string, body: PreviewTemplateBody) =>
+          http.request('POST', `/platform/mail/templates/${event}/preview`, {
+            json: body,
+            schema: previewResponse,
+          }),
+        test: (event: string, body: TestTemplateBody) =>
+          http.request('POST', `/platform/mail/templates/${event}/test`, { json: body }),
+      },
       tenantSender: (tenantId: string) =>
         http.request('GET', `/platform/mail/tenants/${tenantId}/sender`, { schema: senderState }),
       removeTenantSender: (tenantId: string) =>

@@ -15,7 +15,9 @@ import {
   runAsSystem,
   runInTenant,
 } from '../../platform/database/tenant-context.js';
+import { NotificationRulesService } from '../notifications/notification-rules.service.js';
 import { MailService } from '../../platform/mail/mail.service.js';
+import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { StorageService } from '../../platform/storage/storage.service.js';
 import { AccessService } from '../access/access.service.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -63,6 +65,8 @@ export class SigningService {
     private readonly otp: OtpService,
     private readonly redis: RedisService,
     private readonly mail: MailService,
+    private readonly rules: NotificationRulesService,
+    private readonly templates: EmailTemplatesService,
     private readonly settings: SettingsService,
     private readonly workflow: WorkflowService,
     private readonly access: AccessService,
@@ -234,12 +238,16 @@ export class SigningService {
       event: 'signing.request',
       tenantId: a.tenantId,
       to: b.email,
-      subject: `Please review and accept: ${doc.reference}`,
-      text: `Hello ${b.name},\n\nYou have a document to review and accept: ${doc.reference}.\n\nOpen this private link, read the document and ${
-        method === 'AADHAAR'
-          ? 'sign it with your Aadhaar'
-          : 'confirm with a code we email you'
-      }:\n${link}\n\nThe link works until ${req.expiresAt.toDateString()}. Do not forward it.`,
+      ...(await this.templates.render('signing.request', a.tenantId, {
+        name: b.name,
+        reference: doc.reference,
+        link,
+        method:
+          method === 'AADHAAR'
+            ? 'sign it with your Aadhaar'
+            : 'confirm with a code we email you',
+        expires: req.expiresAt.toDateString(),
+      })),
       fromName: await this.from(a.tenantId),
     });
     await this.audit.recordSafely({
@@ -334,6 +342,11 @@ export class SigningService {
       'signing_failed',
       { asSystem: true },
     );
+    if (status === 'DECLINED' || status === 'EXPIRED')
+      void this.rules.notify(tenantId, 'letter.declined', {
+        subject: `A signing request was ${status === 'DECLINED' ? 'declined' : 'not answered in time'}`,
+        text: `A request to sign a letter was ${status === 'DECLINED' ? 'declined' : 'not answered before it expired'}. Open Letters to see what to do next.`,
+      });
   }
 
   // --------------------------------------------------------------- person side
@@ -469,8 +482,10 @@ export class SigningService {
       event: 'signing.otp',
       tenantId,
       to: party.email,
-      subject: `Your ${this.config.APP_NAME} code: ${code}`,
-      text: `Your one-time code to accept the document is ${code}. It works once and expires in ${minutes} minutes.\n\nIf you did not ask for it, ignore this email.`,
+      ...(await this.templates.render('signing.otp', tenantId, {
+        code,
+        minutes: String(minutes),
+      })),
       fromName: await this.from(tenantId),
     });
     await this.event(tenantId, request.id, 'code_sent', c, party.id);

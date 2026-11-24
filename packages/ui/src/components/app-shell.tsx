@@ -1,4 +1,11 @@
-import { ChevronRight, LogOut, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { DropdownMenu } from 'radix-ui';
 import { Fragment, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
@@ -29,6 +36,16 @@ function readCollapsed(): boolean {
     return localStorage.getItem(KEY) === 'collapsed';
   } catch {
     return false;
+  }
+}
+
+const GROUPS_KEY = 'fh-nav-groups';
+/** Which groups the person opened or closed by hand, remembered per device. A group not listed is closed unless it holds the page. */
+function readGroups(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(GROUPS_KEY) ?? '{}') as Record<string, boolean>;
+  } catch {
+    return {};
   }
 }
 
@@ -68,6 +85,20 @@ export function AppShell({
 }) {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [searching, setSearching] = useState(false);
+  const [groups, setGroups] = useState(readGroups);
+  const toggleGroup = (g: string, now: boolean) =>
+    setGroups((cur) => {
+      const next = { ...cur, [g]: !now };
+      try {
+        localStorage.setItem(GROUPS_KEY, JSON.stringify(next));
+      } catch {
+        /* the choice just is not remembered */
+      }
+      return next;
+    });
+  const activeRoot = active.split('/')[0];
+  const groupOfActive = nav.find((n) => n.id === activeRoot)?.group;
+  const isOpen = (g: string) => groups[g] ?? g === groupOfActive;
 
   const toggle = () =>
     setCollapsed((c) => {
@@ -145,14 +176,29 @@ export function AppShell({
               return (
                 <Fragment key={id}>
                   {group && group !== nav[i - 1]?.group && (
-                    <div
+                    <button
+                      type="button"
+                      aria-label={`${group} group`}
+                      aria-expanded={isOpen(group)}
+                      onClick={() => toggleGroup(group, isOpen(group))}
                       className={cn(
-                        'px-4 pb-1 pt-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint',
-                        collapsed ? 'hidden' : 'hidden md:block',
+                        'mt-3 items-center justify-between rounded-pill px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint transition-colors hover:bg-surface-2 hover:text-fg',
+                        collapsed ? 'hidden' : 'hidden md:flex',
                       )}
                     >
-                      {group}
-                    </div>
+                      <span>{group}</span>
+                      <span className="flex items-center gap-1.5">
+                        {!isOpen(group) ? (
+                          <span className="rounded-pill bg-surface-2 px-1.5 py-0.5 text-[10px] normal-case tracking-normal">
+                            {nav.filter((n) => n.group === group).length}
+                          </span>
+                        ) : null}
+                        <ChevronDown
+                          size={13}
+                          className={cn('transition-transform', !isOpen(group) && '-rotate-90')}
+                        />
+                      </span>
+                    </button>
                   )}
                   <button
                     type="button"
@@ -163,6 +209,7 @@ export function AppShell({
                     onClick={() => onNavigate(id)}
                     className={cn(
                       'group relative flex h-11 items-center justify-center gap-3 rounded-pill px-3 text-sm font-medium transition-colors duration-[var(--dur-fast)] active:scale-[0.98]',
+                      group && !isOpen(group) && !collapsed && 'md:hidden',
                       !collapsed && 'md:justify-start md:px-4',
                       here ? 'text-on-accent' : 'text-muted hover:bg-surface-2 hover:text-fg',
                     )}

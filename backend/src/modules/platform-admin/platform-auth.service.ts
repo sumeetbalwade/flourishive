@@ -14,6 +14,7 @@ import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
+import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { MfaService, hashRecoveryCode } from '../identity/mfa.service.js';
 import { OtpService } from '../identity/otp.service.js';
 import { PasswordService } from '../identity/password.service.js';
@@ -29,6 +30,7 @@ import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
 } from '@simplewebauthn/server';
+import { LogWriterService } from '../logs/log-writer.service.js';
 import { PlatformRolesService } from './platform-roles.service.js';
 import { OWNER_ROLE_ID } from './platform-permissions.js';
 import { PlatformAuditService } from './platform-audit.service.js';
@@ -65,6 +67,7 @@ export class PlatformAuthService {
     private readonly throttle: ThrottleService,
     private readonly redis: RedisService,
     private readonly mail: MailService,
+    private readonly templates: EmailTemplatesService,
     private readonly audit: PlatformAuditService,
     private readonly settings: SettingsService,
     private readonly otp: OtpService,
@@ -73,10 +76,16 @@ export class PlatformAuthService {
     private readonly runtime: RuntimeConfigService,
     private readonly devices: TrustedDeviceService,
     private readonly passkeys: PasskeyService,
+    private readonly signinLog: LogWriterService,
   ) {}
 
   private db() {
     return this.prisma.db;
+  }
+
+  /** A staff member's own address (where their template test goes). */
+  async emailOfStaff(id: string): Promise<string | null> {
+    return (await this.user(id))?.email ?? null;
   }
 
   private user(id: string) {
@@ -93,7 +102,25 @@ export class PlatformAuthService {
     const ip = meta.ip;
     const email = input.email.toLowerCase();
     const keys = [`platform:acct:${email}`, `platform:ip:${ip ?? 'unknown'}`];
-    await this.throttle.assertNotLocked('login', ...keys);
+    const note = (
+      outcome: 'BAD_PASSWORD' | 'LOCKED' | 'SUSPENDED',
+      userId: string | null = null,
+    ) =>
+      this.signinLog.signin({
+        tenantId: null,
+        userId,
+        email,
+        platform: true,
+        outcome,
+        ip,
+        userAgent: meta.userAgent,
+      });
+    try {
+      await this.throttle.assertNotLocked('login', ...keys);
+    } catch (e) {
+      note('LOCKED');
+      throw e;
+    }
     const user = await runAsSystem(
       async () => await this.db().platformUser.findUnique({ where: { email } }),
     );
@@ -103,6 +130,10 @@ export class PlatformAuthService {
         : false;
     if (!user?.passwordHash) await this.passwords.verifyDummy(input.password);
     if (!ok || !user) {
+      note(
+        user && user.status !== 'ACTIVE' ? 'SUSPENDED' : 'BAD_PASSWORD',
+        user?.id ?? null,
+      );
       await this.throttle.recordFailure('login', ...keys);
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -199,6 +230,14 @@ export class PlatformAuthService {
       }
     }
     if (!ok || !user) {
+      this.signinLog.signin({
+        tenantId: null,
+        userId: user?.id ?? null,
+        platform: true,
+        outcome: 'MFA_FAILED',
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
       await this.throttle.recordFailure('mfa', key);
       throw new UnauthorizedException('Invalid code');
     }
@@ -233,8 +272,10 @@ export class PlatformAuthService {
     await this.mail.send({
       event: 'platform.signin_code',
       to: user.email,
-      subject: `Your ${this.config.APP_NAME} admin code: ${code}`,
-      text: `Your one-time sign-in code is ${code}. It works once and expires in 10 minutes.\n\nIf you did not ask for it, change your password now.`,
+      ...(await this.templates.render('platform.signin_code', null, {
+        code,
+        minutes: '10',
+      })),
     });
   }
 
@@ -276,6 +317,14 @@ export class PlatformAuthService {
         c.platformUserId,
       );
     } catch (e) {
+      this.signinLog.signin({
+        tenantId: null,
+        userId: c.platformUserId,
+        platform: true,
+        outcome: 'MFA_FAILED',
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
       await this.throttle.recordFailure('mfa', key);
       throw e;
     }
@@ -456,8 +505,10 @@ export class PlatformAuthService {
     await this.mail.send({
       event: 'platform.recovery_code',
       to: user.email,
-      subject: `Your ${this.config.APP_NAME} admin code: ${code}`,
-      text: `Your one-time code is ${code}. It works once and expires in 10 minutes.\n\nIf you did not ask for it, change your password now.`,
+      ...(await this.templates.render('platform.recovery_code', null, {
+        code,
+        minutes: '10',
+      })),
     });
   }
 
@@ -597,6 +648,14 @@ export class PlatformAuthService {
         data: { lastLoginAt: new Date() },
       });
       return s.id;
+    });
+    this.signinLog.signin({
+      tenantId: null,
+      userId,
+      platform: true,
+      outcome: 'SUCCESS',
+      ip: meta.ip,
+      userAgent: meta.userAgent,
     });
     await this.audit.record({
       actorId: userId,
@@ -742,8 +801,10 @@ export class PlatformAuthService {
       await this.mail.send({
         event: 'platform.invite',
         to: address,
-        subject: `You have been invited to the ${this.config.APP_NAME} admin console`,
-        text: `Choose a password (link valid for 7 days):\n\n${link}`,
+        ...(await this.templates.render('platform.invite', null, {
+          link,
+          expires: '7 days',
+        })),
       });
     } catch {
       emailed = false;
@@ -778,11 +839,11 @@ export class PlatformAuthService {
         event:
           kind === 'invite' ? 'platform.invite' : 'platform.password_reset',
         to: user.email,
-        subject:
-          kind === 'invite'
-            ? `You have been invited to the ${this.config.APP_NAME} admin console`
-            : `Reset your ${this.config.APP_NAME} admin password`,
-        text: `Choose a password (link valid for ${kind === 'invite' ? '7 days' : 'one hour'}):\n\n${link}\n\nIf you did not expect this, tell another administrator.`,
+        ...(await this.templates.render(
+          kind === 'invite' ? 'platform.invite' : 'platform.password_reset',
+          null,
+          { link, expires: kind === 'invite' ? '7 days' : 'one hour' },
+        )),
       });
     } catch {
       emailed = false;

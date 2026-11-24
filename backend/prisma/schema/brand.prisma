@@ -1,0 +1,64 @@
+enum BrandScope {
+  PLATFORM
+  TENANT
+}
+
+enum BrandStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// How the product (scope PLATFORM, tenantId null) or one company looks and sounds (D-61, D-62).
+/// `data` holds only what that level sets; the product's brand sits under every company's. A level has at
+/// most one DRAFT and one PUBLISHED row: publishing archives the old one, reverting republishes the last
+/// archived data as a new version. Read through BrandService, which always filters by company.
+model BrandProfile {
+  id          String      @id @default(uuid(7)) @db.Char(36)
+  scope       BrandScope
+  tenantId    String?     @db.Char(36)
+  status      BrandStatus @default(DRAFT)
+  version     Int         @default(0)
+  data        Json
+  updatedBy   String?     @db.Char(36)
+  publishedBy String?     @db.Char(36)
+  publishedAt DateTime?   @db.DateTime(3)
+  createdAt   DateTime    @default(now()) @db.DateTime(3)
+  updatedAt   DateTime    @updatedAt @db.DateTime(3)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([scope, status])
+  @@map("brand_profiles")
+}
+
+enum BrandAssetKind {
+  LOGO_LIGHT
+  LOGO_DARK
+  FAVICON
+  PANEL_IMAGE
+}
+
+/// An image uploaded for a brand (D-61): a logo, favicon or sign-in panel picture. Public by design (sign-in
+/// pages show it before anyone is signed in), so it is served by id with long caching. A level can only
+/// point its brand at its own assets. Read through BrandAssetsService.
+model BrandAsset {
+  id         String         @id @default(uuid(7)) @db.Char(36)
+  scope      BrandScope
+  tenantId   String?        @db.Char(36)
+  kind       BrandAssetKind
+  mimeType   String         @db.VarChar(60)
+  sizeBytes  Int
+  width      Int
+  height     Int
+  sha256     String         @db.Char(64)
+  storageKey String         @unique @db.VarChar(255)
+  uploadedBy String?        @db.Char(36)
+  createdAt  DateTime       @default(now()) @db.DateTime(3)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("brand_assets")
+}

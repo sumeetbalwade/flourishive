@@ -4,7 +4,11 @@ import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
 import { AuditService, type ChainCheck } from '../audit/audit.service.js';
-import { PlatformAuditService } from './platform-audit.service.js';
+import { AlertsService } from '../logs/alerts.service.js';
+import {
+  PLATFORM_TENANT_SLUG,
+  PlatformAuditService,
+} from './platform-audit.service.js';
 
 export interface WatchResult {
   tenants: number;
@@ -26,6 +30,7 @@ export class AuditWatchService {
     private readonly audit: AuditService,
     private readonly platformAudit: PlatformAuditService,
     private readonly mail: MailService,
+    private readonly alerts: AlertsService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -61,7 +66,19 @@ export class AuditWatchService {
       entityType: 'audit_log',
       meta: { ...result },
     });
-    if (result.broken.length) await this.alert(result);
+    if (result.broken.length) {
+      await this.alert(result);
+      // People who chose to hear about it (their own company, or every company for staff).
+      for (const b of result.broken) {
+        const t = tenants.find((x) => x.slug === b.slug);
+        if (t)
+          await this.alerts.raise({
+            event: 'AUDIT_CHAIN_BROKEN',
+            tenantId: t.slug === PLATFORM_TENANT_SLUG ? null : t.id,
+            summary: `The audit trail of ${b.slug} failed its integrity check: ${b.reason ?? 'broken'}. A row may have been edited or removed.`,
+          });
+      }
+    }
     return result;
   }
 

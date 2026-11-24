@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { useApi } from '../../lib/api.tsx';
 import { useAuth } from '../../lib/auth.tsx';
 import { messageOf } from '../../lib/errors.ts';
+import { fmtDateTime } from '@flourishive/ui';
 
-const when = (iso: string) =>
-  new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+const when = (iso: string) => fmtDateTime(iso);
 
 /** Email an issued letter as a private link; admins can release or hold the download. */
 export function DeliveryPanel({ id, letterType }: { id: string; letterType: string }) {

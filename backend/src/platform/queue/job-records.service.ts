@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import { runAsSystem, runInTenant } from '../database/tenant-context.js';
+import { currentRequestId } from '../http/request-id.js';
 import { QueueService } from './queue.service.js';
 
 /**
@@ -20,18 +21,31 @@ export class JobRecordsService {
     tenantId: string,
     name: string,
     payload: object,
+    delayMs = 0,
   ): Promise<string> {
+    // Remember which request asked for this job, so a trace can show it.
+    const requestId = currentRequestId();
+    const stored =
+      requestId && !('requestId' in payload)
+        ? { ...payload, requestId }
+        : payload;
     const record = await runInTenant(
       tenantId,
       async () =>
         await this.prisma.db.jobRecord.create({
-          data: { tenantId, name, payload },
+          data: {
+            tenantId,
+            name,
+            payload: stored,
+            // The reconciler only re-queues a job once its time has passed.
+            runAt: new Date(Date.now() + delayMs),
+          },
         }),
     );
     await this.queue.enqueue(
       name,
-      { tenantId, ...payload },
-      { jobId: record.id },
+      { tenantId, ...stored },
+      { jobId: record.id, delayMs: delayMs || undefined },
     );
     return record.id;
   }

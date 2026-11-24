@@ -70,3 +70,23 @@ model MailDelivery {
   @@index([toHash])
   @@map("mail_deliveries")
 }
+
+/// Wording of one email event (D-59). `tenantId` null is the platform's override of the built-in default;
+/// a company row beats it. `locked` is only used on the platform row: true stops companies from rewriting it.
+/// At most one row per (company, event): enforced in EmailTemplatesService, since a unique index lets NULLs repeat.
+model EmailTemplate {
+  id        String   @id @default(uuid(7)) @db.Char(36)
+  tenantId  String?  @db.Char(36)
+  event     String   @db.VarChar(60)
+  subject   String   @db.VarChar(300)
+  body      String   @db.Text
+  locked    Boolean  @default(false)
+  updatedBy String?  @db.Char(36)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, event])
+  @@map("email_templates")
+}

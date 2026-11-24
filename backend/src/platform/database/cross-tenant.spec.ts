@@ -195,11 +195,11 @@ const fixtures: Record<string, Fixture> = {
         tenantId,
         scope: 'TENANT',
         scopeId: tenantId,
-        key: 'branding.accentColor',
-        value: '#112233',
+        key: 'branding.emailSenderName',
+        value: 'Acme Mail',
       },
     }),
-    change: { value: '#ffffff' },
+    change: { value: 'Hacked' },
   },
   Location: {
     delegate: 'location',
@@ -689,6 +689,112 @@ const fixtures: Record<string, Fixture> = {
       },
     }),
     change: { fromName: 'hacked' },
+  },
+  BrandProfile: {
+    delegate: 'brandProfile',
+    create: async (tenantId) => ({
+      data: { scope: 'TENANT', tenantId, status: 'DRAFT', data: {} },
+    }),
+    change: { status: 'ARCHIVED' },
+  },
+  BrandAsset: {
+    delegate: 'brandAsset',
+    create: async (tenantId) => ({
+      data: {
+        scope: 'TENANT',
+        tenantId,
+        kind: 'LOGO_LIGHT',
+        mimeType: 'image/png',
+        sizeBytes: 10,
+        width: 1,
+        height: 1,
+        sha256: 'a'.repeat(64),
+        storageKey: `test/${tenantId}/${crypto.randomUUID()}`,
+      },
+    }),
+    change: { width: 99 },
+  },
+  PasswordHistory: {
+    delegate: 'passwordHistory',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        userId: (await newUser(tenantId)).id,
+        hash: 'x'.repeat(40),
+      },
+    }),
+    change: { hash: 'hacked' },
+  },
+  NotificationRule: {
+    delegate: 'notificationRule',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        event: 'letter.issued',
+        roleKey: 'hr_lead',
+        channel: 'EMAIL',
+        enabled: true,
+      },
+    }),
+    change: { enabled: false },
+  },
+  LogRequest: {
+    delegate: 'logRequest',
+    create: async (tenantId) => ({
+      data: {
+        requestId: 'r1',
+        tenantId,
+        method: 'GET',
+        routePattern: '/x',
+        status: 200,
+        durationMs: 1,
+      },
+    }),
+    change: { status: 500 },
+  },
+  LogError: {
+    delegate: 'logError',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        errorCode: 'X',
+        message: 'm',
+        story: 's',
+        fingerprint: crypto
+          .randomUUID()
+          .replaceAll('-', '')
+          .padEnd(40, '0')
+          .slice(0, 40),
+      },
+    }),
+    change: { message: 'hacked' },
+  },
+  LogSignin: {
+    delegate: 'logSignin',
+    create: async (tenantId) => ({
+      data: { tenantId, emailHash: 'a'.repeat(64), outcome: 'SUCCESS' },
+    }),
+    change: { outcome: 'LOCKED' },
+  },
+  AlertSubscription: {
+    delegate: 'alertSubscription',
+    create: async (tenantId) => ({
+      data: {
+        tenantId,
+        subscriberType: 'USER',
+        subscriberId: crypto.randomUUID(),
+        event: 'ERROR_SPIKE',
+        delivery: 'INSTANT',
+      },
+    }),
+    change: { delivery: 'OFF' },
+  },
+  EmailTemplate: {
+    delegate: 'emailTemplate',
+    create: async (tenantId) => ({
+      data: { tenantId, event: 'auth.invite', subject: 'Hi', body: 'Hello' },
+    }),
+    change: { subject: 'hacked' },
   },
   MailDelivery: {
     delegate: 'mailDelivery',

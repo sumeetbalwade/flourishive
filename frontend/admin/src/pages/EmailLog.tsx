@@ -7,6 +7,15 @@ import { Layout } from './Layout.tsx';
 
 /** The email log across every company, with plain-words reasons and Resend (D-60). */
 export function EmailLog() {
+  return (
+    <Layout active="email-log" title="Email log">
+      <EmailLogPanel />
+    </Layout>
+  );
+}
+
+/** The log itself, so the Logs area can show it as a tab. */
+export function EmailLogPanel() {
   const api = useApi();
   const toast = useToast();
   const qc = useQueryClient();
@@ -23,7 +32,7 @@ export function EmailLog() {
     placeholderData: keepPreviousData,
   });
   return (
-    <Layout active="email-log" title="Email log">
+    <>
       <Log
         showCompany
         data={list.data}
@@ -41,6 +50,6 @@ export function EmailLog() {
           await qc.invalidateQueries({ queryKey: ['platform-mail-deliveries'] });
         }}
       />
-    </Layout>
+    </>
   );
 }

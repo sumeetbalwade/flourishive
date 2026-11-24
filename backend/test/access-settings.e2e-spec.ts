@@ -165,26 +165,26 @@ describe('roles and permissions', () => {
 describe('settings', () => {
   it('returns defaults, then a tenant override that only that tenant sees', async () => {
     const before = await call('get', '/settings', 'emp').expect(200);
-    expect(before.body.values['branding.accentColor']).toBe('#2a9158');
+    expect(before.body.values['branding.emailSenderName']).toBe('Flourishive');
 
-    await call('put', '/settings/tenant/branding.accentColor', 'admin')
-      .send({ value: '#112233' })
+    await call('put', '/settings/tenant/branding.emailSenderName', 'admin')
+      .send({ value: 'Acme HR' })
       .expect(204);
     expect(
       (await call('get', '/settings', 'emp')).body.values[
-        'branding.accentColor'
+        'branding.emailSenderName'
       ],
-    ).toBe('#112233');
+    ).toBe('Acme HR');
     expect(
       (await call('get', '/settings', 'adminB')).body.values[
-        'branding.accentColor'
+        'branding.emailSenderName'
       ],
-    ).toBe('#2a9158');
+    ).toBe('Flourishive');
   });
 
   it('validates values, levels, keys and permission', async () => {
-    await call('put', '/settings/tenant/branding.accentColor', 'admin')
-      .send({ value: 'red' })
+    await call('put', '/settings/tenant/branding.emailSenderName', 'admin')
+      .send({ value: '' })
       .expect(400);
     await call('put', '/settings/tenant/security.passwordMinLength', 'admin')
       .send({ value: 3 })
@@ -195,8 +195,8 @@ describe('settings', () => {
     await call('put', '/settings/me/security.sessionDays', 'emp')
       .send({ value: 3 })
       .expect(400); // tenant-only
-    await call('put', '/settings/tenant/branding.accentColor', 'hr')
-      .send({ value: '#000000' })
+    await call('put', '/settings/tenant/branding.emailSenderName', 'hr')
+      .send({ value: 'Nope' })
       .expect(403);
   });
 
@@ -225,9 +225,7 @@ describe('settings', () => {
         entityId: tenants.a.entityId,
       }),
     ).toBe('HQ Mail');
-    expect(await settings.get('branding.emailSenderName', ctx)).toBe(
-      'Flourishive',
-    );
+    expect(await settings.get('branding.emailSenderName', ctx)).toBe('Acme HR');
 
     await call('put', '/settings/me/branding.defaultTheme', 'emp')
       .send({ value: 'light' })

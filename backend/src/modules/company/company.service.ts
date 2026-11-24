@@ -4,17 +4,20 @@ import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
 import { MailService } from '../../platform/mail/mail.service.js';
+import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { ThrottleService } from '../identity/throttle.service.js';
-import { SettingsService } from '../settings/settings.service.js';
+import { BrandService } from '../brand/brand.service.js';
+import { accentOf } from '@flourishive/schemas';
 import { tenantUrl } from './tenant-host.js';
 
 @Injectable()
 export class CompanyService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly settings: SettingsService,
+    private readonly brand: BrandService,
     private readonly throttle: ThrottleService,
     private readonly mail: MailService,
+    private readonly templates: EmailTemplatesService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly runtime: RuntimeConfigService,
   ) {}
@@ -28,12 +31,11 @@ export class CompanyService {
     );
     if (!tenant || tenant.status !== 'ACTIVE' || tenant.slug.startsWith('_'))
       return null;
+    const brandData = await this.brand.effective(tenant.id);
     return {
       slug: tenant.slug,
       name: tenant.name,
-      accentColor: await this.settings.get('branding.accentColor', {
-        tenantId: tenant.id,
-      }),
+      accentColor: accentOf(brandData.theme),
     };
   }
 
@@ -59,8 +61,9 @@ export class CompanyService {
     await this.mail.send({
       event: 'company.find',
       to: email,
-      subject: `Your ${this.config.APP_NAME} sign-in address`,
-      text: `Sign in at your company's address:\n\n${lines.join('\n')}\n\nIf you did not ask for this, you can ignore this email.`,
+      ...(await this.templates.render('company.find', null, {
+        addresses: lines.join('\n'),
+      })),
     });
   }
 }

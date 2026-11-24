@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runInTenant } from '../../platform/database/tenant-context.js';
+import { currentRequestId } from '../../platform/http/request-id.js';
 
 export const GENESIS_HASH = '0'.repeat(64);
 
@@ -75,7 +76,12 @@ export class AuditService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async record(input: AuditInput): Promise<void> {
+  async record(raw: AuditInput): Promise<void> {
+    // The request id lets "Trace this request" find the audit entry a request wrote.
+    const requestId = currentRequestId();
+    const input: AuditInput = requestId
+      ? { ...raw, meta: { ...(raw.meta ?? {}), requestId } }
+      : raw;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await this.append(input);

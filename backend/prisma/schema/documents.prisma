@@ -131,33 +131,33 @@ model TemplateVersion {
 }
 
 model GeneratedDocument {
-  id                String         @id @default(uuid(7)) @db.Char(36)
-  tenantId          String         @db.Char(36)
-  entityId          String         @db.Char(36)
-  templateVersionId String         @db.Char(36)
-  letterheadId      String         @db.Char(36)
-  letterType        String         @db.VarChar(40)
-  reference         String         @db.VarChar(80)
+  id                 String         @id @default(uuid(7)) @db.Char(36)
+  tenantId           String         @db.Char(36)
+  entityId           String         @db.Char(36)
+  templateVersionId  String         @db.Char(36)
+  letterheadId       String         @db.Char(36)
+  letterType         String         @db.VarChar(40)
+  reference          String         @db.VarChar(80)
   /// Public id inside the QR code; reveals nothing about the document by itself.
-  verifyToken       String         @unique @db.VarChar(40)
-  status            DocumentStatus @default(GENERATED)
-  personId          String?        @db.Char(36)
-  engagementId      String?        @db.Char(36)
+  verifyToken        String         @unique @db.VarChar(40)
+  status             DocumentStatus @default(GENERATED)
+  personId           String?        @db.Char(36)
+  engagementId       String?        @db.Char(36)
   /// The values filled into the template, kept so the document can be explained later.
-  data              Json
-  fileId            String         @db.Char(36)
-  sha256            String         @db.Char(64)
-  pageCount         Int
-  createdBy         String?        @db.Char(36)
-  createdAt         DateTime       @default(now()) @db.DateTime(3)
+  data               Json
+  fileId             String         @db.Char(36)
+  sha256             String         @db.Char(64)
+  pageCount          Int
+  createdBy          String?        @db.Char(36)
+  createdAt          DateTime       @default(now()) @db.DateTime(3)
   /// An admin lets the recipient download. Held offer letters stay locked until this is set.
-  downloadReleasedAt DateTime?     @db.DateTime(3)
-  downloadReleasedBy String?       @db.Char(36)
+  downloadReleasedAt DateTime?      @db.DateTime(3)
+  downloadReleasedBy String?        @db.Char(36)
   /// Why the document was revoked or superseded, who did it and when; the newer document that replaced it.
-  statusReason       String?       @db.VarChar(500)
-  statusChangedAt    DateTime?     @db.DateTime(3)
-  statusChangedBy    String?       @db.Char(36)
-  supersededById     String?       @db.Char(36)
+  statusReason       String?        @db.VarChar(500)
+  statusChangedAt    DateTime?      @db.DateTime(3)
+  statusChangedBy    String?        @db.Char(36)
+  supersededById     String?        @db.Char(36)
 
   tenant          Tenant          @relation(fields: [tenantId], references: [id])
   entity          Entity          @relation(fields: [entityId], references: [id])
