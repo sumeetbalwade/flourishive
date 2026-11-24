@@ -11,6 +11,7 @@ import type {
 } from '@flourishive/schemas';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
 import { Inject } from '@nestjs/common';
+import { RuntimeConfigService } from '../../platform/config/runtime-config.service.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import {
   runAsSystem,
@@ -54,6 +55,7 @@ export class EmailTemplatesService {
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly brands: BrandService,
+    private readonly runtime: RuntimeConfigService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -129,8 +131,16 @@ export class EmailTemplatesService {
     override?: BrandData,
   ): Promise<Brand> {
     const b = override ?? (await this.brands.effective(tenantId));
+    // Mail clients need a full address. Without the API address set, the name is shown instead.
+    const api = await this.runtime.get('API_URL').catch(() => undefined);
+    const logo = b.assets.logoLight;
     return {
       name: b.displayName,
+      ...(logo && api
+        ? {
+            logoUrl: `${String(api).replace(/\/$/, '')}/v1/public/brand-assets/${logo}`,
+          }
+        : {}),
       accent: accentOf(b.theme),
       footerText: b.email.footerText,
       address: b.email.address,

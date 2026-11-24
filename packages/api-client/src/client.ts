@@ -11,6 +11,8 @@ import {
   templateList,
   brandData,
   brandEditorState,
+  brandAssetView,
+  type BrandAssetKind,
   type BrandPatch,
   templateView,
   previewResponse,
@@ -376,6 +378,14 @@ export function createApiClient(opts: Opts) {
           auth: false,
         }),
       state: () => http.request('GET', '/brand', { schema: brandEditorState }),
+      /** Uploads a PNG, JPEG or WebP; returns the picture's id to put in the draft. */
+      uploadImage: (kind: BrandAssetKind, file: Blob) =>
+        http.request('POST', '/brand/assets', {
+          body: file,
+          contentType: file.type,
+          query: { kind },
+          schema: brandAssetView,
+        }),
       saveDraft: (draft: BrandPatch) =>
         http.request('PUT', '/brand/draft', { json: { draft }, schema: brandEditorState }),
       discardDraft: () => http.request('DELETE', '/brand/draft', { schema: brandEditorState }),

@@ -7,6 +7,10 @@ const url = z
   .trim()
   .max(300)
   .regex(/^https?:\/\/\S+$/i, 'Use a web address starting with https://');
+const assetId = z
+  .string()
+  .regex(/^[0-9a-f-]{36}$/, 'Not a valid image')
+  .or(z.literal(''));
 const optionalUrl = url.or(z.literal(''));
 const text = (max: number) => z.string().trim().max(max);
 
@@ -44,6 +48,13 @@ export const brandData = z.object({
     phone: text(40),
     url: optionalUrl,
   }),
+  /** Uploaded images, by asset id ('' means none). */
+  assets: z.object({
+    logoLight: assetId,
+    logoDark: assetId,
+    favicon: assetId,
+    panelImage: assetId,
+  }),
   /** Product only: companies cannot change these. */
   legal: z.object({ termsUrl: optionalUrl, privacyUrl: optionalUrl }),
 });
@@ -57,6 +68,7 @@ export const brandPatch = z.object({
   signIn: brandData.shape.signIn.optional(),
   email: brandData.shape.email.optional(),
   support: brandData.shape.support.optional(),
+  assets: brandData.shape.assets.optional(),
   legal: brandData.shape.legal.optional(),
 });
 
@@ -77,6 +89,7 @@ export const DEFAULT_BRAND_DATA: BrandData = {
   },
   email: { footerText: '', address: '' },
   support: { email: '', phone: '', url: '' },
+  assets: { logoLight: '', logoDark: '', favicon: '', panelImage: '' },
   legal: { termsUrl: '', privacyUrl: '' },
 };
 
@@ -91,6 +104,7 @@ export function mergeBrand(...layers: (BrandPatch | null | undefined)[]): BrandD
     if (l.signIn) out.signIn = l.signIn;
     if (l.email) out.email = l.email;
     if (l.support) out.support = l.support;
+    if (l.assets) out.assets = l.assets;
     if (l.legal) out.legal = l.legal;
   }
   return out;
@@ -122,3 +136,21 @@ export type SaveBrandDraftBody = z.infer<typeof saveBrandDraftBody>;
 /** The public brand screens load before sign-in. */
 export const publicBrand = z.any();
 export type PublicBrand = BrandData;
+
+/** What an uploaded image is for. */
+export const brandAssetKind = z.enum(['LOGO_LIGHT', 'LOGO_DARK', 'FAVICON', 'PANEL_IMAGE']);
+export type BrandAssetKind = z.infer<typeof brandAssetKind>;
+export const SLOT_OF: Record<BrandAssetKind, keyof BrandData['assets']> = {
+  LOGO_LIGHT: 'logoLight',
+  LOGO_DARK: 'logoDark',
+  FAVICON: 'favicon',
+  PANEL_IMAGE: 'panelImage',
+};
+export const uploadAssetQuery = z.object({ kind: brandAssetKind });
+export const brandAssetView = z.object({
+  id: z.string(),
+  kind: brandAssetKind,
+  width: z.number(),
+  height: z.number(),
+});
+export type BrandAssetView = z.infer<typeof brandAssetView>;

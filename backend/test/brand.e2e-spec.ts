@@ -209,4 +209,96 @@ describe('branding (D-61, D-62)', () => {
   it('returns 404 for an unknown company', async () => {
     await call('get', '/public/company/nope-nope/brand').expect(404);
   });
+
+  describe('pictures', () => {
+    const png = (w = 64, h = 64) => {
+      const b = Buffer.alloc(33);
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(b);
+      b.writeUInt32BE(13, 8);
+      b.write('IHDR', 12, 'ascii');
+      b.writeUInt32BE(w, 16);
+      b.writeUInt32BE(h, 20);
+      return b;
+    };
+    const up = (
+      kind: string,
+      body: Buffer,
+      type = 'image/png',
+      token = adminA,
+    ) =>
+      request(app.getHttpServer())
+        .post(`/v1/brand/assets?kind=${kind}`)
+        .set('Authorization', `Bearer ${token}`)
+        .set('Content-Type', type)
+        .send(body);
+
+    it('is for people with brand.manage only', async () => {
+      await up('LOGO_LIGHT', png(), 'image/png', empA).expect(403);
+    });
+
+    it('refuses SVG, a renamed file and an oversized picture', async () => {
+      await up(
+        'LOGO_LIGHT',
+        Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'),
+        'image/png',
+      ).expect(415);
+      await up(
+        'LOGO_LIGHT',
+        Buffer.from('MZ'.padEnd(64, '\0')),
+        'image/png',
+      ).expect(415);
+      await up('LOGO_LIGHT', png(5000, 100)).expect(400);
+      await up('FAVICON', png(64, 32)).expect(400);
+    });
+
+    it('stores a logo, serves it safely, and a brand can use only its own pictures', async () => {
+      const r = await up('LOGO_LIGHT', png()).expect(201);
+      const served = await request(app.getHttpServer())
+        .get(`/v1/public/brand-assets/${r.body.id}`)
+        .expect(200);
+      expect(served.headers['content-security-policy']).toBe('sandbox');
+      expect(served.headers['x-content-type-options']).toBe('nosniff');
+      expect(served.headers['content-type']).toContain('image/png');
+
+      const assets = {
+        logoLight: r.body.id,
+        logoDark: '',
+        favicon: '',
+        panelImage: '',
+      };
+      await call('put', '/brand/draft', adminA)
+        .send({ draft: { assets } })
+        .expect(200);
+      // Wrong slot, and another company's picture, are refused.
+      await call('put', '/brand/draft', adminA)
+        .send({
+          draft: { assets: { ...assets, logoLight: '', favicon: r.body.id } },
+        })
+        .expect(400);
+      const adminB = await userWithRole(
+        tenantB,
+        'admin@brand-b.test',
+        'tenant_admin',
+      );
+      await call('put', '/brand/draft', adminB)
+        .send({ draft: { assets } })
+        .expect(400);
+
+      await call('post', '/brand/publish', adminA).expect(200);
+      const pub = await call('get', '/public/company/brand-a/brand').expect(
+        200,
+      );
+      expect(pub.body.assets.logoLight).toBe(r.body.id);
+      const other = await call('get', '/public/company/brand-b/brand').expect(
+        200,
+      );
+      expect(other.body.assets.logoLight).toBe('');
+    });
+
+    it('returns 404 for an unknown picture', async () => {
+      await request(app.getHttpServer())
+        .get('/v1/public/brand-assets/00000000-0000-0000-0000-000000000000')
+        .expect(404);
+    });
+  });
 });

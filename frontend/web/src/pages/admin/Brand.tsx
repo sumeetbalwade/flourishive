@@ -24,6 +24,13 @@ export function Brand() {
     <Layout active="brand" title="Brand">
       <BrandEditor
         state={q.data}
+        onUpload={async (kind, file) => {
+          try {
+            return (await b.uploadImage(kind, file)).id;
+          } catch (e) {
+            throw new Error(messageOf(e));
+          }
+        }}
         onSaveDraft={(draft) => run(() => b.saveDraft(draft), 'Draft saved')}
         onDiscard={() => run(() => b.discardDraft(), 'Draft discarded')}
         onPublish={() => run(() => b.publish(), 'Published')}

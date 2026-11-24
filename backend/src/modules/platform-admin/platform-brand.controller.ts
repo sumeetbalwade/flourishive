@@ -1,4 +1,8 @@
-import { brandPatch, saveBrandDraftBody } from '@flourishive/schemas';
+import {
+  brandPatch,
+  saveBrandDraftBody,
+  uploadAssetQuery,
+} from '@flourishive/schemas';
 import {
   Body,
   Controller,
@@ -7,6 +11,7 @@ import {
   HttpCode,
   Post,
   Put,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -14,6 +19,7 @@ import { z } from 'zod';
 import { BrandService } from '../brand/brand.service.js';
 import { Public } from '../identity/auth.context.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
+import { BrandAssetsService } from '../brand/brand-assets.service.js';
 import { EmailTemplatesService } from '../notifications/email-templates.service.js';
 import { PlatformAuditService } from './platform-audit.service.js';
 import {
@@ -36,6 +42,7 @@ export class PlatformBrandController {
     private readonly brand: BrandService,
     private readonly audit: PlatformAuditService,
     private readonly templates: EmailTemplatesService,
+    private readonly assets: BrandAssetsService,
   ) {}
 
   private note(
@@ -56,6 +63,24 @@ export class PlatformBrandController {
   @Get()
   state() {
     return this.brand.state(null);
+  }
+
+  @RequirePlatformPermission('brand.manage')
+  @Post('assets')
+  @HttpCode(201)
+  async upload(
+    @Query(new ZodPipe(uploadAssetQuery)) q: z.infer<typeof uploadAssetQuery>,
+    @Body() body: unknown,
+    @Req() req: PlatformRequest,
+  ) {
+    const r = await this.assets.upload(
+      null,
+      req.platformAuth!.platformUserId,
+      q.kind,
+      body,
+    );
+    await this.note(req, 'platform.brand_image_uploaded', { kind: q.kind });
+    return r;
   }
 
   @RequirePlatformPermission('brand.manage')

@@ -28,7 +28,14 @@ export const brandExtras = {
   supportUrl: '',
   termsUrl: '',
   privacyUrl: '',
+  logoLight: '',
+  logoDark: '',
+  panelImage: '',
 };
+
+/** Where a brand picture is served from. */
+export const assetUrl = (id: string): string =>
+  id ? `${brand.apiUrl.replace(/\/$/, '')}/v1/public/brand-assets/${id}` : '';
 
 let productBrand: BrandData | null = null;
 
@@ -53,6 +60,9 @@ export function applyBrand(
   brandExtras.supportUrl = data.support.url;
   brandExtras.termsUrl = data.legal.termsUrl;
   brandExtras.privacyUrl = data.legal.privacyUrl;
+  brandExtras.logoLight = assetUrl(data.assets.logoLight);
+  brandExtras.logoDark = assetUrl(data.assets.logoDark || data.assets.logoLight);
+  brandExtras.panelImage = assetUrl(data.assets.panelImage);
   if (typeof document === 'undefined') return;
 
   const pair = fontPair(data.fonts.pairId);
@@ -74,6 +84,22 @@ export function applyBrand(
     document.head.appendChild(link);
   }
   if (link.href !== pair.href) link.href = pair.href;
+
+  // The favicon: the brand's own, or whatever the page shipped with.
+  let icon = document.querySelector<HTMLLinkElement>('link[rel~="icon"]');
+  if (data.assets.favicon) {
+    if (!icon) {
+      icon = document.createElement('link');
+      icon.rel = 'icon';
+      document.head.appendChild(icon);
+    }
+    if (!icon.dataset.fhOriginal) icon.dataset.fhOriginal = icon.getAttribute('href') ?? '-';
+    icon.href = assetUrl(data.assets.favicon);
+  } else if (icon?.dataset.fhOriginal) {
+    if (icon.dataset.fhOriginal === '-') icon.removeAttribute('href');
+    else icon.href = icon.dataset.fhOriginal;
+    delete icon.dataset.fhOriginal;
+  }
 
   // The company's default colour mode, unless this person already chose one.
   let chosen: string | null = null;

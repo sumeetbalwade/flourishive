@@ -4,6 +4,8 @@ export interface Brand {
   name: string;
   accent: string;
   /** Optional line under every email, and a postal address. */
+  /** Absolute address of the logo picture; shown in place of the name when set. */
+  logoUrl?: string;
   footerText?: string;
   address?: string;
 }
@@ -116,6 +118,12 @@ function buttonHtml(
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 20px"><tr><td style="background:${accent};border-radius:8px"><a href="${safeHref(url)}" style="display:inline-block;padding:12px 22px;color:#ffffff;font-weight:600;text-decoration:none">${fill(esc(label.trim()), vars, true)}</a></td></tr></table>`;
 }
 
+function logoOrName(brand: Brand): string {
+  return brand.logoUrl && /^https?:\/\//i.test(brand.logoUrl)
+    ? `<img src="${esc(brand.logoUrl)}" alt="${esc(brand.name)}" height="40" style="display:block;height:40px;width:auto;border:0">`
+    : esc(brand.name);
+}
+
 function footerHtml(brand: Brand): string {
   const lines = [
     brand.footerText?.trim()
@@ -149,7 +157,7 @@ function layout(
     scheme === 'auto'
       ? `@media (prefers-color-scheme: dark){.page{background:${dark.page}!important}.card{background:${dark.card}!important;color:${dark.text}!important}.muted{color:${dark.muted}!important}}`
       : '';
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>${esc(subject)}</title><style>${auto}</style></head><body class="page" style="margin:0;padding:24px 12px;background:${c.page};font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center"><table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%"><tr><td style="padding:0 4px 14px;font-size:18px;font-weight:700;color:${brand.accent}">${esc(brand.name)}</td></tr><tr><td class="card" style="background:${c.card};color:${c.text};border-radius:12px;padding:28px;font-size:15px;line-height:1.6">${inner}</td></tr><tr><td class="muted" style="padding:14px 4px;font-size:12px;color:${c.muted}">${footerHtml(brand)}</td></tr></table></td></tr></table></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>${esc(subject)}</title><style>${auto}</style></head><body class="page" style="margin:0;padding:24px 12px;background:${c.page};font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center"><table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%"><tr><td style="padding:0 4px 14px;font-size:18px;font-weight:700;color:${brand.accent}">${logoOrName(brand)}</td></tr><tr><td class="card" style="background:${c.card};color:${c.text};border-radius:12px;padding:28px;font-size:15px;line-height:1.6">${inner}</td></tr><tr><td class="muted" style="padding:14px 4px;font-size:12px;color:${c.muted}">${footerHtml(brand)}</td></tr></table></td></tr></table></body></html>`;
 }
 
 /** Renders a subject and body with the given values into the branded layout and a plain-text copy. */

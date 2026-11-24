@@ -9,6 +9,8 @@ import {
   templateList,
   brandData,
   brandEditorState,
+  brandAssetView,
+  type BrandAssetKind,
   type BrandPatch,
   templateView,
   previewResponse,
@@ -179,6 +181,14 @@ export function createPlatformClient(opts: Opts) {
     /** The product's own brand (D-62). */
     brand: {
       state: () => http.request('GET', '/platform/brand', { schema: brandEditorState }),
+      /** Uploads a PNG, JPEG or WebP; returns the picture's id to put in the draft. */
+      uploadImage: (kind: BrandAssetKind, file: Blob) =>
+        http.request('POST', '/platform/brand/assets', {
+          body: file,
+          contentType: file.type,
+          query: { kind },
+          schema: brandAssetView,
+        }),
       saveDraft: (draft: BrandPatch) =>
         http.request('PUT', '/platform/brand/draft', { json: { draft }, schema: brandEditorState }),
       discardDraft: () =>

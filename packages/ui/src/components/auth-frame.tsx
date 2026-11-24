@@ -21,6 +21,23 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 
 /** The round product mark used in the sidebar and on signed-out screens. */
 export function BrandMark({ size = 44 }: { size?: number }) {
+  if (brandExtras.logoLight)
+    return (
+      <span className="shrink-0" style={{ height: size }}>
+        <img
+          src={brandExtras.logoLight}
+          alt={brand.appName}
+          className="fh-logo-light w-auto max-w-40 object-contain"
+          style={{ height: size }}
+        />
+        <img
+          src={brandExtras.logoDark}
+          alt={brand.appName}
+          className="fh-logo-dark w-auto max-w-40 object-contain"
+          style={{ height: size }}
+        />
+      </span>
+    );
   return (
     <span
       className="grid shrink-0 place-items-center rounded-full bg-accent font-display font-semibold text-on-accent shadow-press"
@@ -35,7 +52,17 @@ export function BrandMark({ size = 44 }: { size?: number }) {
 export function AuthFrame({ children }: { children: ReactNode }) {
   return (
     <div className="grid min-h-screen bg-bg lg:grid-cols-[1.05fr_1fr]">
-      <aside className="relative hidden overflow-hidden bg-deep p-12 text-on-deep lg:flex lg:flex-col lg:justify-between">
+      <aside
+        className="relative hidden overflow-hidden bg-deep bg-cover bg-center p-12 text-on-deep lg:flex lg:flex-col lg:justify-between"
+        style={
+          brandExtras.panelImage
+            ? { backgroundImage: `url("${brandExtras.panelImage}")` }
+            : undefined
+        }
+      >
+        {brandExtras.panelImage ? (
+          <div aria-hidden="true" className="absolute inset-0 bg-deep/70" />
+        ) : null}
         <motion.div
           aria-hidden="true"
           className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-accent/30 blur-3xl"

@@ -1,4 +1,8 @@
-import { brandPatch, saveBrandDraftBody } from '@flourishive/schemas';
+import {
+  brandPatch,
+  saveBrandDraftBody,
+  uploadAssetQuery,
+} from '@flourishive/schemas';
 import {
   Body,
   Controller,
@@ -8,6 +12,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   Put,
   Req,
   Res,
@@ -20,6 +25,7 @@ import { CurrentAuth, Public } from '../identity/auth.context.js';
 import type { AccessClaims } from '../identity/token.service.js';
 import { ZodPipe } from '../identity/zod.pipe.js';
 import { EmailTemplatesService } from '../notifications/email-templates.service.js';
+import { BrandAssetsService } from './brand-assets.service.js';
 import { BrandService } from './brand.service.js';
 
 const previewBody = z.object({
@@ -33,7 +39,23 @@ const FIVE_MINUTES = 'public, max-age=300';
 @Public()
 @Controller('public')
 export class PublicBrandController {
-  constructor(private readonly brand: BrandService) {}
+  constructor(
+    private readonly brand: BrandService,
+    private readonly assets: BrandAssetsService,
+  ) {}
+
+  /** A brand picture. Served inline but sandboxed, so even a hostile file could not run anything. */
+  @Get('brand-assets/:id')
+  async asset(@Param('id') id: string, @Res() res: Response) {
+    const { row, stream } = await this.assets.open(id);
+    res.setHeader('Content-Type', row.mimeType);
+    res.setHeader('Content-Length', String(row.sizeBytes));
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', 'sandbox');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    stream.pipe(res);
+  }
 
   @Get('brand')
   async product(@Res({ passthrough: true }) res: Response) {
@@ -60,6 +82,7 @@ export class BrandController {
     private readonly brand: BrandService,
     private readonly audit: AuditService,
     private readonly templates: EmailTemplatesService,
+    private readonly assets: BrandAssetsService,
   ) {}
 
   private note(
@@ -84,6 +107,21 @@ export class BrandController {
   @Get()
   state(@CurrentAuth() a: AccessClaims) {
     return this.brand.state(a.tenantId);
+  }
+
+  /** Body is the picture itself (PNG, JPEG or WebP); `kind` says what it is for. */
+  @RequirePermission('brand.manage')
+  @Post('assets')
+  @HttpCode(201)
+  async upload(
+    @CurrentAuth() a: AccessClaims,
+    @Query(new ZodPipe(uploadAssetQuery)) q: z.infer<typeof uploadAssetQuery>,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ) {
+    const r = await this.assets.upload(a.tenantId, a.userId, q.kind, body);
+    await this.note(a, 'brand.image_uploaded', req, { kind: q.kind });
+    return r;
   }
 
   @RequirePermission('brand.manage')

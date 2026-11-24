@@ -477,6 +477,10 @@ const NO_TENANT_DATA: Record<string, string> = {
   'GET /public/brand': 'public: the product brand, no company data',
   'GET /public/company/:slug/brand':
     'public: a company’s published brand, by its address',
+  'POST /brand/assets':
+    'stored against the signed-in company (tenantId from the token)',
+  'GET /public/brand-assets/:id':
+    'public: brand pictures are shown before sign-in; ids cannot be guessed',
   'POST /auth/mfa/passkey/options': 'own challenge token',
   'POST /auth/mfa/passkey/verify':
     'own challenge token; the passkey must belong to that person',

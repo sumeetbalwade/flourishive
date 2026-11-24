@@ -63,6 +63,7 @@ export {
 export {
   brand,
   brandExtras,
+  assetUrl,
   brandSlug,
   loadBrand,
   applyBrand,

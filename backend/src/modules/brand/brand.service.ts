@@ -13,6 +13,7 @@ import {
 } from '@flourishive/schemas';
 import { Inject } from '@nestjs/common';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.js';
+import { BrandAssetsService } from './brand-assets.service.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { runAsSystem } from '../../platform/database/tenant-context.js';
 
@@ -25,6 +26,7 @@ import { runAsSystem } from '../../platform/database/tenant-context.js';
 export class BrandService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly assets: BrandAssetsService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -140,6 +142,7 @@ export class BrandService {
         ),
       );
     const data = this.parse(parsed.data, tenantId);
+    await this.assets.assertPatchAssets(tenantId, data);
     const current = await this.row(tenantId, 'DRAFT');
     await runAsSystem(async () => {
       if (current)

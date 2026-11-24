@@ -7,6 +7,7 @@ import {
   type BrandData,
   type BrandEditorState,
   type BrandPatch,
+  type BrandAssetKind,
 } from '@flourishive/schemas';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from './badge.tsx';
@@ -15,8 +16,9 @@ import { CollapsibleSection } from './collapsible-section.tsx';
 import { Input } from './input.tsx';
 import { Segmented } from './segmented.tsx';
 import { Skeleton } from './skeleton.tsx';
+import { assetUrl } from '../brand.ts';
 
-type Group = 'name' | 'fonts' | 'signIn' | 'email' | 'support' | 'legal';
+type Group = 'name' | 'assets' | 'fonts' | 'signIn' | 'email' | 'support' | 'legal';
 type Tab = 'app' | 'signin' | 'email';
 
 export interface BrandEditorProps {
@@ -24,6 +26,8 @@ export interface BrandEditorProps {
   /** Product editor: also shows the legal links, which companies cannot change. */
   isProduct?: boolean;
   onSaveDraft: (patch: BrandPatch) => Promise<void>;
+  /** Uploads a picture and returns its id. */
+  onUpload: (kind: BrandAssetKind, file: File) => Promise<string>;
   onDiscard: () => Promise<void>;
   onPublish: () => Promise<void>;
   onRevert: () => Promise<void>;
@@ -53,6 +57,97 @@ const SURFACES = {
     '--text-muted': '#9bb0a7',
   },
 } as const;
+
+const SLOTS: {
+  slot: keyof BrandData['assets'];
+  kind: BrandAssetKind;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    slot: 'logoLight',
+    kind: 'LOGO_LIGHT',
+    label: 'Logo for light pages',
+    hint: 'PNG, JPEG or WebP, up to 2 MB',
+  },
+  {
+    slot: 'logoDark',
+    kind: 'LOGO_DARK',
+    label: 'Logo for dark pages',
+    hint: 'Optional. Falls back to the light logo',
+  },
+  {
+    slot: 'favicon',
+    kind: 'FAVICON',
+    label: 'Favicon (browser tab icon)',
+    hint: 'Square PNG or WebP, up to 512 px',
+  },
+  {
+    slot: 'panelImage',
+    kind: 'PANEL_IMAGE',
+    label: 'Sign-in side picture',
+    hint: 'Shown behind the headline',
+  },
+];
+
+function ImageSlot({
+  label,
+  hint,
+  id,
+  onPick,
+  onClear,
+}: {
+  label: string;
+  hint: string;
+  id: string;
+  onPick: (f: File) => Promise<void>;
+  onClear: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const inputId = `img-${label.replaceAll(/\W+/g, '-')}`;
+  return (
+    <div className="grid gap-2 rounded-card border border-line p-4">
+      <span className="text-sm font-medium">{label}</span>
+      <div className="grid h-24 place-items-center overflow-hidden rounded-md border border-dashed border-line-strong bg-surface-2">
+        {id ? (
+          <img src={assetUrl(id)} alt={label} className="max-h-full max-w-full object-contain" />
+        ) : (
+          <span className="text-xs text-faint">No picture</span>
+        )}
+      </div>
+      <p className="text-xs text-faint">{hint}</p>
+      <div className="flex gap-2">
+        <input
+          id={inputId}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="sr-only"
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (!f) return;
+            setBusy(true);
+            await onPick(f);
+            setBusy(false);
+          }}
+        />
+        <Button
+          size="sm"
+          variant="secondary"
+          loading={busy}
+          onClick={() => document.getElementById(inputId)?.click()}
+        >
+          {id ? 'Replace' : 'Upload'}
+        </Button>
+        {id ? (
+          <Button size="sm" variant="ghost" onClick={onClear}>
+            Remove
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 const SAMPLE = 'Asha Rao · ₹1,25,000 · अनुराग';
 
@@ -119,7 +214,7 @@ export function BrandEditor(p: BrandEditorProps) {
   const livePatch = useMemo<BrandPatch>(() => {
     if (!form) return {};
     let out = patchNow;
-    for (const g of ['name', 'fonts', 'signIn', 'email', 'support', 'legal'] as Group[])
+    for (const g of ['name', 'assets', 'fonts', 'signIn', 'email', 'support', 'legal'] as Group[])
       if (state && !same(groupOf(form, g), groupOf(state.working, g)))
         out = applyGroup(out, g, groupOf(form, g));
     return out;
@@ -317,6 +412,36 @@ export function BrandEditor(p: BrandEditorProps) {
               />
               <p className="pl-1 text-xs text-faint">People can still switch for themselves.</p>
             </div>
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          id="brand-images"
+          title="Logos and images"
+          dirtyCount={dirty('assets')}
+          saving={saving === 'assets'}
+          onSave={() => saveGroup('assets')}
+          onDiscard={() => discardGroup('assets')}
+          actions={resetBtn('assets')}
+        >
+          <div className="grid gap-4 py-5 sm:grid-cols-2">
+            {SLOTS.map((sl) => (
+              <ImageSlot
+                key={sl.slot}
+                label={sl.label}
+                hint={sl.hint}
+                id={form.assets[sl.slot]}
+                onPick={async (file) => {
+                  try {
+                    const id = await p.onUpload(sl.kind, file);
+                    set('assets', { ...form.assets, [sl.slot]: id });
+                  } catch (e) {
+                    p.onError((e as Error).message);
+                  }
+                }}
+                onClear={() => set('assets', { ...form.assets, [sl.slot]: '' })}
+              />
+            ))}
           </div>
         </CollapsibleSection>
 
@@ -571,6 +696,10 @@ function Mock({
 }) {
   const vars = { ...SURFACES[scheme], ...themeVars(data.theme)[scheme] } as Record<string, string>;
   const pair = fontPair(data.fonts.pairId);
+  const logo = assetUrl(
+    scheme === 'dark' ? data.assets.logoDark || data.assets.logoLight : data.assets.logoLight,
+  );
+  const panel = assetUrl(data.assets.panelImage);
   return (
     <div
       className="h-[34rem] overflow-hidden rounded-card border border-line"
@@ -590,18 +719,28 @@ function Mock({
             style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
           >
             <div className="mb-3 flex items-center gap-2">
-              <span
-                className="grid h-9 w-9 place-items-center rounded-full font-semibold"
-                style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
-              >
-                {data.displayName.charAt(0).toUpperCase()}
-              </span>
-              <span
-                className="truncate text-lg"
-                style={{ fontFamily: `'${pair.heading}', system-ui` }}
-              >
-                {data.displayName}
-              </span>
+              {logo ? (
+                <img
+                  src={logo}
+                  alt={data.displayName}
+                  className="h-9 w-auto max-w-32 object-contain"
+                />
+              ) : (
+                <>
+                  <span
+                    className="grid h-9 w-9 place-items-center rounded-full font-semibold"
+                    style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+                  >
+                    {data.displayName.charAt(0).toUpperCase()}
+                  </span>
+                  <span
+                    className="truncate text-lg"
+                    style={{ fontFamily: `'${pair.heading}', system-ui` }}
+                  >
+                    {data.displayName}
+                  </span>
+                </>
+              )}
             </div>
             {['People', 'Letters', 'Audit log'].map((n, i) => (
               <span
@@ -665,11 +804,24 @@ function Mock({
         <div className="grid h-full grid-cols-[1.05fr_1fr]">
           <aside
             className="flex flex-col justify-between p-6"
-            style={{ background: 'var(--deep)', color: 'var(--on-deep)' }}
+            style={{
+              background: panel
+                ? `linear-gradient(rgb(0 0 0 / 0.35), rgb(0 0 0 / 0.35)), url("${panel}") center / cover, var(--deep)`
+                : 'var(--deep)',
+              color: 'var(--on-deep)',
+            }}
           >
-            <span className="text-xl" style={{ fontFamily: `'${pair.heading}', system-ui` }}>
-              {data.displayName}
-            </span>
+            {logo ? (
+              <img
+                src={logo}
+                alt={data.displayName}
+                className="h-8 w-auto max-w-40 object-contain"
+              />
+            ) : (
+              <span className="text-xl" style={{ fontFamily: `'${pair.heading}', system-ui` }}>
+                {data.displayName}
+              </span>
+            )}
             <div>
               <h3
                 className="text-3xl font-light leading-tight"

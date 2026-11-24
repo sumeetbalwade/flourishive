@@ -697,6 +697,23 @@ const fixtures: Record<string, Fixture> = {
     }),
     change: { status: 'ARCHIVED' },
   },
+  BrandAsset: {
+    delegate: 'brandAsset',
+    create: async (tenantId) => ({
+      data: {
+        scope: 'TENANT',
+        tenantId,
+        kind: 'LOGO_LIGHT',
+        mimeType: 'image/png',
+        sizeBytes: 10,
+        width: 1,
+        height: 1,
+        sha256: 'a'.repeat(64),
+        storageKey: `test/${tenantId}/${crypto.randomUUID()}`,
+      },
+    }),
+    change: { width: 99 },
+  },
   EmailTemplate: {
     delegate: 'emailTemplate',
     create: async (tenantId) => ({

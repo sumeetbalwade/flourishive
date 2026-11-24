@@ -29,6 +29,7 @@ model Tenant {
   mailSender          MailSender?
   emailTemplates      EmailTemplate[]
   brandProfiles       BrandProfile[]
+  brandAssets         BrandAsset[]
   auditChainHead      AuditChainHead?
   files               File[]
   notifications       Notification[]

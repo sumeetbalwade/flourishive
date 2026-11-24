@@ -368,7 +368,7 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
     - `email`: `{ headerLogo: 'light'|'dark', bandColor, footerText, address }`
     - `support`: `{ email, phone, url }`
     - `legal`: `{ termsUrl, privacyUrl }` (platform only)
-- [ ] Assets through the files module: _(7b)_
+- [x] _(7b. Built as its own table, `brand_assets`, and a public route, because brand pictures must show before sign-in and the files module is private and per company. Only PNG, JPEG and WebP are accepted, checked by their bytes, up to 2 MB, with a longest-side limit (2048 logos, 512 favicon, 4096 panel). NOT BUILT, needs `sharp` and `dompurify`: SVG upload and sanitising, resizing, and ICO output. Pictures that are too big are refused rather than shrunk; the favicon is served as the PNG or WebP uploaded.)_ Assets through the files module:
   - PNG, JPEG and WebP, plus SVG sanitised with DOMPurify server-side. Files are served with `Content-Security-Policy: sandbox` and `nosniff`.
   - Maximum 2 MB. Raster images are resized to 512 px for logos and 64/32 px PNG plus ICO for favicons.
   - Content type is checked by magic bytes.
