@@ -13,3 +13,4 @@ export * from './documents.js';
 export * from './mail.js';
 export * from './theme.js';
 export * from './brand.js';
+export * from './logs.js';

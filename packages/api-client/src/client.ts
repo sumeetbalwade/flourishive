@@ -7,6 +7,18 @@ import {
   senderState,
   senderView,
   testResult,
+  alertSubscriptionsResponse,
+  errorLogResponse,
+  jobLogResponse,
+  requestLogResponse,
+  signinLogResponse,
+  supportCopy,
+  traceResponse,
+  type ErrorLogQuery,
+  type JobLogQuery,
+  type RequestLogQuery,
+  type SaveAlertsBody,
+  type SigninLogQuery,
   deliveriesResponse,
   templateList,
   brandData,
@@ -493,6 +505,30 @@ export function createApiClient(opts: Opts) {
       end: (id: string) => http.request('POST', `/support/sessions/${id}/end`),
     },
 
+    /** This company's own logs and the problems this person wants to hear about (D-67, D-68). */
+    logs: {
+      requests: (query: Partial<RequestLogQuery> = {}) =>
+        http.request('GET', '/logs/requests', { query, schema: requestLogResponse }),
+      errors: (query: Partial<ErrorLogQuery> = {}) =>
+        http.request('GET', '/logs/errors', { query, schema: errorLogResponse }),
+      signins: (query: Partial<SigninLogQuery> = {}) =>
+        http.request('GET', '/logs/signins', { query, schema: signinLogResponse }),
+      jobs: (query: Partial<JobLogQuery> = {}) =>
+        http.request('GET', '/logs/jobs', { query, schema: jobLogResponse }),
+      trace: (requestId: string) =>
+        http.request('GET', `/logs/trace/${encodeURIComponent(requestId)}`, {
+          schema: traceResponse,
+        }),
+      copy: (requestId: string) =>
+        http.request('GET', `/logs/trace/${encodeURIComponent(requestId)}/copy`, {
+          schema: supportCopy,
+        }),
+    },
+    alerts: {
+      list: () => http.request('GET', '/alerts', { schema: alertSubscriptionsResponse }),
+      save: (body: SaveAlertsBody) =>
+        http.request('PUT', '/alerts', { json: body, schema: alertSubscriptionsResponse }),
+    },
     /** Who company email comes from, and the email log (D-58, D-60). */
     mail: {
       sender: () => http.request('GET', '/mail/sender', { schema: senderState }),

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import { runAsSystem, runInTenant } from '../database/tenant-context.js';
+import { currentRequestId } from '../http/request-id.js';
 import { QueueService } from './queue.service.js';
 
 /**
@@ -21,16 +22,22 @@ export class JobRecordsService {
     name: string,
     payload: object,
   ): Promise<string> {
+    // Remember which request asked for this job, so a trace can show it.
+    const requestId = currentRequestId();
+    const stored =
+      requestId && !('requestId' in payload)
+        ? { ...payload, requestId }
+        : payload;
     const record = await runInTenant(
       tenantId,
       async () =>
         await this.prisma.db.jobRecord.create({
-          data: { tenantId, name, payload },
+          data: { tenantId, name, payload: stored },
         }),
     );
     await this.queue.enqueue(
       name,
-      { tenantId, ...payload },
+      { tenantId, ...stored },
       { jobId: record.id },
     );
     return record.id;

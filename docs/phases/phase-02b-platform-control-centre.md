@@ -407,21 +407,23 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
 
 ### PR 8 — Logs, error tracking and alerts (D-67, D-68)
 
+_Built: `nestjs-pino` stdout lines, `log_requests`/`log_errors`/`log_signins`/`alert_subscriptions`, stories, Sentry forwarding (also used by the Integrations test), nightly purge and the per-minute alert tick both run from the cron worker (`cli.js worker`). Error toasts show the reference for 5xx. The audit trail now stores the request id in `meta` and queued jobs keep it in their payload so a trace can find them. Digest uses Asia/Kolkata until PR 9 adds `region.timeZone`. The “Email” tab in the admin Logs reuses the email log; the company app keeps its separate Email log page._
+
 **Backend**
-- [ ] Structured logger: `nestjs-pino` with request ID, tenant, actor and route on every line. Redact `authorization`, cookies, `password`, `code`, `token`, `secret` and email bodies. JSON goes to stdout (journald).
-- [ ] Data, all MySQL, each with a `createdAt` index and a `tenantId` index where relevant:
+- [x] Structured logger: `nestjs-pino` with request ID, tenant, actor and route on every line. Redact `authorization`, cookies, `password`, `code`, `token`, `secret` and email bodies. JSON goes to stdout (journald).
+- [x] Data, all MySQL, each with a `createdAt` index and a `tenantId` index where relevant:
   - `log_requests`: `requestId`, `tenantId`, `actorType`, `actorId`, `method`, `routePattern` (e.g. `/v1/people/:id`, never raw IDs or query values), `status`, `durationMs`, `ip`, `userAgentShort`, `createdAt`
     - Writes go through a buffered batch insert every 2 seconds.
     - All non-GET requests, all 4xx/5xx and requests slower than 1 second are recorded. Successful GETs are sampled (setting `logs.sampleGetsPercent`, default 10).
   - `log_errors`: `requestId`, `tenantId`, `actorId`, `routePattern`, `errorCode`, `message`, `story` (plain-English, below), `stack` (only shown with `logs.errors.detail`), `fingerprint` (hash of the error type and top frame, used for grouping), `count`, `firstSeen`, `lastSeen`
   - `log_signins`: `tenantId` nullable for platform, `userId` nullable, `emailHash`, `outcome` (`SUCCESS | BAD_PASSWORD | LOCKED | MFA_OK | MFA_FAILED | PASSKEY | TRUSTED_DEVICE | SUSPENDED`), `ip`, `userAgentShort`, `createdAt`
   - Jobs already have `job_records`; email has `mail_deliveries` (PR 5).
-- [ ] The "story" builder turns each error into readable text from the request context, for example: *"Asha (HR admin, Flourisense) clicked Send for signature on letter FS/INT/2026/0012. The server could not reach the timestamp service (timestamp.digicert.com) and stopped. Nothing was sent. Try again in a few minutes; if it keeps failing, check Integrations, then Timestamp URL."*
+- [x] The "story" builder turns each error into readable text from the request context, for example: *"Asha (HR admin, Flourisense) clicked Send for signature on letter FS/INT/2026/0012. The server could not reach the timestamp service (timestamp.digicert.com) and stopped. Nothing was sent. Try again in a few minutes; if it keeps failing, check Integrations, then Timestamp URL."*
   - Built from a map of known error codes to templates (`modules/logs/stories.ts`), plus a generic fallback.
   - Every `AppError` subclass gets a code.
-- [ ] Error forwarding: when `ERROR_TRACKING_DSN` is set, send to Sentry (`@sentry/node`) with the request ID as a tag and personal data stripped.
-- [ ] Retention job (nightly, queue): delete rows older than `logs.retentionDays` (7 to 180, default 30; platform-only setting).
-- [ ] Alerts:
+- [x] Error forwarding: when `ERROR_TRACKING_DSN` is set, send to Sentry (`@sentry/node`) with the request ID as a tag and personal data stripped.
+- [x] Retention job (nightly, queue): delete rows older than `logs.retentionDays` (7 to 180, default 30; platform-only setting).
+- [x] Alerts:
   - Data: `alert_subscriptions`:
     - `subscriberType` (`PLATFORM_USER | USER`) and `subscriberId`
     - `tenantId` (forced to their own tenant for tenant users)
@@ -430,20 +432,20 @@ These match how Phases 1 and 2 were built. Breaking them has caused real bugs be
   - Thresholds are settings. Defaults: 20 errors in 10 minutes, 3 job failures in a row, 5 mail failures in 10 minutes, 50 failed sign-ins in 10 minutes for a tenant, disk free below 15%.
   - The alert evaluator runs every minute in the worker. It sends instant alerts at most once per event per hour (deduplicated in Redis).
   - The digest runs daily at 08:00 in the subscriber's time zone.
-- [ ] APIs:
+- [x] APIs:
   - platform `GET /v1/platform/logs/{requests|errors|signins|jobs|mail}` with filters (tenant, user, status, route, time range, request ID, text search on message)
   - `GET /v1/platform/logs/trace/:requestId`: everything sharing that ID, in time order
   - tenant equivalents restricted to their tenant (`audit.read` plus new `logs.read`)
 
 **Frontend**
-- [ ] Admin Logs area (Errors, Activity, Sign-ins, Jobs, Email):
+- [x] Admin Logs area (Errors, Activity, Sign-ins, Jobs, Email):
   - Errors are grouped by fingerprint, showing count, first and last seen, and the story in large type. "Technical detail" folds out to the stack, route and request ID.
   - "Trace this request" opens the timeline (request, job, mail, audit entries with the same request ID).
   - "Copy for support" copies a sanitised summary.
   - Filters are in the URL, so they can be shared.
-- [ ] Web, Settings, then Logs (tenant admin): Activity, Sign-ins, Email, and a simplified Errors view (story only, no stack).
-- [ ] Error toasts and error states in the web and admin apps show "Reference: <request ID>" so users can quote it.
-- [ ] Alerts page (My account, then Alerts) in web and admin: each event as a row with an Instant / Digest / Off control.
+- [x] Web, Settings, then Logs (tenant admin): Activity, Sign-ins, Email, and a simplified Errors view (story only, no stack).
+- [x] Error toasts and error states in the web and admin apps show "Reference: <request ID>" so users can quote it.
+- [x] Alerts page (My account, then Alerts) in web and admin: each event as a row with an Instant / Digest / Off control.
 
 **Done when:** a forced error in staging appears in the console within 5 seconds with a readable story. The request ID from the user's error toast finds it. The trace shows the related job and email. An Owner who subscribed to MAIL_FAILING gets one email when SMTP is broken, not fifty. Rows older than the retention are gone the next morning.
 

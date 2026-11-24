@@ -30,6 +30,7 @@ import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
 } from '@simplewebauthn/server';
+import { LogWriterService } from '../logs/log-writer.service.js';
 import { PlatformRolesService } from './platform-roles.service.js';
 import { OWNER_ROLE_ID } from './platform-permissions.js';
 import { PlatformAuditService } from './platform-audit.service.js';
@@ -75,6 +76,7 @@ export class PlatformAuthService {
     private readonly runtime: RuntimeConfigService,
     private readonly devices: TrustedDeviceService,
     private readonly passkeys: PasskeyService,
+    private readonly signinLog: LogWriterService,
   ) {}
 
   private db() {
@@ -100,7 +102,25 @@ export class PlatformAuthService {
     const ip = meta.ip;
     const email = input.email.toLowerCase();
     const keys = [`platform:acct:${email}`, `platform:ip:${ip ?? 'unknown'}`];
-    await this.throttle.assertNotLocked('login', ...keys);
+    const note = (
+      outcome: 'BAD_PASSWORD' | 'LOCKED' | 'SUSPENDED',
+      userId: string | null = null,
+    ) =>
+      this.signinLog.signin({
+        tenantId: null,
+        userId,
+        email,
+        platform: true,
+        outcome,
+        ip,
+        userAgent: meta.userAgent,
+      });
+    try {
+      await this.throttle.assertNotLocked('login', ...keys);
+    } catch (e) {
+      note('LOCKED');
+      throw e;
+    }
     const user = await runAsSystem(
       async () => await this.db().platformUser.findUnique({ where: { email } }),
     );
@@ -110,6 +130,10 @@ export class PlatformAuthService {
         : false;
     if (!user?.passwordHash) await this.passwords.verifyDummy(input.password);
     if (!ok || !user) {
+      note(
+        user && user.status !== 'ACTIVE' ? 'SUSPENDED' : 'BAD_PASSWORD',
+        user?.id ?? null,
+      );
       await this.throttle.recordFailure('login', ...keys);
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -206,6 +230,14 @@ export class PlatformAuthService {
       }
     }
     if (!ok || !user) {
+      this.signinLog.signin({
+        tenantId: null,
+        userId: user?.id ?? null,
+        platform: true,
+        outcome: 'MFA_FAILED',
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
       await this.throttle.recordFailure('mfa', key);
       throw new UnauthorizedException('Invalid code');
     }
@@ -285,6 +317,14 @@ export class PlatformAuthService {
         c.platformUserId,
       );
     } catch (e) {
+      this.signinLog.signin({
+        tenantId: null,
+        userId: c.platformUserId,
+        platform: true,
+        outcome: 'MFA_FAILED',
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
       await this.throttle.recordFailure('mfa', key);
       throw e;
     }
@@ -608,6 +648,14 @@ export class PlatformAuthService {
         data: { lastLoginAt: new Date() },
       });
       return s.id;
+    });
+    this.signinLog.signin({
+      tenantId: null,
+      userId,
+      platform: true,
+      outcome: 'SUCCESS',
+      ip: meta.ip,
+      userAgent: meta.userAgent,
     });
     await this.audit.record({
       actorId: userId,

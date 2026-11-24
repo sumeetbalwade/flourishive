@@ -31,6 +31,15 @@ export {
   type DeliveriesResponse,
 } from './components/email-log.tsx';
 export {
+  LogsView,
+  TraceDialog,
+  AlertsCard,
+  type LogsApi,
+  type LogParams,
+  type LogsViewProps,
+  type AlertRow,
+} from './components/logs-view.tsx';
+export {
   EmailTemplates,
   type EmailTemplatesApi,
   type TemplateDetail,

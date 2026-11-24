@@ -38,6 +38,7 @@ import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
 } from '@simplewebauthn/server';
+import { LogWriterService } from '../logs/log-writer.service.js';
 import { ThrottleService } from './throttle.service.js';
 import {
   TokenService,
@@ -99,6 +100,7 @@ export class AuthService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly runtime: RuntimeConfigService,
     private readonly passkeys: PasskeyService,
+    private readonly signinLog: LogWriterService,
   ) {}
 
   private async tenantIdFor(slug: string): Promise<string | null> {
@@ -196,6 +198,19 @@ export class AuthService {
     via: string,
   ): Promise<IssuedTokens> {
     const tokens = await this.sessions.start(tenantId, userId, meta);
+    this.signinLog.signin({
+      tenantId,
+      userId,
+      outcome: via.includes('trusted-device')
+        ? 'TRUSTED_DEVICE'
+        : via === 'passkey'
+          ? 'PASSKEY'
+          : via.startsWith('mfa') || via.endsWith('+passkey')
+            ? 'MFA_OK'
+            : 'SUCCESS',
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
     await this.audit.recordSafely({
       tenantId,
       actorType: 'USER',
@@ -216,6 +231,14 @@ export class AuthService {
     meta: ClientMeta,
     extra?: Record<string, unknown>,
   ) {
+    if (action === 'auth.mfa_failed')
+      this.signinLog.signin({
+        tenantId,
+        userId,
+        outcome: 'MFA_FAILED',
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
     return this.audit.recordSafely({
       tenantId,
       actorType: userId ? 'USER' : 'SYSTEM',
@@ -236,14 +259,31 @@ export class AuthService {
     const acct = `${input.tenant.toLowerCase()}:${input.email.toLowerCase()}`;
     const ip = meta.ip ?? 'unknown';
     const tenantId = await this.tenantIdFor(input.tenant);
-    await this.throttle.assertBelow(
-      'login',
-      tenantId
-        ? await this.settings.get('security.loginAttempts', { tenantId })
-        : 5,
-      `acct:${acct}`,
-      `ip:${ip}`,
-    );
+    const attempt = (
+      outcome: 'BAD_PASSWORD' | 'LOCKED' | 'SUSPENDED',
+      userId: string | null = null,
+    ) =>
+      this.signinLog.signin({
+        tenantId,
+        userId,
+        email: input.email,
+        outcome,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    try {
+      await this.throttle.assertBelow(
+        'login',
+        tenantId
+          ? await this.settings.get('security.loginAttempts', { tenantId })
+          : 5,
+        `acct:${acct}`,
+        `ip:${ip}`,
+      );
+    } catch (e) {
+      attempt('LOCKED');
+      throw e;
+    }
     const user = tenantId
       ? await this.findUser(tenantId, { email: input.email })
       : null;
@@ -253,6 +293,10 @@ export class AuthService {
         : false;
     if (!user?.passwordHash) await this.passwords.verifyDummy(input.password);
     if (!ok || !user) {
+      attempt(
+        user && user.status !== 'ACTIVE' ? 'SUSPENDED' : 'BAD_PASSWORD',
+        user?.id ?? null,
+      );
       await this.throttle.recordFailure('login', `acct:${acct}`, `ip:${ip}`);
       if (user)
         await this.auditUser(user.tenantId, user.id, 'auth.login_failed', meta);

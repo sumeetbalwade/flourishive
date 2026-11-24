@@ -19,6 +19,8 @@ export const PERMISSIONS = {
     'Change the company’s logo, colours, fonts and sign-in page, and publish them',
   'email.manage':
     'Choose who company email is sent from, and see and resend the email log',
+  'logs.read':
+    'See the company’s activity, sign-in, error and background-job logs, and trace a request',
   'files.read': 'Download files',
   'files.write': 'Upload and delete files',
   'documents.read': 'View issued documents and templates',

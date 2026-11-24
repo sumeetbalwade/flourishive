@@ -1,0 +1,113 @@
+enum SigninOutcome {
+  SUCCESS
+  BAD_PASSWORD
+  LOCKED
+  MFA_OK
+  MFA_FAILED
+  PASSKEY
+  TRUSTED_DEVICE
+  SUSPENDED
+}
+
+enum AlertSubscriberType {
+  PLATFORM_USER
+  USER
+}
+
+enum AlertEventName {
+  ERROR_SPIKE
+  JOB_FAILING
+  MAIL_FAILING
+  AUDIT_CHAIN_BROKEN
+  SIGNIN_ATTACK
+  DISK_LOW
+  SENDER_DNS_BROKEN
+}
+
+enum AlertDelivery {
+  INSTANT
+  DIGEST
+  OFF
+}
+
+/// One row per request worth keeping (D-67): every change, every failure, every slow one, and a sample of reads.
+/// `routePattern` is the route template, never the raw URL, so no ids or query values are stored.
+/// Written in batches from memory (LogWriterService). No foreign keys: rows are deleted by age, not by company.
+model LogRequest {
+  id             String   @id @default(uuid(7)) @db.Char(36)
+  requestId      String   @db.VarChar(64)
+  tenantId       String?  @db.Char(36)
+  actorType      String?  @db.VarChar(20)
+  actorId        String?  @db.Char(36)
+  method         String   @db.VarChar(10)
+  routePattern   String   @db.VarChar(200)
+  status         Int
+  durationMs     Int
+  ip             String?  @db.VarChar(64)
+  userAgentShort String?  @db.VarChar(120)
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+
+  @@index([createdAt])
+  @@index([tenantId, createdAt])
+  @@index([requestId])
+  @@map("log_requests")
+}
+
+/// Errors grouped by `fingerprint` (error type plus where it was thrown). A repeat adds to `count`
+/// and moves `lastSeen`; the latest request id is kept so "Trace this request" works for the newest one.
+model LogError {
+  id           String   @id @default(uuid(7)) @db.Char(36)
+  requestId    String?  @db.VarChar(64)
+  tenantId     String?  @db.Char(36)
+  actorId      String?  @db.Char(36)
+  routePattern String?  @db.VarChar(200)
+  errorCode    String   @db.VarChar(60)
+  message      String   @db.VarChar(500)
+  story        String   @db.Text
+  stack        String?  @db.Text
+  fingerprint  String   @db.Char(40)
+  count        Int      @default(1)
+  firstSeen    DateTime @default(now()) @db.DateTime(3)
+  lastSeen     DateTime @default(now()) @db.DateTime(3)
+
+  @@unique([fingerprint, tenantId])
+  @@index([lastSeen])
+  @@index([tenantId, lastSeen])
+  @@index([requestId])
+  @@map("log_errors")
+}
+
+/// Every sign-in attempt and how it ended. The address is only kept as a hash (so support can search an exact one).
+model LogSignin {
+  id             String        @id @default(uuid(7)) @db.Char(36)
+  tenantId       String?       @db.Char(36)
+  userId         String?       @db.Char(36)
+  emailHash      String        @db.Char(64)
+  outcome        SigninOutcome
+  ip             String?       @db.VarChar(64)
+  userAgentShort String?       @db.VarChar(120)
+  requestId      String?       @db.VarChar(64)
+  createdAt      DateTime      @default(now()) @db.DateTime(3)
+
+  @@index([createdAt])
+  @@index([tenantId, createdAt])
+  @@index([emailHash])
+  @@map("log_signins")
+}
+
+/// Who wants to hear about which problem, and how (D-68). Opt-in: no row means OFF.
+/// `tenantId` is set for a company user (always their own company) and null for platform staff (all companies).
+model AlertSubscription {
+  id             String              @id @default(uuid(7)) @db.Char(36)
+  subscriberType AlertSubscriberType
+  subscriberId   String              @db.Char(36)
+  tenantId       String?             @db.Char(36)
+  event          AlertEventName
+  delivery       AlertDelivery
+  createdAt      DateTime            @default(now()) @db.DateTime(3)
+  updatedAt      DateTime            @updatedAt @db.DateTime(3)
+
+  @@unique([subscriberType, subscriberId, event])
+  @@index([event, delivery])
+  @@map("alert_subscriptions")
+}

@@ -1,7 +1,9 @@
 import { AppShell, BrandMark, brand, type NavItem } from '@flourishive/ui';
 import {
   Activity,
+  Bell,
   Building2,
+  ScrollText,
   KeyRound,
   MailCheck,
   MailPlus,
@@ -42,6 +44,13 @@ const NAV: Item[] = [
     needs: ['config.read'],
   },
   {
+    id: 'logs',
+    label: 'Logs',
+    icon: ScrollText,
+    group: 'Platform',
+    needs: ['logs.read'],
+  },
+  {
     id: 'email-log',
     label: 'Email log',
     icon: MailCheck,
@@ -77,6 +86,7 @@ const NAV: Item[] = [
     group: 'Platform',
     needs: ['config.read'],
   },
+  { id: 'alerts', label: 'My alerts', icon: Bell, group: 'Account', needs: ['alerts.manage'] },
   { id: 'security', label: 'My security', icon: ShieldCheck, group: 'Account' },
 ];
 

@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { LoggerModule } from 'nestjs-pino';
+import { loggerParams } from './platform/http/logger.js';
 import { CacheModule } from './platform/cache/cache.module.js';
 import { ConfigModule } from './platform/config/config.module.js';
 import { DesktopModule } from './modules/desktop/desktop.module.js';
@@ -16,6 +18,7 @@ import { CompanyModule } from './modules/company/company.module.js';
 import { AccessModule } from './modules/access/access.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
+import { LogsModule } from './modules/logs/logs.module.js';
 import { MailAdminModule } from './modules/mail/mail-admin.module.js';
 import { DatabaseModule } from './platform/database/database.module.js';
 import { CryptoModule } from './platform/crypto/crypto.module.js';
@@ -26,6 +29,7 @@ import { StorageModule } from './platform/storage/storage.module.js';
 
 @Module({
   imports: [
+    LoggerModule.forRoot(loggerParams(process.env.NODE_ENV)),
     ConfigModule,
     CryptoModule,
     DatabaseModule,
@@ -35,6 +39,7 @@ import { StorageModule } from './platform/storage/storage.module.js';
     MailModule,
     IdentityModule,
     MailAdminModule,
+    LogsModule,
     CompanyModule,
     AccessModule,
     SettingsModule,

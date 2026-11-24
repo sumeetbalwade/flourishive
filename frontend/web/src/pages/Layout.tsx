@@ -1,6 +1,8 @@
 import { AppShell, BrandMark, brand, type Command, type NavItem } from '@flourishive/ui';
 import {
+  Bell,
   Building2,
+  ScrollText,
   ClipboardList,
   FileText,
   Home,
@@ -64,6 +66,7 @@ const NAV: Item[] = [
     needs: 'people.read',
   },
   { id: 'audit', label: 'Audit log', icon: ClipboardList, group: 'Insights', needs: 'audit.read' },
+  { id: 'logs', label: 'Logs', icon: ScrollText, group: 'Insights', needs: 'logs.read' },
   {
     id: 'email-log',
     label: 'Email log',
@@ -113,6 +116,7 @@ const NAV: Item[] = [
     group: 'Administration',
     needs: 'settings.read',
   },
+  { id: 'alerts', label: 'My alerts', icon: Bell, group: 'Account', needs: 'logs.read' },
   { id: 'security', label: 'My security', icon: ShieldCheck, group: 'Account' },
 ];
 

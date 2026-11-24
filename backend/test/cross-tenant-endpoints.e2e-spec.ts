@@ -445,6 +445,16 @@ const NO_TENANT_DATA: Record<string, string> = {
   'POST /auth/recovery/email': 'pre-login',
   'POST /auth/recovery/email/verify': 'pre-login',
   'POST /auth/mfa/verify': 'own challenge token',
+  'GET /logs/requests': 'pinned to the signed-in company in the query',
+  'GET /logs/errors': 'pinned to the signed-in company in the query',
+  'GET /logs/signins': 'pinned to the signed-in company in the query',
+  'GET /logs/jobs': 'pinned to the signed-in company in the query',
+  'GET /logs/trace/:requestId':
+    'every lookup is pinned to the signed-in company, so another company’s request id finds nothing',
+  'GET /logs/trace/:requestId/copy':
+    'every lookup is pinned to the signed-in company',
+  'GET /alerts': 'the signed-in person’s own subscriptions',
+  'PUT /alerts': 'the signed-in person’s own subscriptions',
   'GET /mail/sender': 'the signed-in company only (tenantId from the token)',
   'PUT /mail/sender': 'the signed-in company only (tenantId from the token)',
   'POST /mail/sender/verify/start': 'the signed-in company only',

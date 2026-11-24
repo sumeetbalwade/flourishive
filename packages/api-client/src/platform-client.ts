@@ -5,6 +5,18 @@ import {
   securityInfo,
   passkeyView,
   senderState,
+  alertSubscriptionsResponse,
+  errorLogResponse,
+  jobLogResponse,
+  requestLogResponse,
+  signinLogResponse,
+  supportCopy,
+  traceResponse,
+  type ErrorLogQuery,
+  type JobLogQuery,
+  type RequestLogQuery,
+  type SaveAlertsBody,
+  type SigninLogQuery,
   deliveriesResponse,
   templateList,
   brandData,
@@ -200,6 +212,30 @@ export function createPlatformClient(opts: Opts) {
         }),
       publish: () => http.request('POST', '/platform/brand/publish', { schema: brandEditorState }),
       revert: () => http.request('POST', '/platform/brand/revert', { schema: brandEditorState }),
+    },
+    /** Logs across every company, and the staff member's own alerts (D-67, D-68). */
+    logs: {
+      requests: (query: Partial<RequestLogQuery> = {}) =>
+        http.request('GET', '/platform/logs/requests', { query, schema: requestLogResponse }),
+      errors: (query: Partial<ErrorLogQuery> = {}) =>
+        http.request('GET', '/platform/logs/errors', { query, schema: errorLogResponse }),
+      signins: (query: Partial<SigninLogQuery> = {}) =>
+        http.request('GET', '/platform/logs/signins', { query, schema: signinLogResponse }),
+      jobs: (query: Partial<JobLogQuery> = {}) =>
+        http.request('GET', '/platform/logs/jobs', { query, schema: jobLogResponse }),
+      trace: (requestId: string) =>
+        http.request('GET', `/platform/logs/trace/${encodeURIComponent(requestId)}`, {
+          schema: traceResponse,
+        }),
+      copy: (requestId: string) =>
+        http.request('GET', `/platform/logs/trace/${encodeURIComponent(requestId)}/copy`, {
+          schema: supportCopy,
+        }),
+    },
+    alerts: {
+      list: () => http.request('GET', '/platform/alerts', { schema: alertSubscriptionsResponse }),
+      save: (body: SaveAlertsBody) =>
+        http.request('PUT', '/platform/alerts', { json: body, schema: alertSubscriptionsResponse }),
     },
     /** The email log across companies, and a company's sender (D-58, D-60). */
     mail: {

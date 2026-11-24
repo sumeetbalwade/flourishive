@@ -27,6 +27,8 @@ import { Roles } from './pages/admin/Roles.tsx';
 import { EmailSender } from './pages/admin/EmailSender.tsx';
 import { Brand } from './pages/admin/Brand.tsx';
 import { EmailLog } from './pages/admin/EmailLog.tsx';
+import { Alerts } from './pages/admin/Alerts.tsx';
+import { Logs } from './pages/admin/Logs.tsx';
 import { EmailTemplates } from './pages/admin/EmailTemplates.tsx';
 import { Org } from './pages/org/Org.tsx';
 import { ImportPeople } from './pages/people/Import.tsx';
@@ -48,6 +50,8 @@ const NEEDS: Record<string, string | undefined> = {
   '/app/email': 'email.manage',
   '/app/brand': 'brand.manage',
   '/app/email-log': 'email.manage',
+  '/app/logs': 'logs.read',
+  '/app/alerts': 'logs.read',
   '/app/email-templates': 'email.manage',
   '/app/letters': 'documents.read',
   '/app/templates': 'documents.read',
@@ -104,6 +108,8 @@ function Routes() {
   else if (path === '/app/email') page = <EmailSender />;
   else if (path === '/app/brand') page = <Brand />;
   else if (path === '/app/email-log') page = <EmailLog />;
+  else if (path === '/app/logs') page = <Logs />;
+  else if (path === '/app/alerts') page = <Alerts />;
   else if (path === '/app/email-templates') page = <EmailTemplates />;
   else if (path === '/app/security') page = <Security />;
   else if (path === '/app/signing') page = <Signing />;
