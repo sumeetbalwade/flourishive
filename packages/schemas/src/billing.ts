@@ -175,3 +175,38 @@ export const invoiceView = z.object({
 export type InvoiceView = z.infer<typeof invoiceView>;
 
 export const invoiceLinkView = z.object({ url: z.string(), expiresAt: z.string() });
+
+/** The super admin's billing dashboard. */
+export const billingOverview = z.object({
+  totals: z.object({
+    companies: z.number().int(),
+    paying: z.number().int(),
+    pastDue: z.number().int(),
+    readOnly: z.number().int(),
+    suspended: z.number().int(),
+    /** Monthly recurring revenue in paise (yearly plans counted as a twelfth). */
+    mrr: z.number().int(),
+  }),
+  /** Companies at 80% or more of a limit, worst first. */
+  nearLimit: z.array(
+    z.object({
+      tenantId: z.string(),
+      name: z.string(),
+      plan: z.string(),
+      metric: limitMetric,
+      used: z.number(),
+      limit: z.number(),
+      percent: z.number(),
+    }),
+  ),
+  /** Payment-provider webhooks that failed to process. */
+  failures: z.array(
+    z.object({
+      id: z.string(),
+      type: z.string(),
+      error: z.string(),
+      at: z.string(),
+    }),
+  ),
+});
+export type BillingOverview = z.infer<typeof billingOverview>;

@@ -270,6 +270,21 @@ export class CheckoutService {
     return true;
   }
 
+  /** Runs a webhook that failed before again, from the copy we kept. */
+  async retryEvent(id: string): Promise<void> {
+    const ev = await runAsSystem(async () =>
+      this.prisma.db.billingEvent.findUnique({ where: { id } }),
+    );
+    if (!ev) throw new NotFoundException('That event does not exist');
+    await this.apply(ev.payload as unknown as RzpEvent);
+    await runAsSystem(async () =>
+      this.prisma.db.billingEvent.update({
+        where: { id },
+        data: { processedAt: new Date(), error: null },
+      }),
+    );
+  }
+
   private async apply(event: RzpEvent): Promise<void> {
     const sub = event.payload.subscription?.entity;
     if (!sub) return;

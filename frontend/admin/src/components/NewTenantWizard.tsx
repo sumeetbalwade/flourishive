@@ -1,5 +1,6 @@
-import { FEATURES, type CreateTenantBody } from '@flourishive/schemas';
+import { FEATURES, LIMIT_METRICS, type CreateTenantBody } from '@flourishive/schemas';
 import { Button, Dialog, DialogContent, Field, Input, Switch, useToast } from '@flourishive/ui';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useApi } from '../lib/api.tsx';
 import { messageOf } from '../lib/errors.ts';
@@ -20,6 +21,7 @@ const STEPS = [
   'Brand',
   'Email',
   'Security',
+  'Plan',
   'Features',
   'Alerts',
   'Review',
@@ -34,6 +36,7 @@ interface Draft {
   adminEmail: string;
   allowedDomains: string;
   trustedDeviceDays: string;
+  planId: string;
   off: string[];
 }
 const EMPTY: Draft = {
@@ -45,6 +48,7 @@ const EMPTY: Draft = {
   adminEmail: '',
   allowedDomains: '',
   trustedDeviceDays: '',
+  planId: '',
   off: [],
 };
 const KEY = 'fh.newTenantDraft';
@@ -78,6 +82,11 @@ export function NewTenantWizard({
   onCreated: (id: string) => void;
 }) {
   const api = useApi();
+  const plans = useQuery({
+    queryKey: ['plans'],
+    queryFn: () => api.billing.plans().then((all) => all.filter((p) => p.active)),
+  });
+  const defaultPlan = plans.data?.find((p) => p.isDefault)?.id ?? '';
   const toast = useToast();
   const [d, setD] = useState<Draft>(load);
   const [errors, setErrors] = useState<string[]>([]);
@@ -113,6 +122,7 @@ export function NewTenantWizard({
       companyName: d.name.trim(),
       legalName: d.legalName.trim() || d.name.trim(),
       adminEmail: d.adminEmail.trim(),
+      ...(d.planId || defaultPlan ? { planId: d.planId || defaultPlan } : {}),
     };
     setBusy(true);
     setErrors([]);
@@ -266,6 +276,42 @@ export function NewTenantWizard({
             </>
           ) : null}
           {d.step === 5 ? (
+            <>
+              <p className="text-sm text-muted">
+                Choose the plan this company starts on. Limits can be adjusted for this company
+                later.
+              </p>
+              <ul className="grid gap-2">
+                {plans.data?.map((p) => (
+                  <li key={p.id}>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3 text-sm">
+                      <input
+                        type="radio"
+                        name="w-plan"
+                        checked={(d.planId || defaultPlan) === p.id}
+                        onChange={() => set({ planId: p.id })}
+                      />
+                      <span>
+                        <span className="font-medium">{p.name}</span>{' '}
+                        <span className="text-muted">
+                          {p.priceMonthly === 0
+                            ? 'Free'
+                            : `₹${(p.priceMonthly / 100).toLocaleString('en-IN')} per month`}
+                        </span>
+                        <span className="block text-xs text-muted">
+                          {LIMIT_METRICS.map(
+                            (m) =>
+                              `${p.limits[m.key] === null ? 'Unlimited' : p.limits[m.key]!.toLocaleString('en-IN')} ${m.unit}`,
+                          ).join(' · ')}
+                        </span>
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {d.step === 6 ? (
             <ul className="grid gap-3">
               {FEATURES.map((f) => (
                 <li key={f.key} className="flex items-center justify-between gap-3">
@@ -284,7 +330,7 @@ export function NewTenantWizard({
               ))}
             </ul>
           ) : null}
-          {d.step === 6 ? (
+          {d.step === 7 ? (
             <p className="text-sm text-muted">
               Alert emails are chosen by each person. The company’s admin picks theirs under My
               alerts, and nothing is sent until they turn it on. You choose yours under My alerts in
@@ -296,6 +342,10 @@ export function NewTenantWizard({
               <Row k="Company" v={`${d.name} (${d.slug})`} />
               <Row k="Legal name" v={d.legalName.trim() || d.name} />
               <Row k="First admin" v={d.adminEmail} />
+              <Row
+                k="Plan"
+                v={plans.data?.find((p) => p.id === (d.planId || defaultPlan))?.name ?? 'Default'}
+              />
               <Row k="Allowed domains" v={domains.length ? domains.join(', ') : 'Any'} />
               <Row k="Trusted devices" v={days === null ? 'Platform default' : `${days} days`} />
               <Row
