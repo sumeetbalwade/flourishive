@@ -29,6 +29,7 @@ import { Domains } from './pages/admin/Domains.tsx';
 import { CustomFields } from './pages/admin/CustomFields.tsx';
 import { Sso } from './pages/admin/Sso.tsx';
 import { ApiClients } from './pages/admin/ApiClients.tsx';
+import { Webhooks } from './pages/admin/Webhooks.tsx';
 import { Plan } from './pages/admin/Plan.tsx';
 import { EmailSender } from './pages/admin/EmailSender.tsx';
 import { Brand } from './pages/admin/Brand.tsx';
@@ -120,6 +121,7 @@ function Routes() {
   else if (path === '/app/brand') page = <Brand />;
   else if (path === '/app/domains') page = <Domains />;
   else if (path === '/app/plan') page = <Plan />;
+  else if (path === '/app/webhooks') page = <Webhooks />;
   else if (path === '/app/api-clients') page = <ApiClients />;
   else if (path === '/app/sso') page = <Sso />;
   else if (path === '/app/custom-fields') page = <CustomFields />;

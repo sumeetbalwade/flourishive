@@ -13,7 +13,8 @@ export class OverviewService {
   ) {}
 
   async overview(): Promise<BillingOverview> {
-    const [subs, failed] = await Promise.all([
+    const since = new Date(Date.now() - 7 * 86_400_000);
+    const [subs, failed, hookFails] = await Promise.all([
       runAsSystem(async () =>
         this.prisma.db.subscription.findMany({
           include: { plan: true, tenant: true },
@@ -26,7 +27,48 @@ export class OverviewService {
           take: 50,
         }),
       ),
+      runAsSystem(async () =>
+        this.prisma.db.webhookDelivery.findMany({
+          where: { status: 'FAILED', createdAt: { gte: since } },
+          orderBy: { createdAt: 'desc' },
+          take: 500,
+          include: {
+            subscription: { select: { url: true } },
+            tenant: { select: { name: true } },
+          },
+        }),
+      ),
     ]);
+    const byEndpoint = new Map<
+      string,
+      {
+        tenantId: string;
+        name: string;
+        host: string;
+        failed: number;
+        lastError: string;
+      }
+    >();
+    for (const f of hookFails) {
+      const host = (() => {
+        try {
+          return new URL(f.subscription.url).host;
+        } catch {
+          return f.subscription.url;
+        }
+      })();
+      const k = `${f.tenantId}|${host}`;
+      const cur = byEndpoint.get(k);
+      if (cur) cur.failed += 1;
+      else
+        byEndpoint.set(k, {
+          tenantId: f.tenantId,
+          name: f.tenant.name,
+          host,
+          failed: 1,
+          lastError: f.lastError ?? '',
+        });
+    }
     // The platform's own company is not a customer.
     const real = subs.filter((s) => !s.tenant.slug.startsWith('_'));
     const nearLimit: BillingOverview['nearLimit'] = [];
@@ -70,6 +112,9 @@ export class OverviewService {
         ),
       },
       nearLimit: nearLimit.slice(0, 50),
+      deliveryFailures: [...byEndpoint.values()]
+        .sort((a, b) => b.failed - a.failed)
+        .slice(0, 20),
       failures: failed.map((f) => ({
         id: f.id,
         type: f.type,

@@ -1,6 +1,6 @@
 # Phase 3 — SaaS layer
 
-**Status:** Not started · **Depends on:** Phase 2B · **Unlocks:** selling Flourishive to other companies; Phases 4–10
+**Status:** Built, awaiting phase-end tests and review (PRs #33–#40, stacked) · **Depends on:** Phase 2B · **Unlocks:** selling Flourishive to other companies; Phases 4–10
 
 ## Goal
 
@@ -9,30 +9,30 @@ A second company can sign up, pay, be configured by the super admin and issue a 
 ## Work breakdown
 
 ### Super admin console (`frontend/admin`, `modules/platform-admin`)
-- [ ] Add plan selection to the Phase 2B tenant setup wizard
-- [ ] Limits for users, storage and signatures (D-20), layered on the feature switches from Phase 2B _(module on/off moved to Phase 2B, D-54)_
+- [x] Add plan selection to the Phase 2B tenant setup wizard
+- [x] Limits for users, storage and signatures (D-20), layered on the feature switches from Phase 2B _(module on/off moved to Phase 2B, D-54)_
 - Moved to Phase 2B (D-54): full settings editor with tenant locks
 - Moved to Phase 2B (D-56): support sessions
-- [ ] Platform dashboards: usage against plan limits and webhook failures _(usage overview, failed jobs and logs come in Phase 2B)_
+- [x] Platform dashboards: usage against plan limits and webhook failures _(usage overview, failed jobs and logs come in Phase 2B)_
 
 ### Billing (`modules/billing`, D-21)
-- [ ] Plans and plan limits, editable by the super admin
-- [ ] Razorpay Subscriptions behind the payment-gateway adapter: cards, UPI AutoPay, netbanking mandates
-- [ ] Razorpay webhooks: verified signatures, idempotent handling
-- [ ] GST invoices numbered and rendered by the document engine
-- [ ] Dunning: reminders, grace period, read-only mode, suspension
-- [ ] Limit enforcement in the API, with clear upgrade prompts in the web app
+- [x] Plans and plan limits, editable by the super admin
+- [x] Razorpay Subscriptions behind the payment-gateway adapter: cards, UPI AutoPay, netbanking mandates
+- [x] Razorpay webhooks: verified signatures, idempotent handling
+- [x] GST invoices numbered and rendered by the document engine
+- [x] Dunning: reminders, grace period, read-only mode, suspension
+- [x] Limit enforcement in the API, with clear upgrade prompts in the web app
 
 ### Tenant features
-- [ ] Per-tenant SSO through Google Workspace and Microsoft 365 (OIDC), plus allowed email domains
+- [x] Per-tenant SSO through Google Workspace and Microsoft 365 (OIDC), plus allowed email domains
 - Moved to Phase 2B (D-61): tenant branding
-- [ ] Custom fields on persons and engagements: text, number, date, select, file; role-based visibility (D-29)
+- [x] Custom fields on persons and engagements: text, number, date, select, file; role-based visibility (D-29)
 
 ### Public API and webhooks (`modules/integrations`)
-- [ ] OAuth client credentials with scopes (for example `employees:read`, `letters:create`) and allowed entities
-- [ ] Per-client rate limits; idempotency keys on create endpoints
-- [ ] Webhooks: subscriptions, HMAC-SHA256 signing, retries with backoff, delivery log
-- [ ] Integrator guide in `docs/api/`
+- [x] OAuth client credentials with scopes (for example `employees:read`, `letters:create`) and allowed entities
+- [x] Per-client rate limits; idempotency keys on create endpoints
+- [x] Webhooks: subscriptions, HMAC-SHA256 signing, retries with backoff, delivery log
+- [x] Integrator guide in `docs/api/`
 
 ### Infrastructure
 - [ ] Move to a VPS when the first paying external customer signs, or at 300 active users (D-27)

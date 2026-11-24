@@ -25,3 +25,55 @@ model ApiClient {
   @@index([tenantId])
   @@map("api_clients")
 }
+
+enum WebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+/// Where a company wants to be told when something happens (D-20). The secret signs every delivery.
+model WebhookSubscription {
+  id          String   @id @default(uuid(7)) @db.Char(36)
+  tenantId    String   @db.Char(36)
+  url         String   @db.VarChar(500)
+  description String   @default("") @db.VarChar(120)
+  secretEnc   String   @db.Text
+  /// Event names it wants, for example employee.created.
+  events      Json
+  active      Boolean  @default(true)
+  createdBy   String?  @db.Char(36)
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @db.DateTime(3)
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([tenantId])
+  @@map("webhook_subscriptions")
+}
+
+/// One event for one subscription, with every attempt to deliver it.
+model WebhookDelivery {
+  id             String                @id @default(uuid(7)) @db.Char(36)
+  tenantId       String                @db.Char(36)
+  subscriptionId String                @db.Char(36)
+  eventId        String                @db.Char(36)
+  eventType      String                @db.VarChar(60)
+  payload        Json
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  nextAttemptAt  DateTime?             @db.DateTime(3)
+  lastStatusCode Int?
+  lastError      String?               @db.VarChar(300)
+  deliveredAt    DateTime?             @db.DateTime(3)
+  createdAt      DateTime              @default(now()) @db.DateTime(3)
+
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscription WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([subscriptionId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@map("webhook_deliveries")
+}

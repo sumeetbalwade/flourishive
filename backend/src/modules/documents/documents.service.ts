@@ -25,6 +25,7 @@ import { fillAndFlatten } from './pdf-forms.js';
 import { LAYOUTS } from './layouts/registry.js';
 import { LetterheadsService } from './letterheads.service.js';
 import { NumberingService } from './numbering.service.js';
+import { WebhooksService } from '../integrations/webhooks.service.js';
 import { PdfService } from './pdf.service.js';
 
 @Injectable()
@@ -43,6 +44,7 @@ export class DocumentsService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly runtime: RuntimeConfigService,
     private readonly rules: NotificationRulesService,
+    private readonly hooks: WebhooksService,
   ) {}
 
   async generate(
@@ -160,6 +162,13 @@ export class DocumentsService {
     void this.rules.notify(a.tenantId, 'letter.issued', {
       subject: `Letter ${reference} was created`,
       text: `Letter ${reference} (${template.letterType}) was created. Open Letters to see it.`,
+    });
+    void this.hooks.emit(a.tenantId, 'letter.created', {
+      id: doc.id,
+      reference: doc.reference,
+      status: doc.status,
+      companyId: doc.entityId,
+      createdAt: doc.createdAt.toISOString(),
     });
     return doc;
   }

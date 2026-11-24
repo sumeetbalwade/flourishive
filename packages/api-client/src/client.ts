@@ -1,4 +1,8 @@
 import {
+  webhookBody,
+  webhookCreated,
+  webhookDeliveryView,
+  webhookView,
   apiClientBody,
   apiClientCreated,
   apiClientView,
@@ -665,6 +669,23 @@ export function createApiClient(opts: Opts) {
         } = {},
       ) => http.request('GET', '/audit', { query, schema: auditListResponse }),
       verify: () => http.request('GET', '/audit/verify', { schema: chainCheck }),
+    },
+
+    /** Where the company is told about events (D-20). */
+    webhooks: {
+      list: () => http.request('GET', '/webhooks', { schema: z.array(webhookView) }),
+      create: (body: z.input<typeof webhookBody>) =>
+        http.request('POST', '/webhooks', { json: body, schema: webhookCreated }),
+      update: (id: string, body: z.input<typeof webhookBody>) =>
+        http.request('PUT', `/webhooks/${id}`, { json: body, schema: webhookView }),
+      rotate: (id: string) =>
+        http.request('POST', `/webhooks/${id}/rotate`, { schema: webhookCreated }),
+      remove: (id: string) => http.request('DELETE', `/webhooks/${id}`),
+      deliveries: (id: string) =>
+        http.request('GET', `/webhooks/${id}/deliveries`, { schema: z.array(webhookDeliveryView) }),
+      test: (id: string) => http.request('POST', `/webhooks/${id}/test`),
+      resend: (deliveryId: string) =>
+        http.request('POST', `/webhooks/deliveries/${deliveryId}/resend`),
     },
 
     /** Systems that call the public API (D-20). */

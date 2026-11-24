@@ -1,3 +1,4 @@
+import { WebhooksService } from './modules/integrations/webhooks.service.js';
 import { DunningService } from './modules/billing/dunning.service.js';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
@@ -154,6 +155,8 @@ async function main() {
     );
   const snapped = await app.get(UsageService).nightly();
   if (snapped) console.log(`Usage snapshot written for ${snapped} companies`);
+  const hooked = await app.get(WebhooksService).tick();
+  if (hooked) console.log(`Webhook deliveries tried: ${hooked}`);
   const dunned = await app.get(DunningService).tick();
   if (dunned) console.log(`Billing reminders and status changes: ${dunned}`);
   const checked = await app.get(DomainsService).tick();
